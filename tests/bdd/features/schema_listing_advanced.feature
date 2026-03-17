@@ -97,6 +97,34 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response body should contain "Active"
     And the response body should contain "Deleted"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft            |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | subject                        |
+      | target_id            | deleted-subj                   |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          | AVRO                           |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /subjects/deleted-subj         |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # -----------------------------------------------------------------------
   # Scenario 5: GET /schemas?offset=N&limit=M paginates results
@@ -173,6 +201,34 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     And the response body should contain "RawTest"
     And the response body should contain "bytes"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | raw-test-value                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/raw-test-value/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # -----------------------------------------------------------------------
   # Scenario 8: GET /subjects/{subject}/versions/{version}/schema returns raw
@@ -208,6 +264,34 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     And the response should be an array of length 1
     And the response body should contain "svpair-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | svpair-value                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/svpair-value/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # -----------------------------------------------------------------------
   # Scenario 10: GET /schemas/ids/{id}/subjects?deleted=true includes deleted
@@ -236,6 +320,34 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response array should contain "keep-subj"
     And the response array should contain "drop-subj"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft            |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | subject                        |
+      | target_id            | drop-subj                      |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          | AVRO                           |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /subjects/drop-subj            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # -----------------------------------------------------------------------
   # Scenario 11: GET /schemas/ids/{id}/versions with multiple subjects
@@ -263,6 +375,34 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response body should contain "multi-a"
     And the response body should contain "multi-b"
     And the response body should contain "multi-c"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | multi-c                                  |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/multi-c/versions               |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # -----------------------------------------------------------------------
   # Scenario 12: GET /schemas/ids/{id}/subjects with multiple subjects
@@ -290,3 +430,31 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response array should contain "shared-alpha"
     And the response array should contain "shared-beta"
     And the response array should contain "shared-gamma"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | shared-gamma                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/shared-gamma/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |

@@ -23,6 +23,34 @@ Feature: Advanced Schema Deletion
     When I list versions of subject "del-adv-vis"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | schema_delete_soft                   |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-vis                          |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-vis/versions       |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Soft-deleted version is visible with deleted=true query parameter
     Given the global compatibility level is "NONE"
@@ -39,6 +67,34 @@ Feature: Advanced Schema Deletion
     When I GET "/subjects/del-adv-vis-del/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | schema_delete_soft                   |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-vis-del                      |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-vis-del/versions   |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # SOFT-DELETE SUBJECT VISIBILITY WITH MULTIPLE SUBJECTS
@@ -66,6 +122,34 @@ Feature: Advanced Schema Deletion
     When I list subjects with deleted
     Then the response should be an array of length 3
     And the response array should contain "del-adv-multi-b"
+    And the audit log should contain an event:
+      | event_type          | subject_delete_soft                  |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-multi-b                      |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-multi-b            |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # PERMANENT DELETE REMOVES FROM DELETED LIST
@@ -88,6 +172,34 @@ Feature: Advanced Schema Deletion
     When I GET "/subjects/del-adv-perm-ver/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | schema_delete_permanent              |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-perm-ver                     |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-perm-ver/versions  |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Permanent delete subject removes it from deleted=true list too
     Given subject "del-adv-perm-sub" has schema:
@@ -100,6 +212,34 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     When I list subjects with deleted
     Then the response should be an array of length 0
+    And the audit log should contain an event:
+      | event_type          | subject_delete_permanent             |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-perm-sub                     |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-perm-sub           |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # RE-REGISTRATION AFTER DELETION
@@ -125,6 +265,62 @@ Feature: Advanced Schema Deletion
     When I get the latest version of subject "del-adv-reregister"
     Then the response status should be 200
     And the response field "version" should be 3
+    And the audit log should contain an event:
+      | event_type          | subject_delete_soft                  |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-reregister                   |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-reregister         |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
+    And the audit log should contain an event:
+      | event_type          | schema_register                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | target_type         | subject                               |
+      | target_id           | del-adv-reregister                    |
+      | schema_id           | *                                     |
+      | version             | *                                     |
+      | schema_type         | AVRO                                  |
+      | method              | POST                                  |
+      | path                | /subjects/del-adv-reregister/versions |
+      | status_code         | 200                                   |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | context             | .                                     |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Permanent delete then re-register starts from version 1
     Given the global compatibility level is "NONE"
@@ -148,6 +344,62 @@ Feature: Advanced Schema Deletion
     When I get the latest version of subject "del-adv-fresh"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type          | subject_delete_permanent             |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-fresh                        |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-fresh              |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
+    And the audit log should contain an event:
+      | event_type          | schema_register                      |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-fresh                        |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | POST                                 |
+      | path                | /subjects/del-adv-fresh/versions     |
+      | status_code         | 200                                  |
+      | before_hash         |                                      |
+      | after_hash          | sha256:*                             |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # DELETION WITH ACTIVE REFERENCES
@@ -217,6 +469,34 @@ Feature: Advanced Schema Deletion
     When I list versions of subject "del-adv-two-step-ver"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | schema_delete_permanent                    |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | del-adv-two-step-ver                       |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
+      | method              | DELETE                                     |
+      | path                | /subjects/del-adv-two-step-ver/versions    |
+      | status_code         | 200                                        |
+      | before_hash         | sha256:*                                   |
+      | after_hash          |                                            |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: Soft delete then permanent delete same subject works
     Given subject "del-adv-two-step-sub" has schema:
@@ -229,6 +509,34 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     When I list subjects with deleted
     Then the response should be an array of length 0
+    And the audit log should contain an event:
+      | event_type          | subject_delete_permanent             |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-two-step-sub                 |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-two-step-sub       |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # DELETE NON-EXISTENT RESOURCES
@@ -266,6 +574,34 @@ Feature: Advanced Schema Deletion
     When I get schema by ID {{schema_id}}
     Then the response status should be 200
     And the response should contain "ByID"
+    And the audit log should contain an event:
+      | event_type          | subject_delete_soft                  |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-id-lookup                    |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-id-lookup          |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Permanent delete of last subject-version for a schema ID removes it from ID lookup
     Given the global compatibility level is "NONE"
@@ -282,3 +618,31 @@ Feature: Advanced Schema Deletion
     # After permanent deletion of the only subject-version, the schema ID should no longer resolve
     When I get the subjects for schema ID {{gone_id}}
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type          | subject_delete_permanent             |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | del-adv-id-gone                      |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         | AVRO                                 |
+      | method              | DELETE                               |
+      | path                | /subjects/del-adv-id-gone            |
+      | status_code         | 200                                  |
+      | before_hash         | sha256:*                             |
+      | after_hash          |                                      |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |

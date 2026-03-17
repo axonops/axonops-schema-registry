@@ -58,13 +58,7 @@ public class CompatibilityModesTest {
      * Create a fresh SchemaRegistryClient to avoid cross-test cache pollution.
      */
     private static SchemaRegistryClient createFreshClient() {
-        return new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        return TestHelper.createClient(SCHEMA_REGISTRY_URL);
     }
 
     /**
@@ -74,6 +68,12 @@ public class CompatibilityModesTest {
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         config.put("auto.register.schemas", true);
+
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         KafkaAvroSerializer ser = new KafkaAvroSerializer(client);
         ser.configure(config, false);
@@ -87,6 +87,12 @@ public class CompatibilityModesTest {
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         config.put("auto.register.schemas", true);
+
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         KafkaAvroDeserializer deser = new KafkaAvroDeserializer(client);
         deser.configure(config, false);
@@ -144,11 +150,19 @@ public class CompatibilityModesTest {
 
         try {
             java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
-            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+            java.net.http.HttpRequest.Builder requestBuilder = java.net.http.HttpRequest.newBuilder()
                 .uri(java.net.URI.create(url))
                 .header("Content-Type", "application/vnd.schemaregistry.v1+json")
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body));
+
+            String authUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+            if (authUsername != null && !authUsername.isEmpty()) {
+                String credentials = authUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", "");
+                String encoded = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+                requestBuilder.header("Authorization", "Basic " + encoded);
+            }
+
+            java.net.http.HttpRequest request = requestBuilder.build();
 
             java.net.http.HttpResponse<String> response = httpClient.send(request,
                 java.net.http.HttpResponse.BodyHandlers.ofString());

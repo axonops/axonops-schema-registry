@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -33,6 +34,9 @@ type Server struct {
 	authorizer    *auth.Authorizer
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
+	auditLogger   *auth.AuditLogger
+	tlsConfig     *tls.Config      // pre-built TLS config (nil = no TLS)
+	tlsManager    *auth.TLSManager // for certificate reloading
 	version       string
 	commit        string
 }
@@ -64,18 +68,58 @@ func WithRateLimiter(rateLimiter *auth.RateLimiter) ServerOption {
 	}
 }
 
+// WithAuditLogger configures audit logging for the server.
+func WithAuditLogger(al *auth.AuditLogger) ServerOption {
+	return func(s *Server) {
+		s.auditLogger = al
+	}
+}
+
+// WithTLS configures pre-built TLS for the server.
+// The TLS config and manager are created in main.go so that startup
+// validation (min version, cipher suites) happens before the server starts.
+func WithTLS(tlsConfig *tls.Config, tm *auth.TLSManager) ServerOption {
+	return func(s *Server) {
+		s.tlsConfig = tlsConfig
+		s.tlsManager = tm
+	}
+}
+
+// WithMetrics provides a pre-created metrics instance.
+// When set, NewServer uses this instead of creating a new one.
+func WithMetrics(m *metrics.Metrics) ServerOption {
+	return func(s *Server) {
+		s.metrics = m
+	}
+}
+
 // NewServer creates a new HTTP server.
 func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, opts ...ServerOption) *Server {
 	s := &Server{
 		config:   cfg,
 		registry: reg,
 		logger:   logger,
-		metrics:  metrics.New(),
 	}
 
-	// Apply options
+	// Apply options (may set metrics via WithMetrics)
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Create metrics if not provided via WithMetrics
+	if s.metrics == nil {
+		s.metrics = metrics.New()
+	}
+
+	// Wire metrics to auth components so they can record Prometheus metrics.
+	if s.authenticator != nil {
+		s.authenticator.SetMetrics(s.metrics)
+	}
+	if s.authService != nil {
+		s.authService.SetMetrics(s.metrics)
+	}
+	if s.rateLimiter != nil {
+		s.rateLimiter.SetMetrics(s.metrics)
 	}
 
 	s.setupRouter()
@@ -99,6 +143,9 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(s.loggingMiddleware)
+	if s.auditLogger != nil {
+		r.Use(s.auditLogger.Middleware)
+	}
 	r.Use(s.metrics.Middleware)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
@@ -136,6 +183,7 @@ func (s *Server) setupRouter() {
 		Version:   s.version,
 		Commit:    s.commit,
 	})
+	h.SetMetrics(s.metrics)
 
 	// Public endpoints (no auth required) - health checks, metrics, and documentation
 	r.Get("/", h.HealthCheck)
@@ -328,6 +376,34 @@ func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
 	// Metadata (v1 API)
 	r.Get("/v1/metadata/id", h.GetClusterID)
 	r.Get("/v1/metadata/version", h.GetServerVersion)
+
+	// Analysis & Intelligence endpoints (mirror MCP tools)
+	r.Post("/schemas/validate", h.ValidateSchema)
+	r.Post("/schemas/normalize", h.NormalizeSchema)
+	r.Post("/schemas/search", h.SearchSchemas)
+	r.Post("/schemas/search/field", h.FindSchemasByField)
+	r.Post("/schemas/search/type", h.FindSchemasByType)
+	r.Post("/schemas/similar", h.FindSimilarSchemas)
+	r.Post("/schemas/quality", h.ScoreSchemaQuality)
+	r.Post("/schemas/complexity", h.GetSchemaComplexity)
+	r.Post("/subjects/validate", h.ValidateSubjectName)
+	r.Post("/subjects/match", h.MatchSubjects)
+	r.Get("/subjects/count", h.CountSubjects)
+	r.Get("/subjects/{subject}/history", h.GetSchemaHistory)
+	r.Get("/subjects/{subject}/versions/{version}/dependencies", h.GetDependencyGraph)
+	r.Get("/subjects/{subject}/versions/{version}/export", h.ExportSchema)
+	r.Post("/subjects/{subject}/diff", h.DiffSchemas)
+	r.Post("/subjects/{subject}/evolve", h.SuggestSchemaEvolution)
+	r.Post("/subjects/{subject}/migrate", h.PlanMigrationPath)
+	r.Get("/subjects/{subject}/export", h.ExportSubject)
+	r.Get("/subjects/{subject}/versions/count", h.CountVersions)
+	r.Post("/compatibility/check", h.CheckCompatibilityMulti)
+	r.Post("/compatibility/subjects/{subject}/suggest", h.SuggestCompatibleChange)
+	r.Post("/compatibility/subjects/{subject}/explain", h.ExplainCompatibilityFailure)
+	r.Post("/compatibility/compare", h.CompareSubjects)
+	r.Get("/statistics", h.GetRegistryStatistics)
+	r.Get("/statistics/fields/{field}", h.CheckFieldConsistency)
+	r.Get("/statistics/patterns", h.DetectSchemaPatterns)
 }
 
 // loggingMiddleware logs HTTP requests.
@@ -343,6 +419,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 				slog.Int("status", ww.Status()),
 				slog.Duration("duration", time.Since(start)),
 				slog.String("remote", r.RemoteAddr),
+				slog.String("request_id", middleware.GetReqID(r.Context())),
 			)
 		}()
 
@@ -360,13 +437,9 @@ func (s *Server) Start() error {
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
 	}
 
-	// Configure TLS if enabled
-	if s.config.Security.TLS.Enabled {
-		tlsConfig, err := auth.CreateServerTLSConfig(s.config.Security.TLS)
-		if err != nil {
-			return fmt.Errorf("failed to configure TLS: %w", err)
-		}
-		s.server.TLSConfig = tlsConfig
+	// Use pre-built TLS config if provided (validated in main.go)
+	if s.tlsConfig != nil {
+		s.server.TLSConfig = s.tlsConfig
 		s.logger.Info("starting server with TLS", slog.String("address", addr))
 		return s.server.ListenAndServeTLS("", "") // Certs loaded via GetCertificate
 	}
@@ -381,6 +454,15 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	return s.server.Shutdown(ctx)
+}
+
+// ReloadTLS reloads TLS certificates from disk.
+// Returns nil if TLS is not enabled or no TLSManager is configured.
+func (s *Server) ReloadTLS() error {
+	if s.tlsManager == nil {
+		return nil
+	}
+	return s.tlsManager.Reload()
 }
 
 // Router returns the HTTP router for testing.

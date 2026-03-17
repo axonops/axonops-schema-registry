@@ -100,6 +100,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I set the global mode to "READONLY"
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | mode_update |
+      | outcome             | success     |
+      | actor_id            |             |
+      | actor_type          | anonymous   |
+      | auth_method         |             |
+      | role                |             |
+      | target_type         | mode        |
+      | target_id           | _global     |
+      | schema_id           |             |
+      | version             |             |
+      | schema_type         |             |
+      | method              | PUT         |
+      | path                | /mode       |
+      | status_code         | 200         |
+      | before_hash         | *           |
+      | after_hash          | sha256:*    |
+      | context             | .           |
+      | transport_security  | tls         |
+      | reason              |             |
+      | error               |             |
+      | request_body        |             |
+      | metadata            |             |
+      | timestamp           | *           |
+      | duration_ms         | *           |
+      | request_id          | *           |
+      | source_ip           | *           |
+      | user_agent          | *           |
 
   # ==========================================================================
   # PER-SUBJECT IMPORT MODE ISOLATION
@@ -115,6 +143,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     And the response field "id" should be 70000
+    And the audit log should contain an event:
+      | event_type          | schema_register                     |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | target_type         | subject                             |
+      | target_id           | imp-comp-per-imp                    |
+      | schema_id           | *                                   |
+      | version             | *                                   |
+      | schema_type         | AVRO                                |
+      | method              | POST                                |
+      | path                | /subjects/imp-comp-per-imp/versions |
+      | status_code         | 200                                 |
+      | before_hash         |                                     |
+      | after_hash          | sha256:*                            |
+      | context             | .                                   |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
 
   Scenario: Per-subject IMPORT blocks normal registration on that subject
     Given the global mode is "READWRITE"
@@ -141,6 +197,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"type":"record","name":"Isolated","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 422
+    And the audit log should contain an event:
+      | event_type          | schema_register                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | target_type         | subject                               |
+      | target_id           | imp-comp-per-other                    |
+      | schema_id           | *                                     |
+      | version             | *                                     |
+      | schema_type         | AVRO                                  |
+      | method              | POST                                  |
+      | path                | /subjects/imp-comp-per-other/versions |
+      | status_code         | 200                                   |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | context             | .                                     |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Per-subject READWRITE overrides global IMPORT
     When I set the global mode to "IMPORT"
@@ -156,6 +240,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | schema_register                             |
+      | outcome             | success                                     |
+      | actor_id            |                                             |
+      | actor_type          | anonymous                                   |
+      | auth_method         |                                             |
+      | role                |                                             |
+      | target_type         | subject                                     |
+      | target_id           | imp-comp-per-rw-override                    |
+      | schema_id           | *                                           |
+      | version             | *                                           |
+      | schema_type         | AVRO                                        |
+      | method              | POST                                        |
+      | path                | /subjects/imp-comp-per-rw-override/versions |
+      | status_code         | 200                                         |
+      | before_hash         |                                             |
+      | after_hash          | sha256:*                                    |
+      | context             | .                                           |
+      | transport_security  | tls                                         |
+      | reason              |                                             |
+      | error               |                                             |
+      | request_body        |                                             |
+      | metadata            |                                             |
+      | timestamp           | *                                           |
+      | duration_ms         | *                                           |
+      | request_id          | *                                           |
+      | source_ip           | *                                           |
+      | user_agent          | *                                           |
 
   Scenario: Per-subject IMPORT overrides global READWRITE for explicit ID
     Given the global mode is "READWRITE"
@@ -172,6 +284,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"schema": "{\"type\":\"string\"}", "id": 70011}
       """
     Then the response status should be 422
+    And the audit log should contain an event:
+      | event_type          | schema_register                              |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | imp-comp-per-imp-override                    |
+      | schema_id           | *                                            |
+      | version             | *                                            |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/imp-comp-per-imp-override/versions |
+      | status_code         | 200                                          |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | context             | .                                            |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   # ==========================================================================
   # EXPLICIT VERSION HANDLING
@@ -189,6 +329,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "version" should be 1
     And the response field "id" should be 71000
+    And the audit log should contain an event:
+      | event_type          | schema_register                    |
+      | outcome             | success                            |
+      | actor_id            |                                    |
+      | actor_type          | anonymous                          |
+      | auth_method         |                                    |
+      | role                |                                    |
+      | target_type         | subject                            |
+      | target_id           | imp-comp-ver1                      |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
+      | method              | POST                               |
+      | path                | /subjects/imp-comp-ver1/versions   |
+      | status_code         | 200                                |
+      | before_hash         |                                    |
+      | after_hash          | sha256:*                           |
+      | context             | .                                  |
+      | transport_security  | tls                                |
+      | reason              |                                    |
+      | error               |                                    |
+      | request_body        |                                    |
+      | metadata            |                                    |
+      | timestamp           | *                                  |
+      | duration_ms         | *                                  |
+      | request_id          | *                                  |
+      | source_ip           | *                                  |
+      | user_agent          | *                                  |
 
   Scenario: Import with high version number
     When I set the global mode to "IMPORT"
@@ -201,6 +369,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 999 of subject "imp-comp-ver-high"
     Then the response status should be 200
     And the response field "version" should be 999
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-ver-high                      |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-ver-high/versions   |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Import reverse order — version 3 before version 1
     When I set the global mode to "IMPORT"
@@ -229,6 +425,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-ver-rev"
     Then the response status should be 200
     And the response field "id" should be 71023
+    And the audit log should contain an event:
+      | event_type          | schema_register                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | target_type         | subject                               |
+      | target_id           | imp-comp-ver-rev                      |
+      | schema_id           | *                                     |
+      | version             | *                                     |
+      | schema_type         | AVRO                                  |
+      | method              | POST                                  |
+      | path                | /subjects/imp-comp-ver-rev/versions   |
+      | status_code         | 200                                   |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | context             | .                                     |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Import with large version gaps
     When I set the global mode to "IMPORT"
@@ -254,6 +478,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 50 of subject "imp-comp-ver-gaps"
     Then the response status should be 200
     And the response field "id" should be 71031
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-ver-gaps                      |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-ver-gaps/versions   |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Import without version auto-assigns sequentially
     When I set the global mode to "IMPORT"
@@ -282,6 +534,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-ver-auto"
     Then the response status should be 200
     And the response field "id" should be 71042
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-ver-auto                      |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-ver-auto/versions   |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Import mixed explicit and auto-assigned versions
     When I set the global mode to "IMPORT"
@@ -304,6 +584,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 2 of subject "imp-comp-ver-mixed"
     Then the response status should be 200
     And the response field "id" should be 71051
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-ver-mixed                      |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-ver-mixed/versions   |
+      | status_code         | 200                                     |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Duplicate version import returns existing version
     When I set the global mode to "IMPORT"
@@ -319,6 +627,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | schema_register                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | target_type         | subject                               |
+      | target_id           | imp-comp-ver-dup                      |
+      | schema_id           | *                                     |
+      | version             | *                                     |
+      | schema_type         | AVRO                                  |
+      | method              | POST                                  |
+      | path                | /subjects/imp-comp-ver-dup/versions   |
+      | status_code         | 200                                   |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | context             | .                                     |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Same version number in different subjects succeeds
     When I set the global mode to "IMPORT"
@@ -339,6 +675,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-ver-sub2"
     Then the response status should be 200
     And the response field "id" should be 71071
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-ver-sub1                      |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-ver-sub1/versions   |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   # ==========================================================================
   # ID HANDLING AND SEQUENCING
@@ -353,6 +717,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 1
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | schema_register                   |
+      | outcome             | success                           |
+      | actor_id            |                                   |
+      | actor_type          | anonymous                         |
+      | auth_method         |                                   |
+      | role                |                                   |
+      | target_type         | subject                           |
+      | target_id           | imp-comp-id1                      |
+      | schema_id           | *                                 |
+      | version             | *                                 |
+      | schema_type         | AVRO                              |
+      | method              | POST                              |
+      | path                | /subjects/imp-comp-id1/versions   |
+      | status_code         | 200                               |
+      | before_hash         |                                   |
+      | after_hash          | sha256:*                          |
+      | context             | .                                 |
+      | transport_security  | tls                               |
+      | reason              |                                   |
+      | error               |                                   |
+      | request_body        |                                   |
+      | metadata            |                                   |
+      | timestamp           | *                                 |
+      | duration_ms         | *                                 |
+      | request_id          | *                                 |
+      | source_ip           | *                                 |
+      | user_agent          | *                                 |
 
   Scenario: Import with very large ID
     When I set the global mode to "IMPORT"
@@ -363,6 +755,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 100000
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-id-large                      |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-id-large/versions   |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Same schema content with same ID across subjects succeeds
     When I set the global mode to "IMPORT"
@@ -392,6 +812,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-idshare-c"
     Then the response status should be 200
     And the response field "id" should be 72000
+    And the audit log should contain an event:
+      | event_type          | schema_register                          |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | imp-comp-idshare-a                       |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
+      | method              | POST                                     |
+      | path                | /subjects/imp-comp-idshare-a/versions    |
+      | status_code         | 200                                      |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   Scenario: Different schema content with same ID is rejected
     When I set the global mode to "IMPORT"
@@ -407,6 +855,64 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
+    # Successful import of imp-comp-idconflict-a
+    And the audit log should contain an event:
+      | event_type          | schema_register                              |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | imp-comp-idconflict-a                        |
+      | schema_id           | *                                            |
+      | version             | *                                            |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/imp-comp-idconflict-a/versions     |
+      | status_code         | 200                                          |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | context             | .                                            |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
+    # Failed import of imp-comp-idconflict-b (ID conflict — different content, same ID)
+    And the audit log should contain an event:
+      | event_type          | schema_register                              |
+      | outcome             | failure                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | imp-comp-idconflict-b                        |
+      | schema_id           | *                                            |
+      | version             | *                                            |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/imp-comp-idconflict-b/versions     |
+      | status_code         | 422                                          |
+      | before_hash         |                                              |
+      | after_hash          |                                              |
+      | context             | .                                            |
+      | transport_security  | tls                                          |
+      | reason              | invalid_schema                               |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   Scenario: Auto-assigned IDs continue above highest imported ID
     When I set the global mode to "IMPORT"
@@ -424,6 +930,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And I store the response field "id" as "auto1_id"
     And the stored "auto1_id" should be greater than 73000
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-seq-base                       |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-seq-base/versions    |
+      | status_code         | 200                                     |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Multiple imports then normal registration — IDs continue from max
     When I set the global mode to "IMPORT"
@@ -451,6 +985,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And I store the response field "id" as "after_id"
     And the stored "after_id" should be greater than 74500
+    And the audit log should contain an event:
+      | event_type          | schema_register                           |
+      | outcome             | success                                   |
+      | actor_id            |                                           |
+      | actor_type          | anonymous                                 |
+      | auth_method         |                                           |
+      | role                |                                           |
+      | target_type         | subject                                   |
+      | target_id           | imp-comp-seq-multi1                       |
+      | schema_id           | *                                         |
+      | version             | *                                         |
+      | schema_type         | AVRO                                      |
+      | method              | POST                                      |
+      | path                | /subjects/imp-comp-seq-multi1/versions    |
+      | status_code         | 200                                       |
+      | before_hash         |                                           |
+      | after_hash          | sha256:*                                  |
+      | context             | .                                         |
+      | transport_security  | tls                                       |
+      | reason              |                                           |
+      | error               |                                           |
+      | request_body        |                                           |
+      | metadata            |                                           |
+      | timestamp           | *                                         |
+      | duration_ms         | *                                         |
+      | request_id          | *                                         |
+      | source_ip           | *                                         |
+      | user_agent          | *                                         |
 
   # ==========================================================================
   # IDEMPOTENCY
@@ -476,6 +1038,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-idemp"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | schema_register                      |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | imp-comp-idemp                       |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | POST                                 |
+      | path                | /subjects/imp-comp-idemp/versions    |
+      | status_code         | 200                                  |
+      | before_hash         |                                      |
+      | after_hash          | sha256:*                             |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # COMPATIBILITY SKIPPING IN IMPORT MODE
@@ -497,6 +1087,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type          | schema_register                            |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | imp-comp-compat-skip                       |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
+      | method              | POST                                       |
+      | path                | /subjects/imp-comp-compat-skip/versions    |
+      | status_code         | 200                                        |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: Compatibility re-enforced after exiting import mode
     Given the global compatibility level is "BACKWARD"
@@ -513,6 +1131,64 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"type":"record","name":"CE","fields":[{"name":"a","type":"string"},{"name":"b","type":"string"}]}
       """
     Then the response status should be 409
+    # Successful import in IMPORT mode
+    And the audit log should contain an event:
+      | event_type          | schema_register                          |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | imp-comp-compat-re                       |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
+      | method              | POST                                     |
+      | path                | /subjects/imp-comp-compat-re/versions    |
+      | status_code         | 200                                      |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
+    # Failed registration in READWRITE (backward incompatible — 409)
+    And the audit log should contain an event:
+      | event_type          | schema_register                          |
+      | outcome             | failure                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | imp-comp-compat-re                       |
+      | schema_id           |                                          |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
+      | method              | POST                                     |
+      | path                | /subjects/imp-comp-compat-re/versions    |
+      | status_code         | 409                                      |
+      | before_hash         |                                          |
+      | after_hash          |                                          |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              | incompatible                             |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   # ==========================================================================
   # SCHEMA TYPE SUPPORT
@@ -531,6 +1207,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "AVRO"
     And the response field "version" should be 1
     And the response field "id" should be 77000
+    And the audit log should contain an event:
+      | event_type          | schema_register                     |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | target_type         | subject                             |
+      | target_id           | imp-comp-avro                       |
+      | schema_id           | *                                   |
+      | version             | *                                   |
+      | schema_type         | AVRO                                |
+      | method              | POST                                |
+      | path                | /subjects/imp-comp-avro/versions    |
+      | status_code         | 200                                 |
+      | before_hash         |                                     |
+      | after_hash          | sha256:*                            |
+      | context             | .                                   |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
 
   Scenario: Import JSON Schema with explicit version
     When I set the global mode to "IMPORT"
@@ -545,6 +1249,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "JSON"
     And the response field "version" should be 3
     And the response field "id" should be 77010
+    And the audit log should contain an event:
+      | event_type          | schema_register                     |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | target_type         | subject                             |
+      | target_id           | imp-comp-json                       |
+      | schema_id           | *                                   |
+      | version             | *                                   |
+      | schema_type         | JSON                                |
+      | method              | POST                                |
+      | path                | /subjects/imp-comp-json/versions    |
+      | status_code         | 200                                 |
+      | before_hash         |                                     |
+      | after_hash          | sha256:*                            |
+      | context             | .                                   |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
 
   Scenario: Import Protobuf schema with explicit version
     When I set the global mode to "IMPORT"
@@ -559,6 +1291,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "PROTOBUF"
     And the response field "version" should be 2
     And the response field "id" should be 77020
+    And the audit log should contain an event:
+      | event_type          | schema_register                      |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | imp-comp-proto                       |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | PROTOBUF                             |
+      | method              | POST                                 |
+      | path                | /subjects/imp-comp-proto/versions    |
+      | status_code         | 200                                  |
+      | before_hash         |                                      |
+      | after_hash          | sha256:*                             |
+      | context             | .                                    |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Import mixed schema types under different subjects
     When I set the global mode to "IMPORT"
@@ -587,6 +1347,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 77032
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-mix-avro                       |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-mix-avro/versions    |
+      | status_code         | 200                                     |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   # ==========================================================================
   # REAL-WORLD MIGRATION WORKFLOWS
@@ -640,6 +1428,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-migrate-users"
     Then the response status should be 200
     And the response should contain "email"
+    And the audit log should contain an event:
+      | event_type          | schema_register                              |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | imp-comp-migrate-users                       |
+      | schema_id           | *                                            |
+      | version             | *                                            |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/imp-comp-migrate-users/versions    |
+      | status_code         | 200                                          |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | context             | .                                            |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   Scenario: Import into existing subject (using force to switch to IMPORT mode)
     Given the global mode is "READWRITE"
@@ -663,6 +1479,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-existing"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-existing                       |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-existing/versions    |
+      | status_code         | 200                                     |
+      | before_hash         | sha256:*                                |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Import preserves subject listing after import
     When I set the global mode to "IMPORT"
@@ -687,6 +1531,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response should contain "imp-comp-list-a"
     And the response should contain "imp-comp-list-b"
     And the response should contain "imp-comp-list-c"
+    And the audit log should contain an event:
+      | event_type          | schema_register                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | target_type         | subject                               |
+      | target_id           | imp-comp-list-a                       |
+      | schema_id           | *                                     |
+      | version             | *                                     |
+      | schema_type         | AVRO                                  |
+      | method              | POST                                  |
+      | path                | /subjects/imp-comp-list-a/versions    |
+      | status_code         | 200                                   |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | context             | .                                     |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   # ==========================================================================
   # RETRIEVAL AFTER IMPORT
@@ -703,6 +1575,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 80000
     Then the response status should be 200
     And the response should contain "RetById"
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-ret-id                        |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-ret-id/versions     |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Schema subjects endpoint works for imported schemas
     When I set the global mode to "IMPORT"
@@ -720,6 +1620,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get the subjects for schema ID 80010
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | schema_register                          |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | imp-comp-ret-subj1                       |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
+      | method              | POST                                     |
+      | path                | /subjects/imp-comp-ret-subj1/versions    |
+      | status_code         | 200                                      |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   Scenario: Latest version resolves correctly after out-of-order import
     When I set the global mode to "IMPORT"
@@ -745,6 +1673,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "version" should be 5
     And the response field "id" should be 80022
+    And the audit log should contain an event:
+      | event_type          | schema_register                           |
+      | outcome             | success                                   |
+      | actor_id            |                                           |
+      | actor_type          | anonymous                                 |
+      | auth_method         |                                           |
+      | role                |                                           |
+      | target_type         | subject                                   |
+      | target_id           | imp-comp-ret-latest                       |
+      | schema_id           | *                                         |
+      | version             | *                                         |
+      | schema_type         | AVRO                                      |
+      | method              | POST                                      |
+      | path                | /subjects/imp-comp-ret-latest/versions    |
+      | status_code         | 200                                       |
+      | before_hash         |                                           |
+      | after_hash          | sha256:*                                  |
+      | context             | .                                         |
+      | transport_security  | tls                                       |
+      | reason              |                                           |
+      | error               |                                           |
+      | request_body        |                                           |
+      | metadata            |                                           |
+      | timestamp           | *                                         |
+      | duration_ms         | *                                         |
+      | request_id          | *                                         |
+      | source_ip           | *                                         |
+      | user_agent          | *                                         |
 
   Scenario: Lookup schema after import finds correct version
     When I set the global mode to "IMPORT"
@@ -761,6 +1717,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 80030
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type          | schema_register                            |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | imp-comp-ret-lookup                        |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
+      | method              | POST                                       |
+      | path                | /subjects/imp-comp-ret-lookup/versions     |
+      | status_code         | 200                                        |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   # ==========================================================================
   # DELETION AFTER IMPORT
@@ -789,6 +1773,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response should contain "imp-comp-del-soft"
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-del-soft                       |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-del-soft/versions    |
+      | status_code         | 200                                     |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Delete specific imported version
     When I set the global mode to "IMPORT"
@@ -815,6 +1827,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-del-ver"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-del-ver                       |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-del-ver/versions    |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   # ==========================================================================
   # IMPORT AFTER SOFT-DELETE
@@ -839,6 +1879,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 2 of subject "imp-comp-reimport"
     Then the response status should be 200
     And the response field "id" should be 82000
+    And the audit log should contain an event:
+      | event_type          | schema_register                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | target_type         | subject                                 |
+      | target_id           | imp-comp-reimport                       |
+      | schema_id           | *                                       |
+      | version             | *                                       |
+      | schema_type         | AVRO                                    |
+      | method              | POST                                    |
+      | path                | /subjects/imp-comp-reimport/versions    |
+      | status_code         | 200                                     |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | context             | .                                       |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   # ==========================================================================
   # REFERENCES DURING IMPORT
@@ -862,6 +1930,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 83001
     Then the response status should be 200
     And the response should contain "Person"
+    And the audit log should contain an event:
+      | event_type          | schema_register                            |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | imp-comp-ref-person                        |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
+      | method              | POST                                       |
+      | path                | /subjects/imp-comp-ref-person/versions     |
+      | status_code         | 200                                        |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: Import referenced schema out of order — reference first, then base
     When I set the global mode to "IMPORT"
@@ -881,6 +1977,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-ref-ooo-child"
     Then the response status should be 200
     And the response should contain "Child"
+    And the audit log should contain an event:
+      | event_type          | schema_register                               |
+      | outcome             | success                                       |
+      | actor_id            |                                               |
+      | actor_type          | anonymous                                     |
+      | auth_method         |                                               |
+      | role                |                                               |
+      | target_type         | subject                                       |
+      | target_id           | imp-comp-ref-ooo-child                        |
+      | schema_id           | *                                             |
+      | version             | *                                             |
+      | schema_type         | AVRO                                          |
+      | method              | POST                                          |
+      | path                | /subjects/imp-comp-ref-ooo-child/versions     |
+      | status_code         | 200                                           |
+      | before_hash         |                                               |
+      | after_hash          | sha256:*                                      |
+      | context             | .                                             |
+      | transport_security  | tls                                           |
+      | reason              |                                               |
+      | error               |                                               |
+      | request_body        |                                               |
+      | metadata            |                                               |
+      | timestamp           | *                                             |
+      | duration_ms         | *                                             |
+      | request_id          | *                                             |
+      | source_ip           | *                                             |
+      | user_agent          | *                                             |
 
   # ==========================================================================
   # MULTI-VERSION EVOLUTION DURING IMPORT
@@ -929,6 +2053,34 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get the latest version of subject "imp-comp-evolve"
     Then the response status should be 200
     And the response field "version" should be 5
+    And the audit log should contain an event:
+      | event_type          | schema_register                        |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | target_type         | subject                                |
+      | target_id           | imp-comp-evolve                        |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
+      | method              | POST                                   |
+      | path                | /subjects/imp-comp-evolve/versions     |
+      | status_code         | 200                                    |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | context             | .                                      |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Import then continue normal evolution — version continuity
     When I set the global mode to "IMPORT"
@@ -955,3 +2107,31 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-cont"
     Then the response status should be 200
     And the response body should contain "c"
+    And the audit log should contain an event:
+      | event_type          | schema_register                     |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | target_type         | subject                             |
+      | target_id           | imp-comp-cont                       |
+      | schema_id           | *                                   |
+      | version             | *                                   |
+      | schema_type         | AVRO                                |
+      | method              | POST                                |
+      | path                | /subjects/imp-comp-cont/versions    |
+      | status_code         | 200                                 |
+      | before_hash         |                                     |
+      | after_hash          | sha256:*                            |
+      | context             | .                                   |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |

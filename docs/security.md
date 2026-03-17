@@ -33,7 +33,7 @@
 
 Security in AxonOps Schema Registry spans authentication, authorization, transport encryption, rate limiting, and audit logging. All security features are optional and can be enabled independently. When no security configuration is present, the registry operates in open mode with all endpoints accessible without credentials.
 
-For detailed coverage of authentication methods (Basic Auth, API keys, LDAP, OIDC, JWT, mTLS), user management, and the admin CLI, see the [Authentication](authentication.md) guide. This document focuses on transport security, access control policies, rate limiting, audit logging, and operational hardening.
+For detailed coverage of authentication methods (Basic Auth, API keys, LDAP, OIDC, JWT), user management, and the admin CLI, see the [Authentication](authentication.md) guide. mTLS is transport-level security (not an auth method) and is documented in [Configuration](configuration.md#tls). This document focuses on transport security, access control policies, rate limiting, audit logging, and operational hardening.
 
 ## Transport Layer Security (TLS)
 
@@ -129,13 +129,13 @@ security:
 | `default_role` | Role assigned when an authentication method does not provide one | `""` |
 | `super_admins` | Usernames with full access to all operations including user management | `[]` |
 
-When RBAC is disabled, all authenticated users have unrestricted access. When enabled, users listed in `super_admins` bypass all permission checks. The `default_role` is applied to users authenticated via methods that do not inherently assign a role (e.g., mTLS, config-based basic auth).
+When RBAC is disabled, all authenticated users have unrestricted access. When enabled, users listed in `super_admins` bypass all permission checks. The `default_role` is applied to users authenticated via methods that do not inherently assign a role (e.g., config-based basic auth).
 
 ## Credential Storage
 
 ### Passwords
 
-User passwords are stored as bcrypt hashes with the default cost factor (10). Plaintext passwords are never written to disk or database. The `golang.org/x/crypto/bcrypt` package is used for hashing, and the cost factor is the `bcrypt.DefaultCost` constant (currently 10). Bcrypt is intentionally slow, which limits brute-force attack throughput.
+User passwords are stored as bcrypt hashes with the default cost factor (10). Plaintext passwords are NEVER written to disk or database. The `golang.org/x/crypto/bcrypt` package is used for hashing, and the cost factor is the `bcrypt.DefaultCost` constant (currently 10). Bcrypt is intentionally slow, which limits brute-force attack throughput.
 
 ### API Keys
 
@@ -151,13 +151,13 @@ security:
 Key security properties:
 
 - **Hashed at rest** -- keys are never stored in plaintext
-- **Shown once** -- the raw key is returned only at creation time and cannot be retrieved afterward
+- **Shown once** -- the raw key is returned only at creation time and CANNOT be retrieved afterward
 - **Pepper protection** -- when `secret` is configured, HMAC-SHA256 is used instead of plain SHA-256
 - **Cluster consistency** -- if `secret` is configured, all registry instances must use the same value
 - **Expiration enforced** -- key expiration is checked on every request
 - **Key prefixes** -- configurable prefix (e.g., `sr_live_`) helps identify keys in logs and configuration
 
-The `secret` value should be at least 32 bytes of cryptographically random data. Load it from an environment variable or secrets manager rather than hardcoding it in the configuration file.
+The `secret` value SHOULD be at least 32 bytes of cryptographically random data. Load it from an environment variable or secrets manager rather than hardcoding it in the configuration file.
 
 ### External Credential Storage with HashiCorp Vault
 
@@ -230,73 +230,50 @@ When using per-client rate limiting, the registry provides a `CleanupStaleClient
 
 ## Audit Logging
 
-The audit logger records security-relevant events to a structured JSON log, either to a file or to standard output. Events are recorded after the request is processed, capturing the outcome (status code, duration).
+The audit logger records security-relevant events to a structured JSON log. Each event captures **who** performed an action (actor identity, type, role, and authentication method), **what** was affected (target type and identifier), and **whether** the action succeeded or failed (outcome and reason codes). Events cover both the REST API and the MCP server.
 
-### Configuration
+For the complete audit logging reference — including the full event schema, all field descriptions, event types, actor types, authentication methods, reason codes, change integrity hashes, and example payloads — see the **[Audit Logging Guide](auditing.md)**.
+
+### Quick Configuration
 
 ```yaml
 security:
   audit:
     enabled: true
     log_file: /var/log/axonops-schema-registry/audit.log
-    events:
-      - schema_register
-      - schema_delete
-      - config_change
-      - auth_failure
-      - auth_forbidden
-      - subject_delete
-    include_body: false
+    events: []          # empty = all security-relevant events (recommended)
+    include_body: false  # truncated request body in audit entries
 ```
 
-| Field | Description | Default |
-|-------|-------------|---------|
-| `enabled` | Enable audit logging | `false` |
-| `log_file` | Path to the audit log file (stdout if empty) | `""` |
-| `events` | List of event types to record (all security-relevant events if empty) | `[]` |
-| `include_body` | Include the request body in audit entries (truncated to 1000 characters) | `false` |
-
-### Event Types
-
-| Event | Trigger |
-|-------|---------|
-| `schema_register` | `POST /subjects/{subject}/versions` |
-| `schema_delete` | `DELETE /subjects/{subject}/versions/{version}` |
-| `schema_get` | `GET /subjects/{subject}/versions/*` or `GET /schemas/ids/*` |
-| `schema_lookup` | `POST /subjects/{subject}` |
-| `config_get` | `GET /config` or `GET /config/{subject}` |
-| `config_update` | `PUT /config` or `PUT /config/{subject}` |
-| `config_delete` | `DELETE /config` or `DELETE /config/{subject}` |
-| `mode_get` | `GET /mode` or `GET /mode/{subject}` |
-| `mode_update` | `PUT /mode` or `PUT /mode/{subject}` |
-| `auth_success` | Successful authentication |
-| `auth_failure` | HTTP 401 response (authentication failed) |
-| `auth_forbidden` | HTTP 403 response (authorization failed) |
-| `subject_delete` | `DELETE /subjects/{subject}` |
-| `subject_list` | `GET /subjects` |
-
-When the `events` list is empty, the following events are logged by default: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, and `subject_delete`.
-
-### Log Format
-
-Each audit entry is a JSON object written to a single line:
+### Example Event
 
 ```json
 {
-  "timestamp": "2026-02-16T10:30:00Z",
+  "timestamp": "2026-03-11T14:30:00Z",
+  "duration_ms": 42,
   "event_type": "schema_register",
-  "user": "jane",
+  "outcome": "success",
+  "actor_id": "jane",
+  "actor_type": "user",
   "role": "developer",
-  "client_ip": "192.168.1.50",
+  "auth_method": "basic",
+  "target_type": "subject",
+  "target_id": "payments-value",
+  "schema_id": 42,
+  "version": 3,
+  "schema_type": "AVRO",
+  "before_hash": "sha256:8b7f...",
+  "after_hash": "sha256:2d91...",
+  "source_ip": "172.18.0.1",
+  "user_agent": "curl/8.1",
   "method": "POST",
   "path": "/subjects/payments-value/versions",
   "status_code": 200,
-  "duration_ms": 42,
-  "subject": "payments-value"
+  "request_id": "localhost/abc-123-def"
 }
 ```
 
-Fields include: `timestamp`, `event_type`, `user`, `role`, `client_ip`, `method`, `path`, `status_code`, `duration_ms`, `subject`, `version`, `schema_id`, `error`, and optionally `request_body` and `metadata`.
+See the [Audit Logging Guide](auditing.md) for the complete field reference and more examples.
 
 ## Unauthenticated Endpoints
 
@@ -316,10 +293,22 @@ When `docs_enabled: true` in the server configuration:
 
 These endpoints are registered outside the authentication middleware chain and are also exempt from rate limiting.
 
+## MCP Security
+
+The MCP server has its own security controls, independent from the REST API. For full details, see the [MCP Guide](mcp.md).
+
+- **Bearer token authentication**: Set `mcp.auth_token` to require `Authorization: Bearer <token>` on all MCP requests
+- **Permission scopes**: 14 scopes with 5 named presets (`readonly`, `developer`, `operator`, `admin`, `full`) control which tools are visible
+- **Read-only mode**: `mcp.read_only: true` hides all write/delete tools
+- **Two-phase confirmations**: `mcp.require_confirmations: true` requires dry-run preview before destructive operations
+- **Origin validation**: `mcp.allowed_origins` validates the `Origin` header per the MCP specification
+- **Tool policy**: Fine-grained allow_list/deny_list for individual tools
+- **Localhost binding**: The MCP server binds to `127.0.0.1` by default, not exposed to the network
+
 ## Security Hardening Checklist
 
 1. **Enable TLS** with a minimum version of TLS 1.2 (`min_version: "TLS1.2"`), or terminate TLS at a load balancer and restrict the registry to private network traffic.
-2. **Enable authentication** with at least one method (`basic`, `api_key`, `jwt`, `oidc`, or `mtls`).
+2. **Enable authentication** with at least one method (`basic`, `api_key`, `jwt`, or `oidc`).
 3. **Enable RBAC** with a restrictive `default_role` (e.g., `readonly`) and explicitly assign higher-privilege roles only where needed.
 4. **Use API keys with expiration** for programmatic access. Rotate keys regularly via the admin API or CLI.
 5. **Configure the API key HMAC secret** (`api_key.secret`) on all registry instances and store it in an environment variable or secrets manager.
@@ -337,3 +326,4 @@ These endpoints are registered outside the authentication middleware chain and a
 - [Authentication](authentication.md) -- authentication methods, user management, API key lifecycle, admin CLI
 - [Configuration](configuration.md) -- full configuration reference including all security options
 - [Deployment](deployment.md) -- production deployment guidance
+- [MCP Server](mcp.md) -- MCP server security, permission scopes, tool policies

@@ -1,0 +1,48 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  docs_enabled: true
+  metrics_refresh_interval: 5
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
+security:
+  audit:
+    enabled: true
+    log_file: /tmp/audit.log
+  auth:
+    enabled: true
+    methods:
+      - basic
+      - api_key
+    bootstrap:
+      enabled: true
+      username: admin
+      password: admin-password
+    basic:
+      htpasswd_file: /etc/schema-registry/htpasswd
+    api_key:
+      header: X-API-Key
+      storage_type: memory
+      cache_refresh_seconds: 5
+      keys:
+        - name: readonly-key
+          # Hashes injected via env vars to avoid os.ExpandEnv mangling $ in bcrypt.
+          key_hash: "${APIKEY_HASH_READONLY}"
+          role: readonly
+        - name: admin-key
+          key_hash: "${APIKEY_HASH_ADMIN}"
+          role: admin
+    rbac:
+      enabled: true
+      default_role: readonly
+  rate_limiting:
+    enabled: true
+    requests_per_second: 2
+    burst_size: 3
+  metrics:
+    per_principal_metrics: true

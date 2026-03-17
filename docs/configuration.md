@@ -27,6 +27,8 @@ This document provides a complete reference for all configuration options availa
   - [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
   - [Rate Limiting](#rate-limiting)
   - [Audit Logging](#audit-logging)
+  - [Per-Principal Metrics](#per-principal-metrics)
+- [MCP Server](#mcp-server)
 - [Environment Variables](#environment-variables)
 - [Complete Configuration Example](#complete-configuration-example)
 
@@ -80,6 +82,9 @@ HTTP server settings.
 | `server.read_timeout` | int | `30` | Maximum duration (seconds) for reading the entire request, including the body. |
 | `server.write_timeout` | int | `30` | Maximum duration (seconds) before timing out writes of the response. |
 | `server.docs_enabled` | bool | `false` | When `true`, serves Swagger UI at `/docs` and the OpenAPI specification at `/openapi.yaml`. |
+| `server.shutdown_timeout` | int | `30` | Maximum duration (seconds) to wait for in-flight requests during graceful shutdown. |
+| `server.cluster_id` | string | `""` | Optional cluster identifier, exposed via MCP server info. |
+| `server.max_request_body_size` | int64 | `0` | Maximum request body size in bytes. `0` uses the default of 10 MB. |
 
 ```yaml
 server:
@@ -87,6 +92,7 @@ server:
   port: 8081
   read_timeout: 30
   write_timeout: 30
+  shutdown_timeout: 30
   docs_enabled: false
 ```
 
@@ -296,15 +302,21 @@ The `security` section contains TLS, authentication, rate limiting, and audit co
 
 ### TLS
 
+TLS provides transport-level security for the HTTP server. The default minimum version is **TLS 1.3**. TLS 1.2 is accepted when explicitly configured. TLS versions below 1.2 are **NOT supported** — the server MUST NOT start if a version below 1.2 is configured.
+
+> **Security:** When TLS is not enabled, the server logs a warning and emits a `security_warning` audit event with reason `server_tls_disabled`.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.tls.enabled` | bool | `false` | Enable TLS on the HTTP server. |
 | `security.tls.cert_file` | string | `""` | Path to the server TLS certificate. |
 | `security.tls.key_file` | string | `""` | Path to the server TLS private key. |
 | `security.tls.ca_file` | string | `""` | Path to a CA certificate for verifying client certificates (mTLS). |
-| `security.tls.min_version` | string | `""` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. |
+| `security.tls.min_version` | string | `"TLS1.3"` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. Versions below 1.2 cause a fatal exit. |
 | `security.tls.client_auth` | string | `"none"` | Client certificate policy. Values: `none`, `request`, `require`, `verify`. |
-| `security.tls.auto_reload` | bool | `false` | Automatically reload certificates when they change on disk, without requiring a restart. |
+| `security.tls.cipher_suites` | list of strings | `[]` | Explicit cipher suite names for TLS 1.2 connections. When empty, uses Go's secure defaults (`tls.CipherSuites()`). TLS 1.3 cipher suites are managed by the Go runtime and cannot be configured. |
+| `security.tls.allow_insecure_ciphers` | bool | `false` | When `true`, allows cipher suites from `tls.InsecureCipherSuites()`. When `false` (default), insecure ciphers cause a fatal exit. If enabled with insecure ciphers present, the server logs an error and emits a `security_warning` audit event. |
+| `security.tls.auto_reload` | bool | `false` | When `true`, sending `SIGHUP` to the process reloads TLS certificates from disk without restarting. New connections use the updated certificates; existing connections are unaffected. |
 
 ```yaml
 security:
@@ -312,9 +324,42 @@ security:
     enabled: true
     cert_file: /etc/ssl/certs/registry.pem
     key_file: /etc/ssl/private/registry-key.pem
-    min_version: "TLS1.2"
+    min_version: "TLS1.3"
     auto_reload: true
 ```
+
+#### mTLS (Mutual TLS)
+
+mTLS is **transport-level security only** — it verifies that connecting clients present a valid certificate signed by a trusted CA. It is NOT an authentication method. To combine mTLS with user identity and RBAC, layer it with an authentication method such as `basic`, `jwt`, or `oidc`.
+
+```yaml
+security:
+  tls:
+    enabled: true
+    cert_file: /etc/ssl/certs/registry.pem
+    key_file: /etc/ssl/private/registry-key.pem
+    ca_file: /etc/ssl/certs/ca.pem
+    client_auth: verify
+  auth:
+    enabled: true
+    methods:
+      - basic
+    rbac:
+      enabled: true
+```
+
+#### TLS Environment Variable Overrides
+
+| Environment Variable | Config Key | Type |
+|-----|------|------|
+| `SCHEMA_REGISTRY_TLS_ENABLED` | `security.tls.enabled` | bool |
+| `SCHEMA_REGISTRY_TLS_CERT_FILE` | `security.tls.cert_file` | string |
+| `SCHEMA_REGISTRY_TLS_KEY_FILE` | `security.tls.key_file` | string |
+| `SCHEMA_REGISTRY_TLS_CA_FILE` | `security.tls.ca_file` | string |
+| `SCHEMA_REGISTRY_TLS_MIN_VERSION` | `security.tls.min_version` | string |
+| `SCHEMA_REGISTRY_TLS_CLIENT_AUTH` | `security.tls.client_auth` | string |
+| `SCHEMA_REGISTRY_TLS_CIPHER_SUITES` | `security.tls.cipher_suites` | comma-separated |
+| `SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS` | `security.tls.allow_insecure_ciphers` | bool |
 
 ### Authentication
 
@@ -323,7 +368,7 @@ Top-level authentication settings. See [Authentication](authentication.md) for a
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.auth.enabled` | bool | `false` | Enable authentication middleware. When `false`, all requests are unauthenticated. |
-| `security.auth.methods` | list of strings | `[]` | Authentication methods to try, in order. Values: `basic`, `api_key`, `jwt`, `oidc`, `mtls`. |
+| `security.auth.methods` | list of strings | `[]` | Authentication methods to try, in order. Values: `basic`, `api_key`, `jwt`, `oidc`. |
 
 ```yaml
 security:
@@ -336,7 +381,7 @@ security:
 
 ### Bootstrap Admin User
 
-Creates an initial admin user on startup when the users table is empty. Designed for first-run provisioning. The password should always be set via the `SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD` environment variable rather than in the configuration file.
+Creates an initial admin user on startup when the users table is empty. Designed for first-run provisioning. The password SHOULD always be set via the `SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD` environment variable rather than in the configuration file.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -361,7 +406,7 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.basic.realm` | string | `""` | HTTP Basic Auth realm displayed to clients. |
 | `security.auth.basic.users` | map (string to string) | `{}` | Static username-to-bcrypt-hash map. For config-based auth only; prefer database-managed users. |
-| `security.auth.basic.htpasswd_file` | string | `""` | Path to an Apache-style htpasswd file. |
+| `security.auth.basic.htpasswd_file` | string | `""` | Path to an Apache-style htpasswd file. Only bcrypt hashes (`$2y$`, `$2a$`, `$2b$`) are supported. Loaded once at startup. Users from this file receive the `rbac.default_role`. |
 
 ```yaml
 security:
@@ -376,10 +421,11 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.api_key.header` | string | `"X-API-Key"` | HTTP header used to transmit the API key. |
 | `security.auth.api_key.query_param` | string | `"api_key"` | Query parameter name accepted as an alternative to the header. |
-| `security.auth.api_key.storage_type` | string | `""` | Where API keys are stored. Values: `memory`, `database`. |
-| `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. Use at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
+| `security.auth.api_key.storage_type` | string | `"database"` | API key storage backend. `"database"` (default) stores keys in the database with full CRUD via admin API. `"memory"` loads keys from the `keys` list in config — useful for simple single-server deployments. |
+| `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. SHOULD be at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
 | `security.auth.api_key.key_prefix` | string | `"sr_"` | Prefix prepended to generated API keys for identification (e.g., `sr_live_abc123`). |
 | `security.auth.api_key.cache_refresh_seconds` | int | `60` | How often (seconds) the in-memory API key cache is refreshed from the database. Ensures cluster-wide consistency. Set to `0` to disable caching. |
+| `security.auth.api_key.keys` | list | `[]` | Config-defined API keys (used when `storage_type` is `"memory"`). Each entry has `name`, `key_hash` (bcrypt), and `role`. |
 
 ```yaml
 security:
@@ -391,6 +437,10 @@ security:
       secret: ${API_KEY_SECRET}
       key_prefix: "sr_"
       cache_refresh_seconds: 60
+      # keys:                   # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."
+      #     role: developer
 ```
 
 ### JWT Authentication
@@ -405,6 +455,9 @@ For integrating with external identity providers that issue JWTs.
 | `security.auth.jwt.public_key_file` | string | `""` | Path to a PEM-encoded public key file (alternative to JWKS). |
 | `security.auth.jwt.algorithm` | string | `""` | Signing algorithm. Values: `RS256`, `ES256`. |
 | `security.auth.jwt.claims_mapping` | map (string to string) | `{}` | Maps JWT claims to internal fields (e.g., `username: sub`, `role: role`). |
+| `security.auth.jwt.default_role` | string | `"readonly"` | Fallback role assigned when no JWT claim matches a role mapping. |
+| `security.auth.jwt.jwks_cache_ttl` | int | `300` | Time in seconds to cache JWKS keys before re-fetching. |
+| `security.auth.jwt.http_timeout` | int | `10` | HTTP client timeout in seconds for JWKS endpoint requests. |
 
 ```yaml
 security:
@@ -417,6 +470,9 @@ security:
       claims_mapping:
         username: sub
         role: role
+      default_role: readonly
+      jwks_cache_ttl: 300
+      http_timeout: 10
 ```
 
 ### LDAP Authentication
@@ -430,8 +486,8 @@ security:
 | `security.auth.ldap.base_dn` | string | `""` | Base DN for all LDAP searches. |
 | `security.auth.ldap.user_search_filter` | string | `""` | LDAP filter for finding users (e.g., `(sAMAccountName=%s)`). `%s` is replaced with the login username. |
 | `security.auth.ldap.user_search_base` | string | `""` | Base DN for user searches (e.g., `OU=Users,DC=example,DC=com`). |
-| `security.auth.ldap.group_search_filter` | string | `""` | LDAP filter for finding group memberships (e.g., `(member=%s)`). `%s` is replaced with the user DN. |
-| `security.auth.ldap.group_search_base` | string | `""` | Base DN for group searches (e.g., `OU=Groups,DC=example,DC=com`). |
+| `security.auth.ldap.group_search_filter` | string | `""` | LDAP filter for finding group memberships (e.g., `(member=%s)`). `%s` is replaced with the user's DN. When set along with `group_search_base`, groups are discovered via an explicit LDAP search in addition to the `memberOf` attribute. |
+| `security.auth.ldap.group_search_base` | string | `""` | Base DN for group searches (e.g., `OU=Groups,DC=example,DC=com`). Used together with `group_search_filter` to discover groups via LDAP search. |
 | `security.auth.ldap.username_attribute` | string | `""` | LDAP attribute containing the username (`sAMAccountName`, `uid`, `userPrincipalName`). |
 | `security.auth.ldap.email_attribute` | string | `""` | LDAP attribute containing the email address (`mail`). |
 | `security.auth.ldap.group_attribute` | string | `""` | LDAP attribute containing group membership (`memberOf`). |
@@ -440,6 +496,9 @@ security:
 | `security.auth.ldap.start_tls` | bool | `false` | Upgrade an unencrypted connection using STARTTLS. |
 | `security.auth.ldap.insecure_skip_verify` | bool | `false` | Skip TLS certificate verification. Not recommended for production. |
 | `security.auth.ldap.ca_cert_file` | string | `""` | Path to CA certificate for verifying the LDAP server. |
+| `security.auth.ldap.client_cert_file` | string | `""` | Path to client certificate for mTLS authentication to the LDAP server. |
+| `security.auth.ldap.client_key_file` | string | `""` | Path to client private key for mTLS authentication to the LDAP server. |
+| `security.auth.ldap.allow_fallback` | bool | `true` | When `true`, users not found in LDAP fall back to other configured auth methods (basic/API key). Users that exist in LDAP but provide wrong passwords are always rejected (no fallback). Set to `false` for strict LDAP-only authentication. |
 | `security.auth.ldap.connection_timeout` | int | `10` | Connection timeout in seconds. |
 | `security.auth.ldap.request_timeout` | int | `30` | Request timeout in seconds. |
 
@@ -464,6 +523,9 @@ security:
         "CN=SchemaDevelopers,OU=Groups,DC=example,DC=com": readwrite
       default_role: readonly
       ca_cert_file: /etc/ssl/certs/ldap-ca.pem
+      client_cert_file: /etc/ssl/certs/ldap-client.pem
+      client_key_file: /etc/ssl/private/ldap-client-key.pem
+      allow_fallback: true            # Set to false for strict LDAP-only auth
       connection_timeout: 10
       request_timeout: 30
 ```
@@ -476,8 +538,6 @@ security:
 | `security.auth.oidc.issuer_url` | string | `""` | OIDC issuer URL (e.g., `https://auth.example.com`). Used for discovery. |
 | `security.auth.oidc.client_id` | string | `""` | Client ID for token validation. |
 | `security.auth.oidc.client_secret` | string | `""` | Client secret. |
-| `security.auth.oidc.redirect_url` | string | `""` | OAuth2 callback URL. |
-| `security.auth.oidc.scopes` | list of strings | `[]` | OAuth2 scopes to request (e.g., `openid`, `profile`, `email`). |
 | `security.auth.oidc.username_claim` | string | `""` | JWT claim used as the username (`sub`, `preferred_username`, `email`). |
 | `security.auth.oidc.roles_claim` | string | `""` | JWT claim containing role information (`roles`, `groups`). |
 | `security.auth.oidc.role_mapping` | map (string to string) | `{}` | Maps OIDC roles/groups to registry roles. |
@@ -550,21 +610,184 @@ security:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.audit.enabled` | bool | `false` | Enable audit logging. |
-| `security.audit.log_file` | string | `""` | Path to the audit log file. |
-| `security.audit.events` | list of strings | `[]` | Event types to log. Values: `schema_register`, `schema_delete`, `config_change`. |
-| `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. May increase log volume significantly. |
+| `security.audit.events` | list of strings | `[]` | Event types to log (empty = all enabled by default). |
+| `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. MAY increase log volume significantly. |
+| `security.audit.buffer_size` | int | `10000` | Async event buffer size. `Log()` enqueues events for a background goroutine; events are dropped when the buffer is full. |
+
+#### Audit Outputs
+
+Events can be delivered to multiple outputs simultaneously. Each output has its own `enabled` flag and `format_type` (`json` or `cef`).
+
+**Stdout Output:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.stdout.enabled` | bool | `true` | Enable stdout audit output. |
+| `security.audit.outputs.stdout.format_type` | string | `json` | Format: `json` or `cef`. |
+
+**File Output (with rotation):**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.file.enabled` | bool | `false` | Enable file audit output. |
+| `security.audit.outputs.file.path` | string | `""` | Path to audit log file. REQUIRED when enabled. |
+| `security.audit.outputs.file.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.file.max_size_mb` | int | `100` | Max file size before rotation (MB). |
+| `security.audit.outputs.file.max_backups` | int | `5` | Max number of rotated backup files. |
+| `security.audit.outputs.file.max_age_days` | int | `30` | Max days to retain rotated files. |
+| `security.audit.outputs.file.compress` | bool | `true` | Compress rotated files with gzip. |
+
+**Syslog Output (RFC 5424):**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.syslog.enabled` | bool | `false` | Enable syslog audit output. |
+| `security.audit.outputs.syslog.network` | string | `tcp` | Network protocol: `tcp`, `udp`, or `tcp+tls`. |
+| `security.audit.outputs.syslog.address` | string | `""` | Syslog server address (`host:port`). REQUIRED when enabled. |
+| `security.audit.outputs.syslog.app_name` | string | `schema-registry` | RFC 5424 APP-NAME field. |
+| `security.audit.outputs.syslog.facility` | string | `local0` | Syslog facility. Values: `kern`, `user`, `mail`, `daemon`, `auth`, `syslog`, `lpr`, `news`, `uucp`, `cron`, `local0`–`local7`. |
+| `security.audit.outputs.syslog.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.syslog.tls_cert` | string | `""` | Path to TLS client certificate (for mTLS). |
+| `security.audit.outputs.syslog.tls_key` | string | `""` | Path to TLS client key (for mTLS). |
+| `security.audit.outputs.syslog.tls_ca` | string | `""` | Path to CA certificate for server verification. |
+
+**Webhook Output:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.webhook.enabled` | bool | `false` | Enable webhook audit output. |
+| `security.audit.outputs.webhook.url` | string | `""` | Webhook endpoint URL. REQUIRED when enabled. |
+| `security.audit.outputs.webhook.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.webhook.batch_size` | int | `100` | Max events per batch. |
+| `security.audit.outputs.webhook.flush_interval` | string | `5s` | Max time between flushes (Go duration). |
+| `security.audit.outputs.webhook.timeout` | string | `10s` | HTTP request timeout (Go duration). |
+| `security.audit.outputs.webhook.max_retries` | int | `3` | Max retry attempts on 5xx errors. |
+| `security.audit.outputs.webhook.buffer_size` | int | `10000` | Max events buffered in memory. Events are dropped when full. |
+| `security.audit.outputs.webhook.headers` | map | `{}` | Custom HTTP headers (e.g., auth tokens). |
+
+#### Audit Environment Variable Overrides
+
+All audit settings support env var overrides with `SCHEMA_REGISTRY_AUDIT_` prefix:
+
+```
+SCHEMA_REGISTRY_AUDIT_ENABLED
+SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY
+SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE
+SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED / _FORMAT
+SCHEMA_REGISTRY_AUDIT_FILE_ENABLED / _PATH / _FORMAT / _MAX_SIZE_MB / _MAX_BACKUPS / _MAX_AGE_DAYS / _COMPRESS
+SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED / _NETWORK / _ADDRESS / _APP_NAME / _FACILITY / _FORMAT / _TLS_CERT / _TLS_KEY / _TLS_CA
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_ENABLED / _URL / _FORMAT / _BATCH_SIZE / _FLUSH_INTERVAL / _TIMEOUT / _MAX_RETRIES / _BUFFER_SIZE
+```
+
+#### Example: Multi-Output Configuration
 
 ```yaml
 security:
   audit:
     enabled: true
-    log_file: /var/log/schema-registry/audit.log
-    events:
-      - schema_register
-      - schema_delete
-      - config_change
     include_body: false
+    outputs:
+      stdout:
+        enabled: true
+        format_type: json
+      file:
+        enabled: true
+        path: /var/log/schema-registry/audit.log
+        format_type: json
+        max_size_mb: 100
+        max_backups: 5
+        max_age_days: 30
+        compress: true
+      syslog:
+        enabled: true
+        network: tcp+tls
+        address: "syslog.example.com:6514"
+        app_name: schema-registry
+        facility: local0
+        format_type: json
+        tls_ca: /etc/ssl/certs/syslog-ca.pem
+      webhook:
+        enabled: true
+        url: "https://splunk-hec.example.com:8088/services/collector/event"
+        format_type: json
+        batch_size: 100
+        flush_interval: "5s"
+        timeout: "10s"
+        max_retries: 3
+        buffer_size: 10000
+        headers:
+          Authorization: "Splunk YOUR-HEC-TOKEN"
 ```
+
+### Per-Principal Metrics
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.metrics.per_principal_metrics` | *bool | `true` | Enable per-principal (user identity) Prometheus metrics. Adds a `principal` label to request count, error, and endpoint metrics. MAY increase cardinality in deployments with many distinct users. |
+
+```yaml
+security:
+  metrics:
+    per_principal_metrics: true
+```
+
+---
+
+## MCP Server
+
+The MCP (Model Context Protocol) server enables AI assistants to interact with the schema registry. It runs as a separate HTTP endpoint alongside the REST API. For full documentation, see the [MCP Guide](mcp.md).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mcp.enabled` | bool | `false` | Enable the MCP server |
+| `mcp.host` | string | `127.0.0.1` | Bind address |
+| `mcp.port` | int | `9081` | Port (separate from REST API) |
+| `mcp.auth_token` | string | `""` | Bearer token for authentication (empty = no auth) |
+| `mcp.read_only` | bool | `false` | Restrict to read-only tools |
+| `mcp.tool_policy` | string | `allow_all` | Tool access: `allow_all`, `deny_list`, `allow_list` |
+| `mcp.allowed_tools` | []string | `[]` | Tools to expose (for `allow_list` policy) |
+| `mcp.denied_tools` | []string | `[]` | Tools to hide (for `deny_list` policy) |
+| `mcp.allowed_origins` | []string | `["http://localhost:*", ...]` | Origin header allowlist |
+| `mcp.require_confirmations` | bool | `false` | Two-phase confirmations for destructive operations |
+| `mcp.confirmation_ttl` | int | `300` | Confirmation token TTL in seconds |
+| `mcp.log_schemas` | bool | `false` | Log full schema bodies in debug output |
+| `mcp.permission_preset` | string | `""` | Named preset: `readonly`, `developer`, `operator`, `admin`, `full` |
+| `mcp.permission_scopes` | []string | `[]` | Individual permission scopes (when no preset is set) |
+
+```yaml
+mcp:
+  enabled: true
+  host: 127.0.0.1
+  port: 9081
+  auth_token: "my-secret-token"
+  read_only: false
+  permission_preset: developer
+  allowed_origins:
+    - "http://localhost:*"
+    - "https://localhost:*"
+    - "vscode-webview://*"
+  require_confirmations: false
+  log_schemas: false
+```
+
+### MCP Environment Variables
+
+| Field | Environment Variable |
+|-------|---------------------|
+| `enabled` | `SCHEMA_REGISTRY_MCP_ENABLED` |
+| `host` | `SCHEMA_REGISTRY_MCP_HOST` |
+| `port` | `SCHEMA_REGISTRY_MCP_PORT` |
+| `auth_token` | `SCHEMA_REGISTRY_MCP_AUTH_TOKEN` |
+| `read_only` | `SCHEMA_REGISTRY_MCP_READ_ONLY` |
+| `allowed_origins` | `SCHEMA_REGISTRY_MCP_ALLOWED_ORIGINS` (comma-separated) |
+| `require_confirmations` | `SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS` |
+| `confirmation_ttl` | `SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL` |
+| `log_schemas` | `SCHEMA_REGISTRY_MCP_LOG_SCHEMAS` |
+| `permission_preset` | `SCHEMA_REGISTRY_MCP_PERMISSION_PRESET` |
+| `permission_scopes` | `SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES` (comma-separated) |
+| `tool_policy` | `SCHEMA_REGISTRY_MCP_TOOL_POLICY` |
+| `allowed_tools` | `SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS` (comma-separated) |
+| `denied_tools` | `SCHEMA_REGISTRY_MCP_DENIED_TOOLS` (comma-separated) |
 
 ---
 
@@ -579,6 +802,7 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_HOST` | `server.host` | string |
 | `SCHEMA_REGISTRY_PORT` | `server.port` | int |
 | `SCHEMA_REGISTRY_DOCS_ENABLED` | `server.docs_enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT` | `server.shutdown_timeout` | int |
 
 ### Storage
 
@@ -655,6 +879,75 @@ The following environment variables override the corresponding configuration fil
 | `VAULT_NAMESPACE` | `storage.vault.namespace` | string | Standard Vault variable. Used only if `SCHEMA_REGISTRY_VAULT_NAMESPACE` is not set. |
 | `SCHEMA_REGISTRY_VAULT_MOUNT_PATH` | `storage.vault.mount_path` | string | |
 | `SCHEMA_REGISTRY_VAULT_BASE_PATH` | `storage.vault.base_path` | string | |
+| `SCHEMA_REGISTRY_VAULT_TLS_CERT_FILE` | `storage.vault.tls_cert_file` | string | Client certificate for mTLS |
+| `SCHEMA_REGISTRY_VAULT_TLS_KEY_FILE` | `storage.vault.tls_key_file` | string | Client key for mTLS |
+| `SCHEMA_REGISTRY_VAULT_TLS_CA_FILE` | `storage.vault.tls_ca_file` | string | CA certificate for server verification |
+| `SCHEMA_REGISTRY_VAULT_TLS_SKIP_VERIFY` | `storage.vault.tls_skip_verify` | bool (`true`/`1`) | Skip TLS verification |
+
+### JWT
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_JWT_ISSUER` | `security.auth.jwt.issuer` | string |
+| `SCHEMA_REGISTRY_JWT_AUDIENCE` | `security.auth.jwt.audience` | string |
+| `SCHEMA_REGISTRY_JWT_JWKS_URL` | `security.auth.jwt.jwks_url` | string |
+| `SCHEMA_REGISTRY_JWT_PUBLIC_KEY_FILE` | `security.auth.jwt.public_key_file` | string |
+| `SCHEMA_REGISTRY_JWT_ALGORITHM` | `security.auth.jwt.algorithm` | string |
+| `SCHEMA_REGISTRY_JWT_DEFAULT_ROLE` | `security.auth.jwt.default_role` | string |
+| `SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL` | `security.auth.jwt.jwks_cache_ttl` | int |
+| `SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT` | `security.auth.jwt.http_timeout` | int |
+
+> **Note:** `claims_mapping` (map type) cannot be set via environment variables. It MUST be configured in the YAML config file.
+
+### Authentication
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_AUTH_ENABLED` | `security.auth.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_AUTH_METHODS` | `security.auth.methods` | comma-separated string |
+
+### LDAP
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_LDAP_ENABLED` | `security.auth.ldap.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_URL` | `security.auth.ldap.url` | string |
+| `SCHEMA_REGISTRY_LDAP_BIND_DN` | `security.auth.ldap.bind_dn` | string |
+| `SCHEMA_REGISTRY_LDAP_BIND_PASSWORD` | `security.auth.ldap.bind_password` | string |
+| `SCHEMA_REGISTRY_LDAP_BASE_DN` | `security.auth.ldap.base_dn` | string |
+| `SCHEMA_REGISTRY_LDAP_USER_SEARCH_FILTER` | `security.auth.ldap.user_search_filter` | string |
+| `SCHEMA_REGISTRY_LDAP_USER_SEARCH_BASE` | `security.auth.ldap.user_search_base` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_FILTER` | `security.auth.ldap.group_search_filter` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_BASE` | `security.auth.ldap.group_search_base` | string |
+| `SCHEMA_REGISTRY_LDAP_USERNAME_ATTRIBUTE` | `security.auth.ldap.username_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_EMAIL_ATTRIBUTE` | `security.auth.ldap.email_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_ATTRIBUTE` | `security.auth.ldap.group_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_DEFAULT_ROLE` | `security.auth.ldap.default_role` | string |
+| `SCHEMA_REGISTRY_LDAP_START_TLS` | `security.auth.ldap.start_tls` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_INSECURE_SKIP_VERIFY` | `security.auth.ldap.insecure_skip_verify` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_CA_CERT_FILE` | `security.auth.ldap.ca_cert_file` | string |
+| `SCHEMA_REGISTRY_LDAP_CLIENT_CERT_FILE` | `security.auth.ldap.client_cert_file` | string |
+| `SCHEMA_REGISTRY_LDAP_CLIENT_KEY_FILE` | `security.auth.ldap.client_key_file` | string |
+| `SCHEMA_REGISTRY_LDAP_ALLOW_FALLBACK` | `security.auth.ldap.allow_fallback` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT` | `security.auth.ldap.connection_timeout` | int |
+| `SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT` | `security.auth.ldap.request_timeout` | int |
+
+### OIDC (OpenID Connect)
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_OIDC_ENABLED` | `security.auth.oidc.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_OIDC_ISSUER_URL` | `security.auth.oidc.issuer_url` | string |
+| `SCHEMA_REGISTRY_OIDC_CLIENT_ID` | `security.auth.oidc.client_id` | string |
+| `SCHEMA_REGISTRY_OIDC_CLIENT_SECRET` | `security.auth.oidc.client_secret` | string |
+| `SCHEMA_REGISTRY_OIDC_USERNAME_CLAIM` | `security.auth.oidc.username_claim` | string |
+| `SCHEMA_REGISTRY_OIDC_ROLES_CLAIM` | `security.auth.oidc.roles_claim` | string |
+| `SCHEMA_REGISTRY_OIDC_DEFAULT_ROLE` | `security.auth.oidc.default_role` | string |
+| `SCHEMA_REGISTRY_OIDC_REQUIRED_AUDIENCE` | `security.auth.oidc.required_audience` | string |
+| `SCHEMA_REGISTRY_OIDC_SKIP_ISSUER_CHECK` | `security.auth.oidc.skip_issuer_check` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK` | `security.auth.oidc.skip_expiry_check` | bool (`true`/`1`) |
+
+> **Note:** `role_mapping` (map type) and `allowed_algorithms` (slice type) cannot be set via environment variables. These MUST be configured in the YAML config file.
 
 ---
 
@@ -673,6 +966,7 @@ server:
   port: 8081                          # Listen port
   read_timeout: 30                    # Read timeout (seconds)
   write_timeout: 30                   # Write timeout (seconds)
+  shutdown_timeout: 30                # Graceful shutdown wait (seconds)
   docs_enabled: false                 # Swagger UI at /docs, OpenAPI at /openapi.yaml
 
 # --- Storage Backend -------------------------------------------------------
@@ -752,7 +1046,7 @@ security:
     ca_file: ""                       # For mTLS client verification
     min_version: "TLS1.2"            # TLS1.2 | TLS1.3
     client_auth: none                 # none | request | require | verify
-    auto_reload: false                # Reload certs on file change
+    auto_reload: false                # SIGHUP reloads certs without restart
 
   # Authentication
   auth:
@@ -772,16 +1066,20 @@ security:
     basic:
       realm: "Schema Registry"
       users: {}                       # username: bcrypt-hash (legacy; prefer DB users)
-      htpasswd_file: ""
+      htpasswd_file: ""               # Apache htpasswd file (bcrypt only)
 
     # API Key Auth
     api_key:
       header: "X-API-Key"
       query_param: "api_key"
-      storage_type: database          # memory | database
+      storage_type: database          # "database" (default) or "memory" (config-defined)
       secret: ${API_KEY_SECRET}       # HMAC pepper (>=32 bytes recommended)
       key_prefix: "sr_"
       cache_refresh_seconds: 60       # 0 to disable caching
+      # keys:                         # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."    # bcrypt hash of the API key
+      #     role: developer
 
     # JWT Auth (external IdP)
     jwt:
@@ -793,6 +1091,9 @@ security:
       claims_mapping:
         username: sub
         role: role
+      default_role: readonly            # Fallback when no JWT claim matches
+      jwks_cache_ttl: 300               # JWKS cache TTL (seconds)
+      http_timeout: 10                  # JWKS HTTP client timeout (seconds)
 
     # LDAP Auth
     ldap:
@@ -803,8 +1104,8 @@ security:
       base_dn: ""
       user_search_filter: ""          # e.g., (sAMAccountName=%s)
       user_search_base: ""
-      group_search_filter: ""         # e.g., (member=%s)
-      group_search_base: ""
+      group_search_filter: ""         # e.g., (member=%s) — %s is user DN
+      group_search_base: ""           # e.g., OU=Groups,DC=example,DC=com
       username_attribute: ""          # sAMAccountName | uid | userPrincipalName
       email_attribute: ""             # mail
       group_attribute: ""             # memberOf
@@ -813,6 +1114,9 @@ security:
       start_tls: false
       insecure_skip_verify: false
       ca_cert_file: ""
+      client_cert_file: ""            # Client cert for mTLS to LDAP server
+      client_key_file: ""             # Client key for mTLS to LDAP server
+      allow_fallback: true            # false = strict LDAP-only; true = fallback for user-not-found only
       connection_timeout: 10          # seconds
       request_timeout: 30             # seconds
 
@@ -822,8 +1126,6 @@ security:
       issuer_url: ""
       client_id: ""
       client_secret: ""
-      redirect_url: ""
-      scopes: []                      # e.g., [openid, profile, email]
       username_claim: ""              # sub | preferred_username | email
       roles_claim: ""                 # roles | groups
       role_mapping: {}                # OIDC role -> registry role
@@ -851,11 +1153,35 @@ security:
   audit:
     enabled: false
     log_file: ""
-    events:                           # schema_register | schema_delete | config_change
+    events:                           # schema_register | schema_delete | config_update | mcp_tool_call | ...
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
     include_body: false
+
+  # Per-principal Prometheus metrics
+  metrics:
+    per_principal_metrics: true        # Adds "principal" label to metrics
+
+# --- MCP Server (AI Assistant Access) -------------------------------------
+mcp:
+  enabled: false                      # Enable the MCP server
+  host: 127.0.0.1                    # Bind address (localhost for security)
+  port: 9081                          # MCP port (separate from REST)
+  auth_token: ""                      # Bearer token (empty = no auth)
+  read_only: false                    # Restrict to read-only tools
+  permission_preset: ""               # readonly | developer | operator | admin | full
+  permission_scopes: []               # Individual scopes (when no preset is set)
+  tool_policy: allow_all              # allow_all | deny_list | allow_list
+  allowed_tools: []                   # For allow_list policy
+  denied_tools: []                    # For deny_list policy
+  allowed_origins:                    # Origin header allowlist
+    - "http://localhost:*"
+    - "https://localhost:*"
+    - "vscode-webview://*"
+  require_confirmations: false        # Two-phase confirmations for destructive ops
+  confirmation_ttl: 300               # Confirmation token TTL (seconds)
+  log_schemas: false                  # Log full schema bodies (debug only)
 ```
 
 ---

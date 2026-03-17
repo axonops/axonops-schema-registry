@@ -20,6 +20,26 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Compatibility.DefaultLevel != "BACKWARD" {
 		t.Errorf("Expected compatibility BACKWARD, got %s", cfg.Compatibility.DefaultLevel)
 	}
+
+	// MCP defaults
+	if cfg.MCP.Host != "127.0.0.1" {
+		t.Errorf("Expected MCP host 127.0.0.1 (localhost-only), got %s", cfg.MCP.Host)
+	}
+	if cfg.MCP.Port != 9081 {
+		t.Errorf("Expected MCP port 9081, got %d", cfg.MCP.Port)
+	}
+	if len(cfg.MCP.AllowedOrigins) != 3 {
+		t.Fatalf("Expected 3 default allowed origins, got %d", len(cfg.MCP.AllowedOrigins))
+	}
+	expectedOrigins := []string{"http://localhost:*", "https://localhost:*", "vscode-webview://*"}
+	for i, want := range expectedOrigins {
+		if cfg.MCP.AllowedOrigins[i] != want {
+			t.Errorf("AllowedOrigins[%d] = %q, want %q", i, cfg.MCP.AllowedOrigins[i], want)
+		}
+	}
+	if cfg.MCP.LogSchemas {
+		t.Error("Expected LogSchemas to be false by default")
+	}
 }
 
 func TestConfig_Validate(t *testing.T) {
@@ -674,6 +694,79 @@ func TestConfig_LoadEmpty(t *testing.T) {
 	}
 	if cfg.Server.Port != def.Server.Port {
 		t.Errorf("Expected default port %d, got %d", def.Server.Port, cfg.Server.Port)
+	}
+}
+
+func TestConfig_MCPDefaults_LocalhostBinding(t *testing.T) {
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.MCP.Host != "127.0.0.1" {
+		t.Errorf("Expected MCP default host 127.0.0.1, got %s", cfg.MCP.Host)
+	}
+	addr := cfg.MCPAddress()
+	if addr != "127.0.0.1:9081" {
+		t.Errorf("Expected 127.0.0.1:9081, got %s", addr)
+	}
+}
+
+func TestConfig_EnvOverrides_MCP(t *testing.T) {
+	envVars := map[string]string{
+		"SCHEMA_REGISTRY_MCP_ENABLED":               "true",
+		"SCHEMA_REGISTRY_MCP_HOST":                  "0.0.0.0",
+		"SCHEMA_REGISTRY_MCP_PORT":                  "9999",
+		"SCHEMA_REGISTRY_MCP_AUTH_TOKEN":            "my-token",
+		"SCHEMA_REGISTRY_MCP_READ_ONLY":             "true",
+		"SCHEMA_REGISTRY_MCP_ALLOWED_ORIGINS":       "https://app.com,https://other.com",
+		"SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS": "true",
+		"SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL":      "60",
+		"SCHEMA_REGISTRY_MCP_LOG_SCHEMAS":           "true",
+	}
+	for k, v := range envVars {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range envVars {
+			os.Unsetenv(k)
+		}
+	}()
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if !cfg.MCP.Enabled {
+		t.Error("Expected MCP enabled")
+	}
+	if cfg.MCP.Host != "0.0.0.0" {
+		t.Errorf("Expected 0.0.0.0, got %s", cfg.MCP.Host)
+	}
+	if cfg.MCP.Port != 9999 {
+		t.Errorf("Expected 9999, got %d", cfg.MCP.Port)
+	}
+	if cfg.MCP.AuthToken != "my-token" {
+		t.Errorf("Expected my-token, got %s", cfg.MCP.AuthToken)
+	}
+	if !cfg.MCP.ReadOnly {
+		t.Error("Expected read-only true")
+	}
+	if len(cfg.MCP.AllowedOrigins) != 2 {
+		t.Fatalf("Expected 2 allowed origins, got %d", len(cfg.MCP.AllowedOrigins))
+	}
+	if cfg.MCP.AllowedOrigins[0] != "https://app.com" {
+		t.Errorf("Expected https://app.com, got %s", cfg.MCP.AllowedOrigins[0])
+	}
+	if !cfg.MCP.RequireConfirmations {
+		t.Error("Expected require_confirmations true")
+	}
+	if cfg.MCP.ConfirmationTTLSecs != 60 {
+		t.Errorf("Expected confirmation TTL 60, got %d", cfg.MCP.ConfirmationTTLSecs)
+	}
+	if !cfg.MCP.LogSchemas {
+		t.Error("Expected log_schemas true")
 	}
 }
 

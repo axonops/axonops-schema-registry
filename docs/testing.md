@@ -1,6 +1,6 @@
 # Testing Strategy
 
-Testing is a foundational pillar of AxonOps Schema Registry. The project maintains a multi-layered test suite with ~900 Go test functions, 76 BDD feature files containing ~1,400 scenarios, and ~50,000 lines of test code across Go and Gherkin. Every code change is validated across unit tests, integration tests, storage conformance tests, concurrency tests, BDD functional tests, API endpoint tests, authentication tests, migration tests, and multi-language Confluent wire-compatibility tests. The CI pipeline runs all of these against every supported storage backend on every push.
+Testing is a foundational pillar of AxonOps Schema Registry. The project maintains a comprehensive multi-layered test suite with extensive Go test functions, BDD feature files containing thousands of scenarios, and tens of thousands of lines of test code across Go and Gherkin. Every code change is validated across unit tests, integration tests, storage conformance tests, concurrency tests, BDD functional tests, API endpoint tests, authentication tests, KMS encryption tests, migration tests, MCP protocol tests, and multi-language Confluent wire-compatibility tests. The CI pipeline runs all of these against every supported storage backend on every push.
 
 This document explains the testing philosophy, describes every test layer in detail, and provides the exact commands and patterns needed to run, write, and extend tests.
 
@@ -38,6 +38,11 @@ This document explains the testing philosophy, describes every test layer in det
   - [State Cleanup](#bdd-state-cleanup)
   - [How to Run](#how-to-run-bdd-tests)
   - [How to Write BDD Tests](#how-to-write-bdd-tests)
+- [MCP Tests](#mcp-tests)
+  - [Unit Tests](#mcp-unit-tests)
+  - [BDD Tests](#mcp-bdd-tests)
+  - [How to Run](#how-to-run-mcp-tests)
+  - [How to Write MCP Tests](#how-to-write-mcp-tests)
 - [API Endpoint Tests](#api-endpoint-tests)
   - [What They Test](#what-api-tests-test)
   - [How to Run](#how-to-run-api-tests)
@@ -46,6 +51,9 @@ This document explains the testing philosophy, describes every test layer in det
   - [OIDC Tests](#oidc-tests)
   - [Vault Tests](#vault-tests)
   - [How to Run](#how-to-run-auth-tests)
+- [KMS Encryption Tests](#kms-encryption-tests)
+  - [What They Test](#what-kms-tests-test)
+  - [How to Run](#how-to-run-kms-tests)
 - [Migration Tests](#migration-tests)
   - [What They Test](#what-migration-tests-test)
   - [How to Run](#how-to-run-migration-tests)
@@ -53,9 +61,10 @@ This document explains the testing philosophy, describes every test layer in det
   - [What They Test](#what-compatibility-tests-test)
   - [Languages and Versions](#compatibility-languages-and-versions)
   - [How to Run](#how-to-run-compatibility-tests)
-- [Go SerDe Data Contract & CSFLE Tests](#go-serde-data-contract--csfle-tests)
-  - [What They Test](#what-go-serde-tests-test)
-  - [How to Run](#how-to-run-go-serde-tests)
+- [Data Contract & CSFLE Tests](#data-contract--csfle-tests)
+  - [Java SerDe Tests](#java-serde-tests)
+  - [Go SerDe Tests](#go-serde-tests)
+  - [How to Run](#how-to-run-data-contract-tests)
 - [OpenAPI Validation](#openapi-validation)
   - [What It Tests](#what-openapi-validation-tests)
   - [What to Do When It Fails](#what-to-do-when-openapi-validation-fails)
@@ -71,45 +80,45 @@ This document explains the testing philosophy, describes every test layer in det
 
 The test suite is designed around three principles:
 
-1. **Every layer proves something different.** Unit tests verify internal logic in isolation. Conformance tests prove all storage backends implement the same contract. Integration tests validate the full HTTP-to-database stack. BDD tests encode business requirements as executable specifications. Concurrency tests verify correctness under parallel load. Compatibility tests prove wire-level interoperability with Confluent clients. No single layer is sufficient on its own.
+1. **Every layer proves something different.** Unit tests verify internal logic in isolation. Conformance tests prove all storage backends implement the same contract. Integration tests validate the full HTTP-to-database stack. BDD tests encode business requirements as executable specifications. Concurrency tests verify correctness under parallel load. Compatibility tests prove wire-level interoperability with Confluent clients. MCP tests verify AI assistant protocol compliance. No single layer is sufficient on its own.
 
 2. **Tests run against every storage backend.** A feature that works on PostgreSQL but fails on Cassandra is a bug. The storage conformance suite, integration tests, concurrency tests, and BDD tests all run against memory, PostgreSQL, MySQL, and Cassandra. The Makefile accepts a `BACKEND` variable to select the target, and `BACKEND=all` runs against all backends sequentially.
 
-3. **Tests are living documentation.** The 76 BDD feature files are Gherkin specifications that describe the system's behavior in plain English. They serve as both executable tests and as the canonical reference for what the system does. When a feature file says a request SHOULD return a `40401` error, that is both a test assertion and a specification.
+3. **BDD tests are the primary specification.** The 178 BDD feature files are Gherkin specifications that describe the system's behavior in plain English. They serve as both executable tests and as the canonical reference for what the system does. When a feature file says a request SHOULD return a `40401` error, that is both a test assertion and a specification. If a feature is not BDD tested in a black-box manner, it is not considered tested.
 
 ## Test Pyramid
 
 ```
-                        ┌─────────────────────────────┐
-                        │   Confluent Conformance     │  BDD against Confluent 8.1
-                        │   (behavioral parity)       │
-                        └──────────────┬──────────────┘
-                                       │
-                   ┌───────────────────┴───────────────────┐
-                   │   Multi-Language Compatibility Tests   │  Go/Java/Python serializers
-                   └───────────────────┬───────────────────┘
-                                       │
-              ┌────────────────────────┴────────────────────────┐
-              │            BDD Functional Tests                 │  76 feature files
-              │            (~1,400 scenarios)                   │  ~1,400 scenarios
-              └───────┬────────┬────────┬────────┬─────────────┘
-                      │        │        │        │
-           ┌──────────┤  ┌─────┴─────┐  │  ┌────┴─────┐
-           │Concurrency│  │ API Tests │  │  │Auth Tests│  LDAP/OIDC/Vault
-           │  Tests    │  │(black-box)│  │  │          │
-           └─────┬─────┘  └─────┬─────┘  │  └────┬────┘
-                 │              │         │       │
-           ┌─────┴──────────────┴─────────┴───────┴────┐
-           │         Integration Tests                  │  Full HTTP + DB stack
-           └─────────────────────┬─────────────────────┘
-                                 │
-           ┌─────────────────────┴─────────────────────┐
-           │      Storage Conformance Suite             │  108 tests x 4 backends
-           └─────────────────────┬─────────────────────┘
-                                 │
-           ┌─────────────────────┴─────────────────────┐
-           │            Unit Tests                      │  ~900 functions
-           └───────────────────────────────────────────┘
+                        +-------------------------------+
+                        |   Confluent Conformance       |  BDD against Confluent 8.1
+                        |   (behavioral parity)         |
+                        +---------------+---------------+
+                                        |
+                   +--------------------+--------------------+
+                   |   Multi-Language Compatibility Tests     |  Go/Java/Python serializers
+                   +--------------------+--------------------+
+                                        |
+              +-------------------------+-------------------------+
+              |            BDD Functional Tests                   |  Feature files
+              |            (thousands of scenarios)               |  All backends
+              +---------+--------+--------+--------+-------------+
+                        |        |        |        |
+             +----------+  +-----+-----+  |  +----+-----+
+             |Concurrency|  | API Tests |  |  |Auth Tests|  LDAP/OIDC/Vault
+             |  Tests    |  |(black-box)|  |  |          |
+             +-----+-----+  +-----+-----+  |  +----+----+
+                   |              |         |       |
+             +-----+--------------+---------+-------+----+
+             |         Integration Tests                  |  Full HTTP + DB stack
+             +---------------------+---------------------+
+                                   |
+             +---------------------+---------------------+
+             |      Storage Conformance Suite             |  108 tests x 4 backends
+             +---------------------+---------------------+
+                                   |
+             +---------------------+---------------------+
+             |            Unit Tests                      |  1,436 functions
+             +-------------------------------------------+
 ```
 
 Each layer builds on the one below it. A failure at a lower layer (e.g., a conformance test) typically indicates a fundamental issue that will cascade into failures at higher layers.
@@ -120,14 +129,25 @@ Every test target accepts an optional `BACKEND` variable. Database containers ar
 
 | Command | What It Runs | Docker Required | Approx. Time |
 |---------|-------------|-----------------|---------------|
-| `make test-unit` | Unit tests (`./internal/...`) | No | ~30s |
+| `make test-unit` | Unit tests (`./...`) | No | ~30s |
 | `make test-conformance` | Storage conformance (memory) | No | ~10s |
 | `make test-conformance BACKEND=postgres` | Storage conformance (PostgreSQL) | Yes | ~30s |
 | `make test-conformance BACKEND=all` | Storage conformance (all backends) | Yes | ~2m |
 | `make test-bdd` | BDD tests, in-process memory | No | ~2m |
+| `make test-bdd-functional` | Same as `make test-bdd` | No | ~2m |
 | `make test-bdd BACKEND=postgres` | BDD tests against PostgreSQL | Yes | ~5m |
 | `make test-bdd BACKEND=confluent` | BDD tests against Confluent 8.1 | Yes | ~5m |
 | `make test-bdd BACKEND=all` | BDD tests against all backends | Yes | ~25m |
+| `make test-bdd-db BACKEND=postgres` | BDD with in-process server + real DB | Yes | ~5m |
+| `make test-bdd-db BACKEND=all` | BDD with in-process server + all DBs | Yes | ~15m |
+| `make test-bdd-auth BACKEND=postgres` | BDD auth tests with real DB | Yes | ~5m |
+| `make test-bdd-auth BACKEND=all` | BDD auth tests with all DBs | Yes | ~15m |
+| `make test-bdd-kms` | BDD KMS tests (memory) | Yes | ~3m |
+| `make test-bdd-kms BACKEND=all` | BDD KMS tests (all backends) | Yes | ~15m |
+| `make test-bdd-rest-audit` | REST audit event BDD tests | Yes | ~2m |
+| `make test-bdd-mcp-audit` | MCP audit event BDD tests | Yes | ~2m |
+| `make test-bdd-mcp-metrics` | MCP Prometheus metrics BDD tests | Yes | ~2m |
+| `make test-bdd-audit-outputs` | Audit outputs (file + syslog TLS + webhook) | Yes | ~3m |
 | `make test-integration BACKEND=postgres` | Integration tests (PostgreSQL) | Yes | ~2m |
 | `make test-integration BACKEND=all` | Integration tests (all backends) | Yes | ~8m |
 | `make test-concurrency BACKEND=postgres` | Concurrency tests (PostgreSQL) | Yes | ~3m |
@@ -139,8 +159,6 @@ Every test target accepts an optional `BACKEND` variable. Database containers ar
 | `make test-auth` | All auth tests | Yes | ~4m |
 | `make test-migration` | Migration/import tests | No | ~1m |
 | `make test-compatibility` | Go/Java/Python Confluent clients | Yes | ~5m |
-| `make test-compatibility` *(data contracts)* | Java SerDe data contract + CSFLE tests | Yes | ~3m |
-| `make test-compatibility` *(go-serde)* | Go SerDe data contract + CSFLE tests | Yes | ~5m |
 | `make test` | Everything | Yes | ~45m |
 | `make test-coverage` | Unit tests with HTML coverage report | No | ~1m |
 
@@ -148,7 +166,7 @@ Every test target accepts an optional `BACKEND` variable. Database containers ar
 
 ### What Unit Tests Test
 
-Unit tests verify the internal logic of every package in `internal/` without any external dependencies. They test schema parsing, compatibility checking, configuration loading, HTTP handler logic, authentication middleware, caching, metrics collection, RBAC enforcement, and the in-memory storage backend.
+Unit tests verify the internal logic of every package in `internal/` without any external dependencies. They test schema parsing, compatibility checking, configuration loading, HTTP handler logic, authentication middleware, caching, metrics collection, RBAC enforcement, MCP server tools/resources/prompts, MCP permissions, analysis functions, rules engine, KMS providers, context management, exporters, and the in-memory storage backend.
 
 ### Where Unit Tests Live
 
@@ -156,37 +174,48 @@ Every `_test.go` file inside `internal/` without a build tag is a unit test. Key
 
 | File | Tests | What It Covers |
 |------|-------|----------------|
-| `internal/api/server_test.go` | 19 | HTTP server, middleware, routing, content-type handling |
-| `internal/api/openapi_test.go` | 3 | OpenAPI spec/route sync, YAML validity, security schemes |
-| `internal/api/handlers/handlers_test.go` | 76 | Schema, subject, config, mode, compat endpoint handlers |
-| `internal/api/handlers/admin_test.go` | 45 | User and API key admin CRUD handlers |
-| `internal/api/handlers/account_test.go` | 10 | Self-service account handlers |
-| `internal/auth/auth_test.go` | 18 | Authenticator middleware chain |
-| `internal/auth/rbac_test.go` | 6 | Role-based access control |
-| `internal/auth/service_test.go` | 6 | User/API key business logic |
-| `internal/auth/jwt_test.go` | 9 | JWT token generation and validation |
-| `internal/auth/ratelimit_test.go` | 13 | Rate limiting middleware |
-| `internal/auth/audit_test.go` | 23 | Audit logging |
-| `internal/auth/tls_test.go` | 20 | TLS configuration, certificate handling |
-| `internal/cache/cache_test.go` | 12 | Cache operations |
-| `internal/compatibility/avro/checker_test.go` | 16 | Avro compatibility rules |
-| `internal/compatibility/jsonschema/checker_test.go` | 34 | JSON Schema compatibility rules |
+| `internal/mcp/server_test.go` | 154 | MCP server, tools, resources, prompts, context resolution |
+| `internal/registry/registry_test.go` | 136 | Core business logic (schema CRUD, versioning, compat enforcement) |
+| `internal/api/handlers/handlers_test.go` | 82 | Schema, subject, config, mode, compat endpoint handlers |
 | `internal/compatibility/protobuf/checker_test.go` | 51 | Protobuf compatibility rules |
-| `internal/compatibility/checker_test.go` | 30 | Compatibility checker registry/dispatch |
-| `internal/config/config_test.go` | 25 | YAML config loading, validation, defaults |
-| `internal/registry/registry_test.go` | 86 | Core business logic (schema CRUD, versioning, compat enforcement) |
-| `internal/schema/avro/parser_test.go` | 23 | Avro schema parsing |
+| `internal/api/handlers/admin_test.go` | 45 | User and API key admin CRUD handlers |
+| `internal/api/handlers/dek_test.go` | 38 | DEK/KEK encryption handlers |
+| `internal/schema/avro/parser_test.go` | 38 | Avro schema parsing |
+| `internal/storage/memory/store_test.go` | 38 | In-memory storage implementation |
+| `internal/auth/audit_test.go` | 36 | Audit logging |
 | `internal/schema/jsonschema/parser_test.go` | 35 | JSON Schema parsing |
+| `internal/compatibility/jsonschema/checker_test.go` | 34 | JSON Schema compatibility rules |
 | `internal/schema/protobuf/parser_test.go` | 33 | Protobuf parsing |
+| `internal/api/server_test.go` | 32 | HTTP server, middleware, routing, content-type handling |
+| `internal/compatibility/checker_test.go` | 30 | Compatibility checker registry/dispatch |
+| `internal/config/config_test.go` | 28 | YAML config loading, validation, defaults, env overrides |
+| `internal/api/server_analysis_test.go` | 26 | REST analysis endpoints |
+| `internal/context/context_test.go` | 22 | Context management |
+| `internal/auth/tls_test.go` | 20 | TLS configuration, certificate handling |
+| `internal/auth/auth_test.go` | 18 | Authenticator middleware chain |
+| `internal/metrics/metrics_test.go` | 23 | Prometheus metrics (REST + MCP) |
+| `internal/compatibility/avro/checker_test.go` | 16 | Avro compatibility rules |
+| `internal/rules/validator_test.go` | 16 | Data contract rules validation |
+| `internal/exporter/exporter_test.go` | 40 | Schema exporter logic |
+| `internal/api/handlers/exporter_test.go` | 15 | Exporter endpoint handlers |
+| `internal/api/handlers/context_helpers_test.go` | 14 | Context helper functions |
+| `internal/auth/rbac_test.go` | 14 | Role-based access control |
+| `internal/auth/ratelimit_test.go` | 13 | Rate limiting middleware |
+| `internal/auth/ldap_test.go` | 12 | LDAP authentication |
+| `internal/mcp/permissions_test.go` | 11 | MCP permission scopes and presets |
+| `internal/mcp/tools_validation_test.go` | 11 | MCP validation tools |
+| `internal/mcp/tools_intelligence_test.go` | 10 | MCP intelligence/analysis tools |
 | `internal/schema/protobuf/resolver_test.go` | 11 | Protobuf reference resolution |
-| `internal/storage/memory/store_test.go` | 12 | In-memory storage implementation |
+| `internal/compatibility/modes_test.go` | 10 | Compatibility mode logic |
+| `internal/compatibility/result_test.go` | 10 | Compatibility result formatting |
+| `internal/api/context_middleware_test.go` | 8 | Context middleware |
+| `internal/mcp/tools_comparison_test.go` | 7 | MCP comparison tools |
+| `internal/mcp/schema_utils_test.go` | 7 | MCP schema utilities |
+| `internal/auth/service_test.go` | 6 | User/API key business logic |
 | `internal/storage/factory_test.go` | 6 | Storage factory pattern |
-| `internal/metrics/metrics_test.go` | 16 | Prometheus metrics registration |
-| `internal/association/association_test.go` | 30 | Subject association logic |
-| `internal/cluster/metadata_test.go` | 22 | Cluster metadata handling |
-| `internal/context/context_test.go` | 27 | Context management |
-| `internal/rules/engine_test.go` | 34 | Rules engine |
-| `internal/exporter/exporter_test.go` | 40 | Schema exporter |
+| `internal/mcp/fuzzy_test.go` | 5 | MCP fuzzy matching |
+| `internal/mcp/quality_test.go` | 3 | MCP quality scoring |
+| `internal/api/openapi_test.go` | 3 | OpenAPI spec/route sync, YAML validity |
 
 ### How to Run Unit Tests
 
@@ -194,7 +223,7 @@ Every `_test.go` file inside `internal/` without a build tag is a unit test. Key
 make test-unit
 ```
 
-This runs `go test -race -v -timeout 5m ./internal/...`. No Docker or external services REQUIRED.
+This runs `go test -race -v -timeout 5m ./...`. No Docker or external services REQUIRED.
 
 ### How to Write Unit Tests
 
@@ -283,13 +312,13 @@ make test-integration BACKEND=all          # All backends
 
 There is no memory backend for integration tests -- they REQUIRE a real database.
 
-**Location:** `tests/integration/integration_test.go` (32 tests, 1,119 lines)
+**Location:** `tests/integration/` (66 tests across 6 files)
 
 Build tag: `//go:build integration`
 
 ### How to Write Integration Tests
 
-1. Add test functions to `tests/integration/integration_test.go`.
+1. Add test functions to the appropriate file in `tests/integration/`.
 2. Use the shared `httptest.Server` created in `TestMain`.
 3. Issue HTTP requests using `http.DefaultClient`.
 4. Verify both HTTP response status/body and direct storage queries where appropriate.
@@ -327,7 +356,7 @@ make test-concurrency BACKEND=cassandra    # Cassandra
 make test-concurrency BACKEND=all          # All backends
 ```
 
-**Location:** `tests/concurrency/concurrency_test.go` (11 tests, 1,276 lines)
+**Location:** `tests/concurrency/concurrency_test.go` (29 tests)
 
 Build tag: `//go:build concurrency`
 
@@ -335,7 +364,7 @@ Build tag: `//go:build concurrency`
 
 ### What BDD Tests Test
 
-BDD (Behavior-Driven Development) tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) to describe the system's behavior in plain English. With 76 feature files and ~1,400 scenarios, they provide the most comprehensive functional coverage. They test every API endpoint, every compatibility rule for all three schema types, every error code, schema references, import operations, mode management, and operational resilience (service restart, crash recovery).
+BDD (Behavior-Driven Development) tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) to describe the system's behavior in plain English. They provide the most comprehensive functional coverage, testing every API endpoint, every compatibility rule for all three schema types, every error code, schema references, import operations, mode management, multi-tenant contexts, MCP tools/resources/prompts, MCP permissions, DEK/KEK encryption, exporter operations, data contracts, analysis endpoints, audit logging, rate limiting, and operational resilience (service restart, crash recovery).
 
 The BDD tests also serve as the primary mechanism for **Confluent conformance testing** -- the same feature files can be run against a real Confluent Schema Registry to verify behavioral parity.
 
@@ -344,7 +373,7 @@ The BDD tests also serve as the primary mechanism for **Confluent conformance te
 ```
 tests/bdd/
 ├── bdd_test.go                   # Test runner (godog initialization, backend selection)
-├── features/                     # 76 .feature files (~24,000 lines of Gherkin)
+├── features/                     # 148 top-level .feature files
 │   ├── compatibility_avro.feature
 │   ├── compatibility_protobuf.feature
 │   ├── compatibility_jsonschema.feature
@@ -352,25 +381,64 @@ tests/bdd/
 │   ├── schema_avro_advanced.feature
 │   ├── schema_references.feature
 │   ├── import.feature
+│   ├── encryption_*.feature      # DEK/KEK encryption features
+│   ├── exporter_*.feature        # Exporter (Schema Linking) features
+│   ├── data_contracts_*.feature  # Data contract features
+│   ├── contexts_*.feature        # Multi-tenant context features
 │   ├── ...
-│   └── operational_resilience.feature
-├── steps/                        # Step definitions
+│   ├── operational_resilience.feature
+│   └── mcp/                      # 44 MCP-specific .feature files
+│       ├── mcp_tools.feature
+│       ├── mcp_resources.feature
+│       ├── mcp_prompts.feature
+│       ├── mcp_glossary.feature
+│       ├── mcp_permissions.feature
+│       ├── mcp_workflow_*.feature  # 9 workflow scenario files
+│       └── ...
+├── steps/                        # 13 step definition files
 │   ├── context.go                # TestContext: HTTP client, state, JSON parsing
 │   ├── schema_steps.go           # Schema registration, retrieval, deletion, compat, config
+│   ├── mcp_steps.go              # MCP tool calls, resource reads, prompt gets
+│   ├── concurrency_steps.go      # Concurrent operation steps
+│   ├── auth_steps.go             # Authentication and RBAC steps
+│   ├── encryption_steps.go       # DEK/KEK encryption steps
 │   ├── reference_steps.go        # Schema reference operations
+│   ├── infra_steps.go            # Operational scenarios (service start/stop)
 │   ├── import_steps.go           # Bulk import API
 │   ├── mode_steps.go             # Mode management
-│   └── infra_steps.go            # Operational scenarios (service start/stop)
+│   ├── rate_limit_steps.go       # Rate limiting steps
+│   ├── metrics_steps.go          # Prometheus metrics assertions
+│   └── audit_output_steps.go     # Webhook/syslog/CEF audit output assertions
+├── configs/                      # Per-backend/feature BDD config files
+│   ├── config.memory.yaml
+│   ├── config.memory-auth.yaml
+│   ├── config.memory-mcp.yaml
+│   ├── config.memory-mcp-audit.yaml
+│   ├── config.memory-audit.yaml
+│   ├── config.memory-audit-outputs.yaml
+│   ├── config.postgres.yaml
+│   ├── config.mysql.yaml
+│   └── config.cassandra.yaml
+├── docker/                       # Custom test containers
+│   ├── webhook-receiver/         # Go HTTP server for webhook audit output testing
+│   └── syslog-ng/                # syslog-ng TLS/TCP configs
+├── certs/                        # Self-signed ECDSA P256 certs for TLS syslog testing
+├── docker-compose.yml            # BDD standalone compose
 ├── docker-compose.base.yml       # Base service definition
 ├── docker-compose.postgres.yml   # PostgreSQL overlay
 ├── docker-compose.mysql.yml      # MySQL overlay
 ├── docker-compose.cassandra.yml  # Cassandra overlay
-└── docker-compose.confluent.yml  # Confluent Schema Registry 8.1.1 + Kafka
+├── docker-compose.confluent.yml  # Confluent Schema Registry 8.1.1 + Kafka
+├── docker-compose.memory.yml     # Memory overlay
+├── docker-compose.kms.yml        # KMS services (Vault + OpenBao)
+├── docker-compose.kms-overlay.yml # KMS overlay for backend compose
+├── docker-compose.audit-outputs.yml # Syslog-ng + webhook-receiver overlay
+└── docker-compose.*.yml          # Additional overlays (auth, mcp, audit, db-*)
 ```
 
 ### Feature Files
 
-The 76 feature files are organized by functional area. The largest files by scenario count:
+The feature files are organized by functional area. The largest files by scenario count:
 
 | Feature File | Scenarios | Area |
 |-------------|-----------|------|
@@ -384,16 +452,32 @@ The 76 feature files are organized by functional area. The largest files by scen
 | `schema_avro_advanced.feature` | 40 | Advanced Avro schema features |
 | `compatibility_transitive.feature` | 40 | Transitive compatibility (3+ version chains) |
 
+MCP feature files:
+
+| Feature File | Scenarios | Area |
+|-------------|-----------|------|
+| `mcp_tools.feature` | — | Core MCP tool operations |
+| `mcp_resources.feature` | — | MCP resource access |
+| `mcp_prompts.feature` | — | MCP prompt retrieval |
+| `mcp_glossary.feature` | — | Glossary resource content |
+| `mcp_permissions.feature` | — | Permission scopes and presets |
+| `mcp_workflow_*.feature` | 45 | 9 prompt-guided workflow scenarios |
+
 ### Step Definitions
 
 | File | Lines | What It Registers |
 |------|-------|-------------------|
-| `steps/context.go` | 238 | `TestContext` struct: HTTP client, response state, JSON parsing, placeholder resolution |
-| `steps/schema_steps.go` | 483 | Steps for schema registration, retrieval, listing, lookup, deletion, compatibility, config |
+| `steps/mcp_steps.go` | 756 | MCP tool calls, resource reads, prompt gets, permission config, session management |
+| `steps/schema_steps.go` | 549 | Steps for schema registration, retrieval, listing, lookup, deletion, compatibility, config |
+| `steps/concurrency_steps.go` | 430 | Concurrent operation steps |
+| `steps/auth_steps.go` | 269 | Authentication and RBAC steps |
+| `steps/encryption_steps.go` | 268 | DEK/KEK encryption steps |
+| `steps/context.go` | 263 | `TestContext` struct: HTTP client, response state, JSON parsing, placeholder resolution |
+| `steps/infra_steps.go` | 127 | Steps for operational scenarios (service start/stop/restart via webhook) |
 | `steps/reference_steps.go` | 123 | Steps for schema reference registration and verification |
 | `steps/import_steps.go` | 68 | Steps for the bulk import API |
+| `steps/rate_limit_steps.go` | 63 | Rate limiting steps |
 | `steps/mode_steps.go` | 39 | Steps for mode management |
-| `steps/infra_steps.go` | 127 | Steps for operational scenarios (service start/stop/restart via webhook) |
 
 ### BDD Tags
 
@@ -406,12 +490,32 @@ Tags control which scenarios run in which context:
 | `@smoke` | Minimal health/metadata checks. |
 | `@compatibility` | Compatibility checking scenarios. |
 | `@import` | Import API scenarios. |
-| `@axonops-only` | AxonOps-specific features not in Confluent (docs endpoint, import API). |
-| `@pending-impl` | Not yet implemented. Always excluded. |
+| `@axonops-only` | AxonOps-specific features not in Confluent (docs, import API, analysis, MCP). |
 | `@memory`, `@postgres`, `@mysql`, `@cassandra` | Backend-specific scenarios. |
 | `@avro`, `@protobuf`, `@jsonschema` | Schema-type-specific scenarios. |
 | `@kms` | KMS encryption tests (Vault/OpenBao Transit). Require KMS infrastructure. |
 | `@data-contracts` | Data contract features (rules, metadata, DEK Registry). |
+| `@encryption` | DEK/KEK encryption scenarios. |
+| `@contexts` | Multi-tenant context scenarios. |
+| `@mcp` | MCP protocol tests. |
+| `@mcp-permissions` | MCP permission scope tests. |
+| `@mcp-workflow` | MCP prompt-guided workflow tests. |
+| `@mcp-glossary` | MCP glossary resource tests. |
+| `@mcp-prompts` | MCP prompt tests. |
+| `@mcp-resources` | MCP resource tests. |
+| `@mcp-security` | MCP security tests. |
+| `@mcp-confirmation` | MCP confirmation dialog tests. |
+| `@auth` | Authentication scenarios. |
+| `@admin` | Admin endpoint scenarios. |
+| `@account` | Self-service account scenarios. |
+| `@audit` | Audit logging scenarios. |
+| `@rate-limiting` | Rate limiting scenarios. |
+| `@concurrency` | Concurrency scenarios. |
+| `@analysis` | Analysis endpoint scenarios. |
+| `@references` | Schema reference scenarios. |
+| `@security` | Security-related scenarios. |
+| `@observability` | Metrics/monitoring scenarios. |
+| `@pending-impl` | Not yet implemented. Always excluded. |
 
 ### BDD Execution Modes
 
@@ -421,6 +525,8 @@ The default mode. Creates a fresh `httptest.Server` with in-memory storage per s
 
 ```bash
 make test-bdd
+# or equivalently:
+make test-bdd-functional
 ```
 
 **2. Docker-based (real backends):**
@@ -432,12 +538,29 @@ make test-bdd BACKEND=postgres
 make test-bdd BACKEND=cassandra
 ```
 
-**3. Confluent conformance:**
+**3. In-process with real DB:**
+
+Uses an in-process server but connects to a real database. Useful for debugging backend-specific issues without Docker Compose complexity.
+
+```bash
+make test-bdd-db BACKEND=postgres
+```
+
+**4. Confluent conformance:**
 
 Starts Confluent Schema Registry 8.1.1 with Kafka (KRaft mode) via Docker Compose. Runs the same feature files (excluding `@import`, `@axonops-only`, and backend-specific tags) against Confluent to verify behavioral parity.
 
 ```bash
 make test-bdd BACKEND=confluent
+```
+
+**5. KMS encryption:**
+
+Starts Vault and OpenBao KMS services. Runs scenarios tagged `@kms`.
+
+```bash
+make test-bdd-kms BACKEND=memory
+make test-bdd-kms BACKEND=all
 ```
 
 ### BDD State Cleanup
@@ -448,16 +571,24 @@ Between scenarios, the test runner cleans all state to ensure isolation:
 - **MySQL:** `SET FOREIGN_KEY_CHECKS = 0` + `TRUNCATE` each table
 - **Cassandra:** `TRUNCATE` each table + re-seed `id_alloc`
 - **Confluent/Memory:** API-based cleanup (reset mode, delete all subjects, reset config)
+- **MCP:** Session state is reset per scenario; `InMemoryTransport` is recreated
 
 ### How to Run BDD Tests
 
 ```bash
 make test-bdd                          # In-process, memory (no Docker)
+make test-bdd-functional               # Same as above (explicit alias)
 make test-bdd BACKEND=postgres         # Docker Compose with PostgreSQL
 make test-bdd BACKEND=mysql            # Docker Compose with MySQL
 make test-bdd BACKEND=cassandra        # Docker Compose with Cassandra
 make test-bdd BACKEND=confluent        # Against Confluent Schema Registry 8.1.1
 make test-bdd BACKEND=all              # All backends sequentially
+make test-bdd-db BACKEND=postgres      # In-process server + real PostgreSQL
+make test-bdd-db BACKEND=all           # In-process server + all DBs
+make test-bdd-auth BACKEND=postgres    # BDD auth tests + real PostgreSQL
+make test-bdd-auth BACKEND=all         # BDD auth tests + all DBs
+make test-bdd-kms BACKEND=memory       # BDD KMS tests (Vault + OpenBao)
+make test-bdd-kms BACKEND=all          # BDD KMS tests + all backends
 ```
 
 To run a specific feature file:
@@ -474,10 +605,62 @@ go test -tags bdd -v ./tests/bdd/... -godog.tags="@smoke"
 
 ### How to Write BDD Tests
 
-1. **Create or update a `.feature` file** in `tests/bdd/features/`. Write scenarios in Gherkin syntax using existing step patterns where possible.
+1. **Create or update a `.feature` file** in `tests/bdd/features/` (or `tests/bdd/features/mcp/` for MCP tests). Write scenarios in Gherkin syntax using existing step patterns where possible.
 2. **Add new step definitions** if needed in the appropriate file under `tests/bdd/steps/`. Register them in the `InitializeScenario` function in `bdd_test.go`.
-3. **Tag appropriately:** Use `@functional` for in-process tests, `@operational` for tests that require Docker infrastructure, and `@axonops-only` for features not present in Confluent.
+3. **Tag appropriately:** Use `@functional` for in-process tests, `@operational` for tests that require Docker infrastructure, `@axonops-only` for features not present in Confluent, and `@mcp` for MCP tests.
 4. **Run against memory first** (`make test-bdd`) for fast iteration, then verify against all backends (`make test-bdd BACKEND=all`).
+
+## MCP Tests
+
+### MCP Unit Tests
+
+MCP unit tests live in `internal/mcp/`. They cover:
+
+- Server initialization and options pattern
+- Tool registration and permission filtering
+- Resource and resource template registration
+- Prompt handler registration and content
+- Context resolution (`resolveContext`, `resolveResourceContext`)
+- Permission scopes, presets, and resolution precedence
+- Fuzzy matching, quality scoring, schema field analysis
+- Instrumented handler metrics and logging
+
+### MCP BDD Tests
+
+MCP BDD tests live in `tests/bdd/features/mcp/`. They use `InMemoryTransport` for protocol-level testing (no HTTP network I/O). They cover:
+
+- All tools: invocation, parameter validation, error handling
+- All resources: static content and templated resolution
+- All prompts: content validation and context parameter handling
+- Permission scopes: readonly/developer/operator/admin/full presets
+- Workflow scenarios: 9 end-to-end prompt-guided workflows (45 scenarios)
+- Security: auth token validation, read-only mode enforcement
+
+Step definitions are in `tests/bdd/steps/mcp_steps.go` (756 lines). Key patterns:
+
+- `_mcp_permission_preset` / `_mcp_permission_scopes` — set before lazy session creation
+- `getMCPSession()` — creates or returns cached MCP session with `InMemoryTransport`
+- `$variable` resolution — BDD variables like `$schema_id` resolved from prior step results
+
+### How to Run MCP Tests
+
+```bash
+# Unit tests (included in make test-unit)
+make test-unit
+
+# BDD tests (included in make test-bdd)
+make test-bdd
+
+# MCP BDD tests only
+go test -tags bdd -v ./tests/bdd/... -godog.tags="@mcp"
+```
+
+### How to Write MCP Tests
+
+1. **New tool:** Add the tool implementation in the appropriate `tools_*.go` file. Add it to `toolPermissionScope` in `permissions.go`. Write unit tests in the corresponding `*_test.go`. Add BDD scenarios in `tests/bdd/features/mcp/`.
+2. **New resource:** Add to `resources.go` (or `glossary.go` for glossary content). Add BDD scenarios in `mcp_resources.feature`.
+3. **New prompt:** Add the handler in `prompts.go`, create the content markdown in `content/prompts/`. Add BDD scenarios in `mcp_prompts.feature`.
+4. **New permission scope:** Add the scope constant in `permissions.go`, update preset definitions, update `toolPermissionScope` mapping. Add BDD scenarios in `mcp_permissions.feature`.
 
 ## API Endpoint Tests
 
@@ -493,7 +676,7 @@ make test-api
 
 The Makefile builds the binary, starts it on port 28082 with in-memory storage, runs the tests, and shuts it down.
 
-**Location:** `tests/api/api_test.go` (38 tests, 731 lines)
+**Location:** `tests/api/api_test.go` (38 tests)
 
 Build tag: `//go:build api`
 
@@ -503,7 +686,7 @@ Authentication tests verify integration with external identity providers. Each t
 
 ### LDAP Tests
 
-**Location:** `tests/integration/ldap_integration_test.go` (5 tests, 624 lines)
+**Location:** `tests/integration/ldap_integration_test.go` (5 tests)
 
 Build tag: `//go:build ldap`
 
@@ -513,7 +696,7 @@ Tests: LDAP bind authentication, group-to-role mapping, RBAC enforcement on conf
 
 ### OIDC Tests
 
-**Location:** `tests/integration/oidc_integration_test.go` (6 tests, 736 lines)
+**Location:** `tests/integration/oidc_integration_test.go` (6 tests)
 
 Build tag: `//go:build oidc`
 
@@ -523,7 +706,7 @@ Tests: Bearer token authentication, group claim to role mapping, RBAC enforcemen
 
 ### Vault Tests
 
-**Location:** `tests/integration/vault_integration_test.go` (6 tests, 893 lines)
+**Location:** `tests/integration/vault_integration_test.go` (6 tests)
 
 Build tag: `//go:build vault`
 
@@ -540,6 +723,30 @@ make test-oidc       # OIDC tests only
 make test-auth       # All three
 ```
 
+## KMS Encryption Tests
+
+### What KMS Tests Test
+
+KMS encryption tests verify client-side field-level encryption (CSFLE) using DEK/KEK management with external KMS providers. Tests cover KEK creation, DEK generation, encryption/decryption round-trips, key rotation, soft-delete/undelete, and multi-backend storage of encryption metadata.
+
+Both HashiCorp Vault Transit and OpenBao are tested as KMS providers.
+
+### How to Run KMS Tests
+
+```bash
+make test-bdd-kms                        # Memory backend with Vault + OpenBao
+make test-bdd-kms BACKEND=postgres       # PostgreSQL with Vault + OpenBao
+make test-bdd-kms BACKEND=all            # All backends with Vault + OpenBao
+```
+
+The Makefile starts Vault and OpenBao containers, runs the KMS setup script, executes `@kms`-tagged BDD scenarios, and tears down the containers.
+
+**Docker Compose:** `tests/bdd/docker-compose.kms.yml`
+
+**KMS endpoints:**
+- Vault: `http://localhost:18200` (token: `test-root-token`)
+- OpenBao: `http://localhost:18201` (token: `test-bao-token`)
+
 ## Migration Tests
 
 ### What Migration Tests Test
@@ -552,7 +759,7 @@ Migration tests verify the schema import and migration workflow for users moving
 make test-migration
 ```
 
-**Location:** `tests/migration/migration_test.go` (5 tests, 566 lines) + shell scripts
+**Location:** `tests/migration/migration_test.go` (5 tests) + shell scripts
 
 Build tag: `//go:build migration`
 
@@ -583,14 +790,11 @@ make test-compatibility
 
 Requires Maven (for Java tests) and Python 3 (for Python tests). Missing runtimes are skipped with a warning.
 
+## Data Contract & CSFLE Tests
 
-## Data Contract & CSFLE Integration Tests
+### Java SerDe Tests
 
-### What Data Contract & CSFLE Tests Test
-
-Data contract and CSFLE tests use real Confluent Java serializer/deserializer clients to verify end-to-end rule execution and field-level encryption. The schema registry stores rules and encryption metadata; these tests prove that Confluent clients correctly fetch and execute them.
-
-The tests cover four categories:
+Java integration tests using real Confluent SerDe clients to verify end-to-end rule execution and field-level encryption.
 
 | Test Class | Tests | What It Covers |
 |-----------|-------|----------------|
@@ -603,96 +807,46 @@ The tests cover four categories:
 
 **JUnit tags:** `data-contracts`, `csfle`
 
-### How to Run Data Contract & CSFLE Tests
+### Go SerDe Tests
 
-Data contract tests (CEL, JSONata, global policies) do not require KMS infrastructure:
+Go integration tests using `confluent-kafka-go/v2` (v2.8.0). 30 tests across 7 files.
+
+| Test File | Tests | What It Covers |
+|-----------|-------|----------------|
+| `cel_rules_test.go` | 8 | CEL CONDITION (write/read), CEL_FIELD TRANSFORM (PII masking, normalization), disabled rules |
+| `migration_rules_test.go` | 6 | JSONata UPGRADE/DOWNGRADE, field rename, field addition, breaking change bridging |
+| `csfle_vault_test.go` | 7 | CSFLE round-trip, raw byte inspection, multi-field encryption, DEK/KEK auto-creation via Vault Transit |
+| `global_policies_test.go` | 4 | Default ruleSet execution, override ruleSet enforcement, rule inheritance, PII tag propagation |
+| `cel_extras_test.go` | 4 | Go-only extra CEL scenarios (chained transforms, nested field conditions) |
+| `csfle_extras_test.go` | 3 | Go-only extra CSFLE scenarios (key rotation, multi-tenant encryption) |
+| `cel_jsonschema_test.go` | 2 | CEL rules with JSON Schema format |
+| `cel_protobuf_test.go` | 2 | CEL rules with Protobuf format |
+
+**Location:** `tests/compatibility/go-serde/`
+
+### How to Run Data Contract Tests
 
 ```bash
+# Java data contracts (no KMS)
 cd tests/compatibility/java
 mvn test -P confluent-8.1 -Dschema.registry.url=http://localhost:8081 -Dgroups=data-contracts
-```
 
-CSFLE tests require HashiCorp Vault:
-
-```bash
-# Start Vault
-cd tests/bdd
-docker compose -f docker-compose.kms.yml up -d vault
-docker compose -f docker-compose.kms.yml run --rm setup-kms
-
-# Run CSFLE tests
-cd ../../tests/compatibility/java
+# Java CSFLE (requires Vault)
 mvn test -P confluent-8.1 \
   -Dschema.registry.url=http://localhost:8081 \
   -Dgroups=csfle \
   -Dvault.url=http://localhost:18200 \
   -Dvault.token=test-root-token
-```
 
-Requires Maven and Java 17+.
-
-## Go SerDe Data Contract & CSFLE Tests
-
-### What Go SerDe Tests Test
-
-Go SerDe data contract and CSFLE tests use the `confluent-kafka-go/v2` schema registry client (`schemaregistry` sub-packages only, no CGO required) to verify end-to-end rule execution, migration transforms, global policy enforcement, and field-level encryption via Vault Transit KMS. These tests complement the Java SerDe tests by validating the same data contract and CSFLE behaviors from a Go client perspective.
-
-The tests cover six categories across 30 test functions in 7 test files:
-
-| Test File | Tests | What It Covers |
-|-----------|-------|----------------|
-| `cel_rules_test.go` | 8 | CEL CONDITION (write/read), CEL_FIELD TRANSFORM (PII masking, normalization), disabled rules |
-| `migration_rules_test.go` | 4 | JSONata UPGRADE/DOWNGRADE, field rename, field addition, breaking change bridging |
-| `csfle_vault_test.go` | 7 | CSFLE round-trip, raw byte inspection, multi-field encryption, DEK/KEK auto-creation via Vault Transit |
-| `global_policies_test.go` | 4 | Default ruleSet execution, override ruleSet enforcement, rule inheritance, PII tag propagation |
-| `cel_extras_test.go` | 4 | Go-only extra CEL scenarios (chained transforms, nested field conditions) |
-| `csfle_extras_test.go` | 3 | Go-only extra CSFLE scenarios (key rotation, multi-tenant encryption) |
-| `testhelper_test.go` | -- | Shared utilities, HTTP helpers, client factories, struct definitions |
-
-**Location:** `tests/compatibility/go-serde/`
-
-**Dependencies:** `confluent-kafka-go/v2 v2.8.0` (only `schemaregistry/*` sub-packages are imported; no CGO required)
-
-### How to Run Go SerDe Tests
-
-Data contract tests (CEL, JSONata, global policies) do not require KMS infrastructure:
-
-```bash
+# Go data contracts (no KMS)
 cd tests/compatibility/go-serde
 SCHEMA_REGISTRY_URL=http://localhost:8081 go test -v -run "TestCel|TestMigration|TestGlobalPolicies" ./...
-```
 
-CSFLE tests require HashiCorp Vault:
-
-```bash
-# Start Vault
-cd tests/bdd
-docker compose -f docker-compose.kms.yml up -d vault
-docker compose -f docker-compose.kms.yml run --rm setup-kms
-
-# Run CSFLE tests
-cd ../../tests/compatibility/go-serde
+# Go CSFLE (requires Vault)
 SCHEMA_REGISTRY_URL=http://localhost:8081 \
   VAULT_URL=http://localhost:18200 \
   VAULT_TOKEN=test-root-token \
   go test -v -run "TestCsfle" -timeout 10m ./...
-```
-
-All tests together:
-
-```bash
-cd tests/compatibility/go-serde
-SCHEMA_REGISTRY_URL=http://localhost:8081 \
-  VAULT_URL=http://localhost:18200 \
-  VAULT_TOKEN=test-root-token \
-  go test -v -timeout 10m ./...
-```
-
-A convenience script is also available:
-
-```bash
-cd tests/compatibility/go-serde
-./run_tests.sh
 ```
 
 ## OpenAPI Validation
@@ -735,23 +889,26 @@ If a scenario passes against Confluent but fails against AxonOps, it indicates a
 
 ## CI Pipeline
 
-GitHub Actions runs the full test suite on every push to `main` or `feature/**` branches. The pipeline has 22 jobs:
+GitHub Actions runs 37 jobs on every push to `main` or `feature/**` branches. The pipeline is defined in `.github/workflows/ci.yaml`.
 
 | Stage | Jobs |
 |-------|------|
-| **Build** | Compile binary + all test binaries, run unit tests with coverage, upload artifacts |
-| **Static Analysis** | golangci-lint, go vet, gosec, Trivy vulnerability scanner |
-| **Docker** | Multi-stage Docker image build verification |
-| **Database Tests** | Integration + concurrency tests against PostgreSQL 15, MySQL 8, Cassandra 5.0 |
-| **Conformance** | Storage conformance suite against memory, PostgreSQL, MySQL, Cassandra |
-| **API** | Black-box API endpoint tests |
-| **Auth** | LDAP (OpenLDAP), Vault (HashiCorp Vault 1.15), OIDC (Keycloak 24.0) |
-| **Migration** | Import/migration tests |
-| **BDD** | In-process functional, then Docker-based: memory, PostgreSQL, MySQL, Cassandra, Confluent 8.1.1 |
-| **Compatibility** | Go + Java (4 Confluent versions) + Python (3 versions) serializer tests |
-| **Data Contracts (Java)** | Java Confluent SerDe data contract tests (CEL, JSONata, CSFLE) with Vault |
-| **Data Contracts (Go)** | Go SerDe data contract + CSFLE tests (`go-data-contract-csfle-tests` job) with Vault |
-| **KMS Backends** | BDD KMS encryption tests against memory, PostgreSQL, MySQL, Cassandra |
+| **Build** | `build` — compile binary + all test binaries, run unit tests with coverage, upload artifacts |
+| **Static Analysis** | `lint`, `security` — golangci-lint, go vet, gosec, Trivy |
+| **Gate** | `gate` — dependency gate, all downstream jobs wait for build + lint + security |
+| **Docker** | `docker` — multi-stage Docker image build verification |
+| **Database Tests** | `postgres-tests`, `mysql-tests`, `cassandra-tests` — integration + concurrency |
+| **Conformance** | `conformance-memory`, `conformance-postgres`, `conformance-mysql`, `conformance-cassandra` |
+| **API** | `api-tests` — black-box API endpoint tests |
+| **Auth** | `ldap-tests`, `vault-tests`, `oidc-tests` |
+| **Migration** | `migration-tests` |
+| **BDD Docker** | `bdd-memory-tests`, `bdd-postgres-tests`, `bdd-mysql-tests`, `bdd-cassandra-tests`, `bdd-confluent-tests` |
+| **BDD Functional** | `bdd-functional-tests` — in-process functional tests |
+| **BDD DB** | `bdd-db-postgres-tests`, `bdd-db-mysql-tests`, `bdd-db-cassandra-tests` |
+| **BDD Auth** | `bdd-auth-postgres-tests`, `bdd-auth-mysql-tests`, `bdd-auth-cassandra-tests` |
+| **BDD KMS** | `bdd-kms-tests`, `bdd-kms-postgres-tests`, `bdd-kms-mysql-tests`, `bdd-kms-cassandra-tests` |
+| **Compatibility** | `compatibility-tests` — Go + Java + Python serializer tests |
+| **Data Contracts** | `java-data-contract-csfle-tests`, `go-data-contract-csfle-tests`, `python-data-contract-csfle-tests` |
 
 The `build` job compiles all test binaries and uploads them as artifacts. Downstream jobs download pre-compiled binaries to avoid redundant compilation.
 
@@ -761,14 +918,16 @@ The `build` job compiles all test binaries and uploads them as artifacts. Downst
 
 The project uses carefully managed port allocation to prevent conflicts between test layers:
 
-| Context | PostgreSQL | MySQL | Cassandra | Registry |
-|---------|-----------|-------|-----------|----------|
-| BDD standalone | 5433 | 3307 | 9043 | 18081 |
-| BDD overlay | 15432 | 13306 | 19042 | 18081 |
-| Makefile DB targets | 25432 | 23306 | 29042 | -- |
-| API tests | -- | -- | -- | 28082 |
-| Compatibility tests | -- | -- | -- | 28083 |
-| Default local dev | 5432 | 3306 | 9042 | 8081 |
+| Context | PostgreSQL | MySQL | Cassandra | Registry | KMS (Vault) | KMS (OpenBao) |
+|---------|-----------|-------|-----------|----------|-------------|---------------|
+| BDD standalone | 5433 | 3307 | 9043 | 18081 | — | — |
+| BDD overlay | 15432 | 13306 | 19042 | 18081 | — | — |
+| BDD KMS | — | — | — | — | 18200 | 18201 |
+| Makefile DB targets | 25432 | 23306 | 29042 | — | — | — |
+| API tests | — | — | — | 28082 | — | — |
+| Compatibility tests | — | — | — | 28083 | — | — |
+| Auth tests | — | — | — | — | 28200 (Vault) | — |
+| Default local dev | 5432 | 3306 | 9042 | 8081 | — | — |
 
 ## Pre-Commit Validation Workflow
 
@@ -802,6 +961,22 @@ make test-concurrency BACKEND=all
 make test-auth
 ```
 
+For changes affecting MCP:
+
+```bash
+# MCP BDD tests
+go test -tags bdd -v ./tests/bdd/... -godog.tags="@mcp"
+
+# Regenerate MCP reference
+make docs-mcp
+```
+
+For changes affecting encryption:
+
+```bash
+make test-bdd-kms BACKEND=all
+```
+
 ## Which Tests to Write for a Given Change
 
 | Type of Change | Tests REQUIRED |
@@ -814,11 +989,21 @@ make test-auth
 | Auth method change | Auth unit test, auth integration test (LDAP/OIDC/Vault as applicable) |
 | Configuration option | Config unit test, integration test verifying the option takes effect |
 | Bug fix | Unit test reproducing the bug, plus BDD scenario if it affects API behavior |
+| New MCP tool | Unit test, BDD scenario in `features/mcp/`, `toolPermissionScope` entry in `permissions.go` |
+| New MCP resource | BDD scenario in `mcp_resources.feature` or `mcp_glossary.feature` |
+| New MCP prompt | BDD scenario in `mcp_prompts.feature`, content file in `content/prompts/` |
+| New MCP permission scope | Unit test in `permissions_test.go`, BDD scenario in `mcp_permissions.feature` |
+| DEK/KEK encryption change | BDD KMS scenario, handler unit test |
+| Exporter change | Exporter unit test, BDD exporter scenario |
+| Data contract rule change | BDD data contract scenario, rules engine unit test |
 
 ## Related Documentation
 
 - [Development](development.md) -- building from source, Makefile targets, code conventions
 - [Configuration](configuration.md) -- all configuration options
 - [API Reference](api-reference.md) -- complete endpoint documentation
+- [MCP Server](mcp.md) -- MCP server for AI-assisted schema management
 - [Compatibility](compatibility.md) -- compatibility modes and checking behavior
 - [Storage Backends](storage-backends.md) -- backend-specific setup and behavior
+- [Encryption](encryption.md) -- DEK/KEK encryption and KMS providers
+- [Exporters](exporters.md) -- schema exporter (Schema Linking) configuration

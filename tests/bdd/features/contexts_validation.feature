@@ -55,6 +55,34 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".ctx123"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ctx123:valid-num                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ctx123                                      |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ctx123:valid-num/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: Valid context name with all valid character types
     When I POST "/subjects/:.My-Ctx_v2.0:all-chars/versions" with body:
@@ -65,6 +93,34 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".My-Ctx_v2.0"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.My-Ctx_v2.0:all-chars                      |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .My-Ctx_v2.0                                 |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.My-Ctx_v2.0:all-chars/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # DEFAULT CONTEXT BEHAVIOR
@@ -86,6 +142,34 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain "."
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | plain-val                                    |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/plain-val/versions                 |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # INVALID CONTEXT ATTEMPTS DO NOT CREATE CONTEXTS
@@ -122,6 +206,34 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     Then the response status should be 200
     And the response array should contain "."
     And the response array should contain ".new-ctx"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.new-ctx:impl-create                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .new-ctx                                     |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.new-ctx:impl-create/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # ERROR CONDITIONS FOR NON-EXISTENT RESOURCES IN VALID CONTEXTS

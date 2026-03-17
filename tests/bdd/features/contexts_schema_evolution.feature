@@ -56,6 +56,34 @@ Feature: Contexts — Schema Evolution Workflows
     And the response body should contain "name"
     And the response body should not contain "age"
     And the response body should not contain "email"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo1:User                               |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo1                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo1:User/versions            |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # BACKWARD_TRANSITIVE ENFORCEMENT
@@ -88,6 +116,34 @@ Feature: Contexts — Schema Evolution Workflows
       {"schema": "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"com.example.evo2\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"code\",\"type\":\"int\",\"default\":0}]}"}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo2:Event                              |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo2                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo2:Event/versions           |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # FORWARD COMPATIBILITY
@@ -117,6 +173,34 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo3:Record/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo3:Record                             |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo3                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo3:Record/versions          |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # FULL COMPATIBILITY
@@ -149,6 +233,34 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo4:Profile                            |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo4                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo4:Profile/versions         |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # VERSION DELETION
@@ -180,6 +292,34 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo5:Data/versions/2"
     Then the response status should be 200
     And the response body should contain "Data"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                        |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo5:Data                               |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .evo5                                     |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.evo5:Data/versions/1          |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # PERMANENT VERSION DELETION
@@ -209,6 +349,34 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo6:Entry/versions/2"
     Then the response status should be 200
     And the response body should contain "Entry"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_permanent                   |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo6:Entry                              |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .evo6                                     |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.evo6:Entry/versions/1         |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # INDEPENDENT EVOLUTION ACROSS CONTEXTS
@@ -254,6 +422,34 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo7b:User/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo7b:User                              |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo7b                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo7b:User/versions           |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # IDEMPOTENT RE-REGISTRATION
@@ -277,6 +473,34 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo8:Metric/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo8:Metric                             |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo8                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo8:Metric/versions          |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST SPECIFIC VERSION
@@ -313,6 +537,34 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be true
+    And the audit log should contain an event:
+      | event_type           | config_update                             |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | config                                    |
+      | target_id            | :.evo9:Order                              |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo9                                     |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /config/:.evo9:Order                      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST ALL VERSIONS
@@ -342,6 +594,34 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be true
+    And the audit log should contain an event:
+      | event_type           | config_update                             |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | config                                    |
+      | target_id            | :.evo10:Item                              |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo10                                    |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /config/:.evo10:Item                      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # FULL_TRANSITIVE REJECTION
@@ -374,3 +654,31 @@ Feature: Contexts — Schema Evolution Workflows
       {"schema": "{\"type\":\"record\",\"name\":\"Sensor\",\"namespace\":\"com.example.evo11\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"reading\",\"type\":[\"null\",\"double\"],\"default\":null}]}"}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.evo11:Sensor                            |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .evo11                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.evo11:Sensor/versions         |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |

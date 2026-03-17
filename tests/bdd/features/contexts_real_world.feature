@@ -50,6 +50,34 @@ Feature: Contexts — Real-World Usage Patterns
     And the response array should contain "."
     And the response array should contain ".team-alpha"
     And the response array should contain ".team-bravo"
+    And the audit log should contain an event:
+      | event_type          | schema_register                          |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | :.team-bravo:user-events                 |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
+      | method              | POST                                     |
+      | path                | /subjects/:.team-bravo:user-events/versions |
+      | status_code         | 200                                      |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | context             | .team-bravo                              |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   # ==========================================================================
   # SCENARIO 2: Environment separation — dev, staging, prod
@@ -94,6 +122,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.prod:payment-events/versions/1"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type          | schema_register                           |
+      | outcome             | success                                   |
+      | actor_id            |                                           |
+      | actor_type          | anonymous                                 |
+      | auth_method         |                                           |
+      | role                |                                           |
+      | target_type         | subject                                   |
+      | target_id           | :.prod:payment-events                     |
+      | schema_id           | *                                         |
+      | version             | *                                         |
+      | schema_type         | AVRO                                      |
+      | method              | POST                                      |
+      | path                | /subjects/:.prod:payment-events/versions  |
+      | status_code         | 200                                       |
+      | before_hash         |                                           |
+      | after_hash          | sha256:*                                  |
+      | context             | .prod                                     |
+      | transport_security  | tls                                       |
+      | reason              |                                           |
+      | error               |                                           |
+      | request_body        |                                           |
+      | metadata            |                                           |
+      | timestamp           | *                                         |
+      | duration_ms         | *                                         |
+      | request_id          | *                                         |
+      | source_ip           | *                                         |
+      | user_agent          | *                                         |
 
   # ==========================================================================
   # SCENARIO 3: Schema linking simulation — source and destination clusters
@@ -139,6 +195,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.dest-cluster:product-value/versions/1"
     Then the response status should be 200
     And I store the response field "id" as "dest_schema_id"
+    And the audit log should contain an event:
+      | event_type          | schema_register                                    |
+      | outcome             | success                                            |
+      | actor_id            |                                                    |
+      | actor_type          | anonymous                                          |
+      | auth_method         |                                                    |
+      | role                |                                                    |
+      | target_type         | subject                                            |
+      | target_id           | :.dest-cluster:product-value                       |
+      | schema_id           | *                                                  |
+      | version             | *                                                  |
+      | schema_type         | AVRO                                               |
+      | method              | POST                                               |
+      | path                | /subjects/:.dest-cluster:product-value/versions    |
+      | status_code         | 200                                                |
+      | before_hash         |                                                    |
+      | after_hash          | sha256:*                                           |
+      | context             | .dest-cluster                                      |
+      | transport_security  | tls                                                |
+      | reason              |                                                    |
+      | error               |                                                    |
+      | request_body        |                                                    |
+      | metadata            |                                                    |
+      | timestamp           | *                                                  |
+      | duration_ms         | *                                                  |
+      | request_id          | *                                                  |
+      | source_ip           | *                                                  |
+      | user_agent          | *                                                  |
 
   # ==========================================================================
   # SCENARIO 4: Hierarchical context naming with dots
@@ -173,6 +257,34 @@ Feature: Contexts — Real-World Usage Patterns
     Then the response status should be 200
     And the response array should contain ".org.team1.payments"
     And the response array should contain ".org.team2.payments"
+    And the audit log should contain an event:
+      | event_type          | schema_register                                          |
+      | outcome             | success                                                  |
+      | actor_id            |                                                          |
+      | actor_type          | anonymous                                                |
+      | auth_method         |                                                          |
+      | role                |                                                          |
+      | target_type         | subject                                                  |
+      | target_id           | :.org.team2.payments:transactions                        |
+      | schema_id           | *                                                        |
+      | version             | *                                                        |
+      | schema_type         | AVRO                                                     |
+      | method              | POST                                                     |
+      | path                | /subjects/:.org.team2.payments:transactions/versions     |
+      | status_code         | 200                                                      |
+      | before_hash         |                                                          |
+      | after_hash          | sha256:*                                                 |
+      | context             | .org.team2.payments                                      |
+      | transport_security  | tls                                                      |
+      | reason              |                                                          |
+      | error               |                                                          |
+      | request_body        |                                                          |
+      | metadata            |                                                          |
+      | timestamp           | *                                                        |
+      | duration_ms         | *                                                        |
+      | request_id          | *                                                        |
+      | source_ip           | *                                                        |
+      | user_agent          | *                                                        |
 
   # ==========================================================================
   # SCENARIO 5: Default context coexists with named contexts
@@ -208,6 +320,34 @@ Feature: Contexts — Real-World Usage Patterns
     And the response body should contain "warehouse"
     # Schemas are different, proving isolation
     And the response body should contain "com.rw.scenario5.prod"
+    And the audit log should contain an event:
+      | event_type          | schema_register                                  |
+      | outcome             | success                                          |
+      | actor_id            |                                                  |
+      | actor_type          | anonymous                                        |
+      | auth_method         |                                                  |
+      | role                |                                                  |
+      | target_type         | subject                                          |
+      | target_id           | :.production:orders-value                        |
+      | schema_id           | *                                                |
+      | version             | *                                                |
+      | schema_type         | AVRO                                             |
+      | method              | POST                                             |
+      | path                | /subjects/:.production:orders-value/versions     |
+      | status_code         | 200                                              |
+      | before_hash         |                                                  |
+      | after_hash          | sha256:*                                         |
+      | context             | .production                                      |
+      | transport_security  | tls                                              |
+      | reason              |                                                  |
+      | error               |                                                  |
+      | request_body        |                                                  |
+      | metadata            |                                                  |
+      | timestamp           | *                                                |
+      | duration_ms         | *                                                |
+      | request_id          | *                                                |
+      | source_ip           | *                                                |
+      | user_agent          | *                                                |
 
   # ==========================================================================
   # SCENARIO 6: Large number of contexts
@@ -279,6 +419,34 @@ Feature: Contexts — Real-World Usage Patterns
     And the response array should contain ".ctx08"
     And the response array should contain ".ctx09"
     And the response array should contain ".ctx10"
+    And the audit log should contain an event:
+      | event_type          | schema_register                      |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | target_type         | subject                              |
+      | target_id           | :.ctx10:data                         |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
+      | method              | POST                                 |
+      | path                | /subjects/:.ctx10:data/versions      |
+      | status_code         | 200                                  |
+      | before_hash         |                                      |
+      | after_hash          | sha256:*                             |
+      | context             | .ctx10                               |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   # ==========================================================================
   # SCENARIO 7: Migration from single-tenant to multi-tenant
@@ -329,6 +497,34 @@ Feature: Contexts — Real-World Usage Patterns
     Then the response status should be 200
     And the response array should contain "."
     And the response array should contain ".tenant-a"
+    And the audit log should contain an event:
+      | event_type          | schema_register                                    |
+      | outcome             | success                                            |
+      | actor_id            |                                                    |
+      | actor_type          | anonymous                                          |
+      | auth_method         |                                                    |
+      | role                |                                                    |
+      | target_type         | subject                                            |
+      | target_id           | :.tenant-a:order-value-s7                          |
+      | schema_id           | *                                                  |
+      | version             | *                                                  |
+      | schema_type         | AVRO                                               |
+      | method              | POST                                               |
+      | path                | /subjects/:.tenant-a:order-value-s7/versions       |
+      | status_code         | 200                                                |
+      | before_hash         |                                                    |
+      | after_hash          | sha256:*                                           |
+      | context             | .tenant-a                                          |
+      | transport_security  | tls                                                |
+      | reason              |                                                    |
+      | error               |                                                    |
+      | request_body        |                                                    |
+      | metadata            |                                                    |
+      | timestamp           | *                                                  |
+      | duration_ms         | *                                                  |
+      | request_id          | *                                                  |
+      | source_ip           | *                                                  |
+      | user_agent          | *                                                  |
 
   # ==========================================================================
   # SCENARIO 8: Context cleanup — delete all subjects in a context
@@ -372,6 +568,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/cleanup-proof-s8/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | subject_delete_permanent                           |
+      | outcome             | success                                            |
+      | actor_id            |                                                    |
+      | actor_type          | anonymous                                          |
+      | auth_method         |                                                    |
+      | role                |                                                    |
+      | target_type         | subject                                            |
+      | target_id           | :.cleanup-ctx:metrics                              |
+      | schema_id           |                                                    |
+      | version             |                                                    |
+      | schema_type         | AVRO                                               |
+      | method              | DELETE                                             |
+      | path                | /subjects/:.cleanup-ctx:metrics                    |
+      | status_code         | 200                                                |
+      | before_hash         | sha256:*                                           |
+      | after_hash          |                                                    |
+      | context             | .cleanup-ctx                                       |
+      | transport_security  | tls                                                |
+      | reason              |                                                    |
+      | error               |                                                    |
+      | request_body        |                                                    |
+      | metadata            |                                                    |
+      | timestamp           | *                                                  |
+      | duration_ms         | *                                                  |
+      | request_id          | *                                                  |
+      | source_ip           | *                                                  |
+      | user_agent          | *                                                  |
 
   # ==========================================================================
   # SCENARIO 9: Cross-context schema comparison — different evolution speed
@@ -420,6 +644,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.slow-evo:analytics/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type          | schema_register                              |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | :.slow-evo:analytics                         |
+      | schema_id           | *                                            |
+      | version             | *                                            |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/:.slow-evo:analytics/versions      |
+      | status_code         | 200                                          |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | context             | .slow-evo                                    |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   # ==========================================================================
   # SCENARIO 10: Config isolation — real-world compat policies
@@ -469,6 +721,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.relaxed-ctx:inventory/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | schema_register                                    |
+      | outcome             | success                                            |
+      | actor_id            |                                                    |
+      | actor_type          | anonymous                                          |
+      | auth_method         |                                                    |
+      | role                |                                                    |
+      | target_type         | subject                                            |
+      | target_id           | :.relaxed-ctx:inventory                            |
+      | schema_id           | *                                                  |
+      | version             | *                                                  |
+      | schema_type         | AVRO                                               |
+      | method              | POST                                               |
+      | path                | /subjects/:.relaxed-ctx:inventory/versions         |
+      | status_code         | 200                                                |
+      | before_hash         | sha256:*                                           |
+      | after_hash          | sha256:*                                           |
+      | context             | .relaxed-ctx                                       |
+      | transport_security  | tls                                                |
+      | reason              |                                                    |
+      | error               |                                                    |
+      | request_body        |                                                    |
+      | metadata            |                                                    |
+      | timestamp           | *                                                  |
+      | duration_ms         | *                                                  |
+      | request_id          | *                                                  |
+      | source_ip           | *                                                  |
+      | user_agent          | *                                                  |
 
   # ==========================================================================
   # SCENARIO 11: Mode isolation — read-only production, writable staging
@@ -513,6 +793,34 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.ro-prod:events/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type          | schema_register                                |
+      | outcome             | success                                        |
+      | actor_id            |                                                |
+      | actor_type          | anonymous                                      |
+      | auth_method         |                                                |
+      | role                |                                                |
+      | target_type         | subject                                        |
+      | target_id           | :.rw-staging:events                            |
+      | schema_id           | *                                              |
+      | version             | *                                              |
+      | schema_type         | AVRO                                           |
+      | method              | POST                                           |
+      | path                | /subjects/:.rw-staging:events/versions         |
+      | status_code         | 200                                            |
+      | before_hash         | sha256:*                                       |
+      | after_hash          | sha256:*                                       |
+      | context             | .rw-staging                                    |
+      | transport_security  | tls                                            |
+      | reason              |                                                |
+      | error               |                                                |
+      | request_body        |                                                |
+      | metadata            |                                                |
+      | timestamp           | *                                              |
+      | duration_ms         | *                                              |
+      | request_id          | *                                              |
+      | source_ip           | *                                              |
+      | user_agent          | *                                              |
 
   # ==========================================================================
   # SCENARIO 12: Context with all valid character types in name
@@ -535,3 +843,31 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".My-Context_v2.1"
+    And the audit log should contain an event:
+      | event_type          | schema_register                                          |
+      | outcome             | success                                                  |
+      | actor_id            |                                                          |
+      | actor_type          | anonymous                                                |
+      | auth_method         |                                                          |
+      | role                |                                                          |
+      | target_type         | subject                                                  |
+      | target_id           | :.My-Context_v2.1:test-subject                           |
+      | schema_id           | *                                                        |
+      | version             | *                                                        |
+      | schema_type         | AVRO                                                     |
+      | method              | POST                                                     |
+      | path                | /subjects/:.My-Context_v2.1:test-subject/versions        |
+      | status_code         | 200                                                      |
+      | before_hash         |                                                          |
+      | after_hash          | sha256:*                                                 |
+      | context             | .My-Context_v2.1                                         |
+      | transport_security  | tls                                                      |
+      | reason              |                                                          |
+      | error               |                                                          |
+      | request_body        |                                                          |
+      | metadata            |                                                          |
+      | timestamp           | *                                                        |
+      | duration_ms         | *                                                        |
+      | request_id          | *                                                        |
+      | source_ip           | *                                                        |
+      | user_agent          | *                                                        |

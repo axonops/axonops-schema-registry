@@ -21,6 +21,34 @@ Feature: Contexts — Advanced API Surface Coverage
     Then the response status should be 200
     And the response body should contain "record"
     And the response body should contain "TestApi1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api1:raw-test                           |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .api1                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api1:raw-test/versions        |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCHEMA LOOKUP IN CONTEXT
@@ -40,6 +68,34 @@ Feature: Contexts — Advanced API Surface Coverage
     And the response field "subject" should be "lookup-subj"
     And the response field "version" should be 1
     And I store the response field "id" as "api2_id"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                             |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api2:lookup-subj                        |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .api2                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api2:lookup-subj              |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # CROSS-CONTEXT LOOKUP ISOLATION
@@ -106,6 +162,34 @@ Feature: Contexts — Advanced API Surface Coverage
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response array should contain "default-api5-subj"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                       |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | default-api5-subj                         |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/default-api5-subj               |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SOFT DELETE — VERSION ACCESS
@@ -122,6 +206,34 @@ Feature: Contexts — Advanced API Surface Coverage
     # After soft delete, versions are not accessible
     When I GET "/subjects/:.api6:soft-del/versions/1"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                       |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api6:soft-del                           |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .api6                                     |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.api6:soft-del                 |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # PERMANENT DELETE — FULL LIFECYCLE
@@ -142,6 +254,34 @@ Feature: Contexts — Advanced API Surface Coverage
     # Subject should be completely gone
     When I GET "/subjects/:.api7:perm-del/versions"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                  |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api7:perm-del                           |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .api7                                     |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.api7:perm-del                 |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCHEMA FINGERPRINT DEDUP WITHIN CONTEXT
@@ -162,6 +302,34 @@ Feature: Contexts — Advanced API Surface Coverage
     And I store the response field "id" as "id_b"
     # Same schema content should be deduplicated — same ID within context
     Then the response field "id" should equal stored "id_a"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api8:subj-b                             |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .api8                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api8:subj-b/versions          |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # LATEST VERSION TRACKING
@@ -184,6 +352,34 @@ Feature: Contexts — Advanced API Surface Coverage
     When I GET "/subjects/:.api9:latest-track/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api9:latest-track                       |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .api9                                     |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api9:latest-track/versions    |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # LIST VERSIONS — MULTI-VERSION
@@ -215,6 +411,34 @@ Feature: Contexts — Advanced API Surface Coverage
     And the response array should contain integer 1
     And the response array should contain integer 2
     And the response array should contain integer 3
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api10:multi-ver                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .api10                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api10:multi-ver/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SUBJECT LISTING — DEFAULT CONTEXT SCOPING
@@ -240,6 +464,34 @@ Feature: Contexts — Advanced API Surface Coverage
     # Context-scoped subjects should NOT appear in default listing
     And the response body should not contain "ctx-subj"
     And the response body should not contain ":.api11:"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api11:ctx-subj                          |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .api11                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api11:ctx-subj/versions       |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCHEMA TYPES — GLOBAL ENDPOINT
@@ -343,3 +595,31 @@ Feature: Contexts — Advanced API Surface Coverage
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain integer 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.api17:versions-test                     |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .api17                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.api17:versions-test/versions  |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |

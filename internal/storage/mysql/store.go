@@ -37,31 +37,37 @@ func isInvalidConnErr(err error) bool {
 
 // Config holds MySQL connection configuration.
 type Config struct {
-	Host            string        `json:"host" yaml:"host"`
-	Port            int           `json:"port" yaml:"port"`
-	Database        string        `json:"database" yaml:"database"`
-	Username        string        `json:"username" yaml:"username"`
-	Password        string        `json:"password" yaml:"password"`
-	TLS             string        `json:"tls" yaml:"tls"` // true, false, skip-verify, preferred, or custom config name
-	MaxOpenConns    int           `json:"max_open_conns" yaml:"max_open_conns"`
-	MaxIdleConns    int           `json:"max_idle_conns" yaml:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `json:"conn_max_lifetime" yaml:"conn_max_lifetime"`
-	ConnMaxIdleTime time.Duration `json:"conn_max_idle_time" yaml:"conn_max_idle_time"`
+	Host               string        `json:"host" yaml:"host"`
+	Port               int           `json:"port" yaml:"port"`
+	Database           string        `json:"database" yaml:"database"`
+	Username           string        `json:"username" yaml:"username"`
+	Password           string        `json:"password" yaml:"password"`
+	TLS                string        `json:"tls" yaml:"tls"` // true, false, skip-verify, preferred, or custom config name
+	MaxOpenConns       int           `json:"max_open_conns" yaml:"max_open_conns"`
+	MaxIdleConns       int           `json:"max_idle_conns" yaml:"max_idle_conns"`
+	ConnMaxLifetime    time.Duration `json:"conn_max_lifetime" yaml:"conn_max_lifetime"`
+	ConnMaxIdleTime    time.Duration `json:"conn_max_idle_time" yaml:"conn_max_idle_time"`
+	ConnectTimeout     time.Duration `json:"connect_timeout" yaml:"connect_timeout"`           // Initial connection ping timeout (default: 5s)
+	HealthCheckTimeout time.Duration `json:"health_check_timeout" yaml:"health_check_timeout"` // Health check timeout (default: 2s)
+	SchemaMaxRetries   int           `json:"schema_max_retries" yaml:"schema_max_retries"`     // Max retries for schema creation (default: 15)
 }
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
 	return Config{
-		Host:            "localhost",
-		Port:            3306,
-		Database:        "schema_registry",
-		Username:        "root",
-		Password:        "",
-		TLS:             "false",
-		MaxOpenConns:    25,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-		ConnMaxIdleTime: 5 * time.Minute,
+		Host:               "localhost",
+		Port:               3306,
+		Database:           "schema_registry",
+		Username:           "root",
+		Password:           "",
+		TLS:                "false",
+		MaxOpenConns:       25,
+		MaxIdleConns:       5,
+		ConnMaxLifetime:    5 * time.Minute,
+		ConnMaxIdleTime:    5 * time.Minute,
+		ConnectTimeout:     5 * time.Second,
+		HealthCheckTimeout: 2 * time.Second,
+		SchemaMaxRetries:   15,
 	}
 }
 
@@ -138,6 +144,15 @@ func NewStore(config Config) (*Store, error) {
 	if config.ConnMaxIdleTime == 0 {
 		config.ConnMaxIdleTime = defaults.ConnMaxIdleTime
 	}
+	if config.ConnectTimeout == 0 {
+		config.ConnectTimeout = defaults.ConnectTimeout
+	}
+	if config.HealthCheckTimeout == 0 {
+		config.HealthCheckTimeout = defaults.HealthCheckTimeout
+	}
+	if config.SchemaMaxRetries == 0 {
+		config.SchemaMaxRetries = defaults.SchemaMaxRetries
+	}
 
 	db, err := sql.Open("mysql", config.DSN())
 	if err != nil {
@@ -151,7 +166,7 @@ func NewStore(config Config) (*Store, error) {
 	db.SetConnMaxIdleTime(config.ConnMaxIdleTime)
 
 	// Verify connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ConnectTimeout)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
@@ -459,10 +474,14 @@ func (s *Store) globalSchemaID(ctx context.Context, registryCtx, fingerprint str
 }
 
 // globalSchemaIDTx returns the stable per-context schema ID within a transaction.
+// Uses FOR UPDATE to bypass MySQL REPEATABLE READ snapshot isolation and read
+// the latest committed data. This is critical after INSERT IGNORE: if a concurrent
+// transaction committed the row, a plain SELECT would not see it due to the stale
+// snapshot, but FOR UPDATE forces a current read.
 func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := tx.QueryRowContext(ctx,
-		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&globalID)
+		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ? FOR UPDATE", registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}
@@ -480,10 +499,9 @@ func (s *Store) ensureContext(ctx context.Context, registryCtx string) {
 // MySQL deadlocks are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	s.ensureContext(ctx, registryCtx)
-	const maxRetries = 15
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := 0; attempt < s.config.SchemaMaxRetries; attempt++ {
 		err := s.createSchemaAttempt(ctx, registryCtx, record)
 		if err == nil {
 			return nil
@@ -508,7 +526,7 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		return err
 	}
 
-	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
+	return fmt.Errorf("failed to create schema after %d retries: %w", s.config.SchemaMaxRetries, lastErr)
 }
 
 // allocateSchemaID atomically allocates the next per-context schema ID using a
@@ -632,12 +650,19 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Allocate per-context schema ID in a separate short transaction to minimize
-	// lock contention on ctx_id_alloc (the FOR UPDATE lock is released immediately
-	// instead of being held for the duration of the main transaction).
-	nextCtxID, err := s.allocateSchemaID(ctx, registryCtx)
+	// Allocate per-context schema ID within the main transaction. This ensures
+	// the INSERT IGNORE into schema_fingerprints and the subsequent SELECT are
+	// in the same transaction, preventing a TOCTOU race where a concurrent
+	// transaction's INSERT is not yet visible to our SELECT.
+	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
+	var nextCtxID int64
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&nextCtxID)
 	if err != nil {
-		return fmt.Errorf("failed to allocate schema ID: %w", err)
+		return fmt.Errorf("failed to get next ID: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
+	if err != nil {
+		return fmt.Errorf("failed to increment next ID: %w", err)
 	}
 
 	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
@@ -646,7 +671,10 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		registryCtx, record.Fingerprint, nextCtxID,
 	)
 
-	// Resolve stable per-context ID from schema_fingerprints
+	// Resolve stable per-context ID from schema_fingerprints.
+	// Because the INSERT IGNORE and this SELECT are in the same transaction,
+	// the SELECT is guaranteed to see either our own insert or a previously
+	// committed row — no visibility gap.
 	globalID, err := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("failed to get global schema ID: %w", err)
@@ -2317,7 +2345,7 @@ func (s *Store) Close() error {
 
 // IsHealthy returns true if the database connection is healthy.
 func (s *Store) IsHealthy(ctx context.Context) bool {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, s.config.HealthCheckTimeout)
 	defer cancel()
 	return s.db.PingContext(ctx) == nil
 }

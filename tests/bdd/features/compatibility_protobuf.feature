@@ -26,6 +26,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-1                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-1/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - add required field is incompatible (proto2)
     Given the global compatibility level is "BACKWARD"
@@ -45,6 +73,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-2                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-2/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - remove field is compatible
     Given the global compatibility level is "BACKWARD"
@@ -64,6 +120,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-3                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-3/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - change field type int32 to string is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -82,6 +166,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-4                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-4/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - type change int32 to sint32 is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -100,6 +212,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-5                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-5/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - change field number is compatible
     Given the global compatibility level is "BACKWARD"
@@ -118,6 +258,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-6                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-6/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -136,6 +304,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-7                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-7/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
@@ -154,6 +350,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-8                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-8/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - add enum value is compatible
     Given the global compatibility level is "BACKWARD"
@@ -181,6 +405,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-9                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-9/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - remove enum value is compatible
     Given the global compatibility level is "BACKWARD"
@@ -208,6 +460,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-back-10                    |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-back-10/versions |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # BACKWARD_TRANSITIVE mode (6 scenarios)
@@ -241,6 +521,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-1                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-1/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - field number reuse in v3 is incompatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -271,6 +579,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-2                       |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-2/versions    |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - type change chain within varint group is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -296,6 +632,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-3                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-3/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - enum grows each version stays compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -333,6 +697,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-4                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-4/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - field additions across 3 versions compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -361,6 +753,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-5                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-5/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - field removal across versions is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -390,6 +810,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-bt-6                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-bt-6/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # FORWARD mode (8 scenarios)
@@ -415,6 +863,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-1                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - add field is compatible
     Given the global compatibility level is "FORWARD"
@@ -434,6 +910,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-2                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-2/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - change field type is incompatible
     Given the global compatibility level is "FORWARD"
@@ -452,6 +956,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-3                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-3/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - cross-group type change uint32 to fixed32 is incompatible
     Given the global compatibility level is "FORWARD"
@@ -470,6 +1002,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-4                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-4/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - remove enum value is compatible
     Given the global compatibility level is "FORWARD"
@@ -497,6 +1057,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-5                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-5/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - add enum value is compatible
     Given the global compatibility level is "FORWARD"
@@ -524,6 +1112,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-6                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-6/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - remove service method is compatible
     Given the global compatibility level is "FORWARD"
@@ -551,6 +1167,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-7                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-7/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - add service method is compatible (services ignored)
     Given the global compatibility level is "FORWARD"
@@ -578,6 +1222,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-fwd-8                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-fwd-8/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # FORWARD_TRANSITIVE mode (5 scenarios)
@@ -611,6 +1283,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-ft-1                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-ft-1/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - field addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -637,6 +1337,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-ft-2                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-ft-2/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - service method addition breaks against v1
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -671,6 +1399,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-ft-3                       |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-ft-3/versions    |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - enum value addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -706,6 +1462,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-ft-4                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-ft-4/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - progressive field removal stays compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -734,6 +1518,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-ft-5                       |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-ft-5/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # FULL mode (7 scenarios)
@@ -759,6 +1571,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-1                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-1/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - add required field is incompatible
     Given the global compatibility level is "FULL"
@@ -778,6 +1618,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-2                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-2/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - remove field is compatible
     Given the global compatibility level is "FULL"
@@ -797,6 +1665,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-3                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-3/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -817,6 +1713,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-4                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-4/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - within-group type change int32 to uint32 is compatible
     Given the global compatibility level is "FULL"
@@ -835,6 +1759,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-5                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-5/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - add enum value is compatible
     Given the global compatibility level is "FULL"
@@ -862,6 +1814,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-6                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-6/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - cross-group type change int32 to sint32 is incompatible
     Given the global compatibility level is "FULL"
@@ -882,6 +1862,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-full-7                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-full-7/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # FULL_TRANSITIVE mode (4 scenarios)
@@ -915,6 +1923,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-flt-1                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-flt-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL_TRANSITIVE - incompatible type change fails against all versions
     Given the global compatibility level is "NONE"
@@ -944,6 +1980,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-flt-2                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-flt-2/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL_TRANSITIVE - compatible varint type changes across 3 versions
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -972,6 +2036,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-flt-3                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-flt-3/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL_TRANSITIVE - service method change fails
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -1006,6 +2098,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-flt-4                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-flt-4/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # NONE mode (2 scenarios)
@@ -1032,6 +2152,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-none-1                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-none-1/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: NONE - field number reuse with different type is accepted
     Given the global compatibility level is "NONE"
@@ -1052,6 +2200,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-none-2                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-none-2/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # Edge Cases (8 scenarios)
@@ -1085,6 +2261,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-1                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-1/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - oneof field addition is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1110,6 +2314,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-2                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-2/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - oneof field removal is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1135,6 +2367,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-3                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-3/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - package name change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1155,6 +2415,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-4                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-4/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - map field replaced by scalar is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1175,6 +2463,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-5                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-5/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - multiple messages with one field type changed is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1199,6 +2515,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-6                     |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-6/versions  |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1221,6 +2565,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-7                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-7/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Edge case - adding new message type is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1243,6 +2615,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-edge-8                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-edge-8/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ==========================================================================
   # Error Validation (5 scenarios)
@@ -1269,6 +2669,34 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
     And the response should have error code 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-err-1                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-err-1/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Error validation - check endpoint returns is_compatible false
     Given the global compatibility level is "BACKWARD"
@@ -1309,6 +2737,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-err-3                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-err-3/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Error validation - check endpoint returns is_compatible true
     Given the global compatibility level is "BACKWARD"
@@ -1350,6 +2806,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-err-5                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-err-5/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --- Gap-filling: Protobuf-specific compatibility rules ---
 
@@ -1372,6 +2856,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-1                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-1/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - syntax version change is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1390,6 +2902,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-2                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-2/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - cardinality optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1408,6 +2948,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-3                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-3/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1426,6 +2994,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-4                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-4/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - nested message removal is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1448,6 +3044,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | failure                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-5                      |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-5/versions   |
+      | status_code          | 409                              |
+      | reason               | incompatible                     |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - nested enum removal with type change to int32 is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1472,6 +3096,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-6                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-6/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service method removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1495,6 +3147,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-7                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-7/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service method addition is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1518,6 +3198,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-8                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-8/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service method input type change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1542,6 +3250,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-9                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-9/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1564,6 +3300,34 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-10                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-10/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1583,6 +3347,34 @@ Feature: Protobuf Schema Compatibility
       message Resp { string data = 1; }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-11                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-11/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - service addition is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1602,3 +3394,31 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-gap-12                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          | sha256:*                         |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-gap-12/versions  |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |

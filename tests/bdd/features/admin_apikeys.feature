@@ -19,6 +19,34 @@ Feature: Admin API Key Management
     And the response field "enabled" should be true
     And the response field "key" should not be empty
     And the response field "key_prefix" should not be empty
+    And the audit log should contain an event:
+      | event_type           | apikey_create    |
+      | outcome              | success          |
+      | actor_id             | admin            |
+      | actor_type           | user             |
+      | auth_method          | basic            |
+      | role                 | super_admin      |
+      | target_type          | apikey           |
+      | target_id            | my-service-key   |
+      | schema_id            |                  |
+      | version              |                  |
+      | schema_type          |                  |
+      | before_hash          |                  |
+      | after_hash           | sha256:*         |
+      | context              | .                |
+      | transport_security   | tls              |
+      | method               | POST             |
+      | path                 | /admin/apikeys   |
+      | status_code          | 201              |
+      | reason               |                  |
+      | error                |                  |
+      | request_body         |                  |
+      | metadata             |                  |
+      | timestamp            | *                |
+      | duration_ms          | *                |
+      | request_id           | *                |
+      | source_ip            | *                |
+      | user_agent           | *                |
 
   @auth
   Scenario: List API keys
@@ -56,6 +84,34 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "name" should be "new-name"
     And the response field "role" should be "admin"
+    And the audit log should contain an event:
+      | event_type           | apikey_update  |
+      | outcome              | success        |
+      | actor_id             | admin          |
+      | actor_type           | user           |
+      | auth_method          | basic          |
+      | role                 | super_admin    |
+      | target_type          | apikey         |
+      | target_id            | *              |
+      | schema_id            |                |
+      | version              |                |
+      | schema_type          |                |
+      | before_hash          | sha256:*       |
+      | after_hash           | sha256:*       |
+      | context              | .              |
+      | transport_security   | tls            |
+      | method               | PUT            |
+      | path                 | /admin/apikeys |
+      | status_code          | 200            |
+      | reason               |                |
+      | error                |                |
+      | request_body         |                |
+      | metadata             |                |
+      | timestamp            | *              |
+      | duration_ms          | *              |
+      | request_id           | *              |
+      | source_ip            | *              |
+      | user_agent           | *              |
 
   @auth
   Scenario: Disable API key via update
@@ -70,6 +126,34 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "enabled" should be false
     And the response field "name" should be "disable-me"
+    And the audit log should contain an event:
+      | event_type           | apikey_update  |
+      | outcome              | success        |
+      | actor_id             | admin          |
+      | actor_type           | user           |
+      | auth_method          | basic          |
+      | role                 | super_admin    |
+      | target_type          | apikey         |
+      | target_id            | *              |
+      | schema_id            |                |
+      | version              |                |
+      | schema_type          |                |
+      | before_hash          | sha256:*       |
+      | after_hash           | sha256:*       |
+      | context              | .              |
+      | transport_security   | tls            |
+      | method               | PUT            |
+      | path                 | /admin/apikeys |
+      | status_code          | 200            |
+      | reason               |                |
+      | error                |                |
+      | request_body         |                |
+      | metadata             |                |
+      | timestamp            | *              |
+      | duration_ms          | *              |
+      | request_id           | *              |
+      | source_ip            | *              |
+      | user_agent           | *              |
 
   @auth
   Scenario: Delete API key
@@ -78,6 +162,34 @@ Feature: Admin API Key Management
     And I store the response field "id" as "key_id"
     When I delete API key with stored ID "key_id"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type           | apikey_delete  |
+      | outcome              | success        |
+      | actor_id             | admin          |
+      | actor_type           | user           |
+      | auth_method          | basic          |
+      | role                 | super_admin    |
+      | target_type          | apikey         |
+      | target_id            | *              |
+      | schema_id            |                |
+      | version              |                |
+      | schema_type          |                |
+      | before_hash          | sha256:*       |
+      | after_hash           |                |
+      | context              | .              |
+      | transport_security   | tls            |
+      | method               | DELETE         |
+      | path                 | /admin/apikeys |
+      | status_code          | 204            |
+      | reason               |                |
+      | error                |                |
+      | request_body         |                |
+      | metadata             |                |
+      | timestamp            | *              |
+      | duration_ms          | *              |
+      | request_id           | *              |
+      | source_ip            | *              |
+      | user_agent           | *              |
 
   @auth
   Scenario: Revoke API key sets enabled to false
@@ -89,6 +201,34 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "enabled" should be false
     And the response field "name" should be "revoke-me"
+    And the audit log should contain an event:
+      | event_type           | apikey_revoke  |
+      | outcome              | success        |
+      | actor_id             | admin          |
+      | actor_type           | user           |
+      | auth_method          | basic          |
+      | role                 | super_admin    |
+      | target_type          | apikey         |
+      | target_id            | *              |
+      | schema_id            |                |
+      | version              |                |
+      | schema_type          |                |
+      | before_hash          | sha256:*       |
+      | after_hash           | sha256:*       |
+      | context              | .              |
+      | transport_security   | tls            |
+      | method               | POST           |
+      | path                 | /admin/apikeys |
+      | status_code          | 200            |
+      | reason               |                |
+      | error                |                |
+      | request_body         |                |
+      | metadata             |                |
+      | timestamp            | *              |
+      | duration_ms          | *              |
+      | request_id           | *              |
+      | source_ip            | *              |
+      | user_agent           | *              |
 
   @auth
   Scenario: Rotate API key returns new key and revokes old
@@ -101,6 +241,34 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response should have field "new_key"
     And the response should have field "revoked_id"
+    And the audit log should contain an event:
+      | event_type           | apikey_rotate  |
+      | outcome              | success        |
+      | actor_id             | admin          |
+      | actor_type           | user           |
+      | auth_method          | basic          |
+      | role                 | super_admin    |
+      | target_type          | apikey         |
+      | target_id            | *              |
+      | schema_id            |                |
+      | version              |                |
+      | schema_type          |                |
+      | before_hash          | sha256:*       |
+      | after_hash           | sha256:*       |
+      | context              | .              |
+      | transport_security   | tls            |
+      | method               | POST           |
+      | path                 | /admin/apikeys |
+      | status_code          | 200            |
+      | reason               |                |
+      | error                |                |
+      | request_body         |                |
+      | metadata             |                |
+      | timestamp            | *              |
+      | duration_ms          | *              |
+      | request_id           | *              |
+      | source_ip            | *              |
+      | user_agent           | *              |
 
   @auth
   Scenario: Duplicate API key name returns 409
@@ -114,6 +282,34 @@ Feature: Admin API Key Management
     Given I clear authentication
     When I create an API key with name "no-auth-key" role "admin" expires_in 86400
     Then the response status should be 401
+    And the audit log should contain an event:
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          | apikey               |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              | .                    |
+      | transport_security   | tls                  |
+      | method               | POST                 |
+      | path                 | /admin/apikeys       |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @auth
   Scenario: Create API key as readonly user returns 403
@@ -122,6 +318,34 @@ Feature: Admin API Key Management
     And I authenticate as "viewer" with password "viewer-password"
     When I create an API key with name "forbidden-key" role "readonly" expires_in 86400
     Then the response status should be 403
+    And the audit log should contain an event:
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | viewer            |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | readonly          |
+      | target_type          | apikey            |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              | .                 |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /admin/apikeys    |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   @auth
   Scenario: Create API key with missing name returns 400

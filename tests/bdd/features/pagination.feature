@@ -93,6 +93,34 @@ Feature: Pagination
     Then the response status should be 200
     And the response should contain "pagdel-deleted"
     And the response body should not contain "pagdel-active"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | pagdel-deleted                           |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/pagdel-deleted                 |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: deletedOnly with no deleted subjects returns empty
     Given subject "pagdeln-a" has schema:
@@ -118,3 +146,31 @@ Feature: Pagination
     Then the response status should be 200
     And the response should contain "pagdelp-deleted"
     And the response body should not contain "pagdelp-active"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | pagdelp-deleted                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/pagdelp-deleted                |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |

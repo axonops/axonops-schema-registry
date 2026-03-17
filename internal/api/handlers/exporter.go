@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -46,6 +47,12 @@ func (h *Handler) CreateExporter(w http.ResponseWriter, r *http.Request) {
 		Config:              req.Config,
 	}
 
+	// Set audit hints early so target_id is captured even on failure.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = req.Name
+	}
+
 	if err := h.registry.CreateExporter(r.Context(), exporter); err != nil {
 		if errors.Is(err, storage.ErrExporterExists) {
 			writeError(w, http.StatusConflict, types.ErrorCodeExporterExists, "Exporter already exists: "+req.Name)
@@ -53,6 +60,10 @@ func (h *Handler) CreateExporter(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.AfterHash = hashExporter(exporter)
 	}
 
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: req.Name})
@@ -92,6 +103,9 @@ func (h *Handler) UpdateExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch existing for before_hash.
+	existing, _ := h.registry.GetExporter(r.Context(), name)
+
 	exporter := &storage.ExporterRecord{
 		Name:                name,
 		ContextType:         req.ContextType,
@@ -110,12 +124,24 @@ func (h *Handler) UpdateExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashExporter(existing)
+		}
+		hints.AfterHash = hashExporter(exporter)
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
 // DeleteExporter handles DELETE /exporters/{name}
 func (h *Handler) DeleteExporter(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+
+	// Fetch before deletion for audit before_hash.
+	existing, _ := h.registry.GetExporter(r.Context(), name)
 
 	if err := h.registry.DeleteExporter(r.Context(), name); err != nil {
 		if errors.Is(err, storage.ErrExporterNotFound) {
@@ -126,12 +152,23 @@ func (h *Handler) DeleteExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashExporter(existing)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
 // PauseExporter handles PUT /exporters/{name}/pause
 func (h *Handler) PauseExporter(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+
+	// Capture exporter status before state transition for audit trail.
+	beforeStatus, _ := h.registry.GetExporterStatus(r.Context(), name)
 
 	if err := h.registry.PauseExporter(r.Context(), name); err != nil {
 		if errors.Is(err, storage.ErrExporterNotFound) {
@@ -142,12 +179,26 @@ func (h *Handler) PauseExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if beforeStatus != nil {
+			hints.BeforeHash = hashExporterStatus(beforeStatus)
+		}
+		if afterStatus, err := h.registry.GetExporterStatus(r.Context(), name); err == nil {
+			hints.AfterHash = hashExporterStatus(afterStatus)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
 // ResumeExporter handles PUT /exporters/{name}/resume
 func (h *Handler) ResumeExporter(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+
+	// Capture exporter status before state transition for audit trail.
+	beforeStatus, _ := h.registry.GetExporterStatus(r.Context(), name)
 
 	if err := h.registry.ResumeExporter(r.Context(), name); err != nil {
 		if errors.Is(err, storage.ErrExporterNotFound) {
@@ -158,12 +209,26 @@ func (h *Handler) ResumeExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if beforeStatus != nil {
+			hints.BeforeHash = hashExporterStatus(beforeStatus)
+		}
+		if afterStatus, err := h.registry.GetExporterStatus(r.Context(), name); err == nil {
+			hints.AfterHash = hashExporterStatus(afterStatus)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
 // ResetExporter handles PUT /exporters/{name}/reset
 func (h *Handler) ResetExporter(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+
+	// Capture exporter status before state transition for audit trail.
+	beforeStatus, _ := h.registry.GetExporterStatus(r.Context(), name)
 
 	if err := h.registry.ResetExporter(r.Context(), name); err != nil {
 		if errors.Is(err, storage.ErrExporterNotFound) {
@@ -172,6 +237,17 @@ func (h *Handler) ResetExporter(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if beforeStatus != nil {
+			hints.BeforeHash = hashExporterStatus(beforeStatus)
+		}
+		if afterStatus, err := h.registry.GetExporterStatus(r.Context(), name); err == nil {
+			hints.AfterHash = hashExporterStatus(afterStatus)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
@@ -230,6 +306,9 @@ func (h *Handler) UpdateExporterConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch existing for before_hash.
+	existing, _ := h.registry.GetExporter(r.Context(), name)
+
 	if err := h.registry.UpdateExporterConfig(r.Context(), name, req.Config); err != nil {
 		if errors.Is(err, storage.ErrExporterNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
@@ -237,6 +316,18 @@ func (h *Handler) UpdateExporterConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashExporter(existing)
+		}
+		// Fetch updated state for after_hash.
+		if updated, err := h.registry.GetExporter(r.Context(), name); err == nil {
+			hints.AfterHash = hashExporter(updated)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})

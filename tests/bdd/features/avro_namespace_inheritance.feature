@@ -37,6 +37,34 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "inherited_id"
     And the response field "id" should equal stored "explicit_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ns-inherit-inherited                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ns-inherit-inherited/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 2. DIFFERENT PARENT NAMESPACES PRODUCE DIFFERENT SCHEMA IDS
@@ -66,6 +94,34 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "beta_id"
     And the response field "id" should not equal stored "alpha_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ns-inherit-beta                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ns-inherit-beta/versions       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 3. THREE-LEVEL DEEP INHERITANCE DEDUPLICATION
@@ -105,6 +161,34 @@ Feature: Avro Namespace Inheritance
     And the response should be an array of length 2
     And the response array should contain "ns-inherit-deep-a"
     And the response array should contain "ns-inherit-deep-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | ns-inherit-deep-b                          |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/ns-inherit-deep-b/versions       |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   # ==========================================================================
   # 4. NESTED TYPE WITH OVERRIDDEN NAMESPACE DIFFERS FROM INHERITED
@@ -134,6 +218,34 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "override_ns_id"
     And the response field "id" should not equal stored "inherited_ns_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | ns-inherit-override-ns                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/ns-inherit-override-ns/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 5. NAMESPACE INHERITANCE THROUGH ARRAY ITEMS
@@ -162,6 +274,34 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "array_explicit_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | success                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | ns-inherit-array-inherited                         |
+      | schema_id            | *                                                  |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           | sha256:*                                           |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/ns-inherit-array-inherited/versions      |
+      | status_code          | 200                                                |
+      | reason               |                                                    |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   # ==========================================================================
   # 6. NAMESPACE INHERITANCE THROUGH UNION
@@ -190,6 +330,34 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "union_explicit_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | success                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | ns-inherit-union-inherited                         |
+      | schema_id            | *                                                  |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           | sha256:*                                           |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/ns-inherit-union-inherited/versions      |
+      | status_code          | 200                                                |
+      | reason               |                                                    |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   # ==========================================================================
   # 7. MIXED EXPLICIT AND INHERITED NAMESPACES
@@ -220,6 +388,34 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "mixed_partial_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ns-inherit-mixed-full                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ns-inherit-mixed-full/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 8. NO NAMESPACE ANYWHERE — NESTED TYPES REMAIN UNQUALIFIED
@@ -248,6 +444,34 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "none_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | ns-inherit-none-b                          |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/ns-inherit-none-b/versions       |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   # ==========================================================================
   # 9. OVERRIDE NAMESPACE PROPAGATES TO GRANDCHILDREN
@@ -281,3 +505,31 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "propagate_inherited_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                      |
+      | outcome              | success                                              |
+      | actor_id             |                                                      |
+      | actor_type           | anonymous                                            |
+      | auth_method          |                                                      |
+      | role                 |                                                      |
+      | target_type          | subject                                              |
+      | target_id            | ns-inherit-propagate-explicit                        |
+      | schema_id            | *                                                    |
+      | version              | *                                                    |
+      | schema_type          | AVRO                                                 |
+      | before_hash          |                                                      |
+      | after_hash           | sha256:*                                             |
+      | context              | .                                                    |
+      | transport_security   | tls                                                  |
+      | source_ip            | *                                                    |
+      | user_agent           | *                                                    |
+      | method               | POST                                                 |
+      | path                 | /subjects/ns-inherit-propagate-explicit/versions     |
+      | status_code          | 200                                                  |
+      | reason               |                                                      |
+      | error                |                                                      |
+      | request_body         |                                                      |
+      | metadata             |                                                      |
+      | timestamp            | *                                                    |
+      | duration_ms          | *                                                    |
+      | request_id           | *                                                    |

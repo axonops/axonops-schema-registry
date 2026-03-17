@@ -49,7 +49,7 @@ A data contract has two parts:
 | **Metadata** | Descriptive information about the schema -- ownership, classification, sensitivity labels | Labels on a shipping package: who sent it, what's inside, how to handle it |
 | **RuleSet** | Executable rules that govern validation, transformation, and serialization | Quality control checks at a factory: inspect before shipping, transform during upgrades |
 
-Both parts are optional. You can use metadata alone for documentation and governance, rules alone for enforcement, or both together for a complete data contract.
+Both parts are OPTIONAL. You MAY use metadata alone for documentation and governance, rules alone for enforcement, or both together for a complete data contract.
 
 > Data contracts are stored alongside the schema in the registry. They do not change how the schema itself is parsed or compiled -- they are additional governance metadata that clients and data pipelines can read and act on.
 
@@ -190,7 +190,7 @@ The `mode` field determines when the rule is evaluated:
 | `WRITEREAD` | Both producer and consumer | Rules that MUST apply in both directions |
 | `UPGRADE` | Consumer (when reading older schema version) | Transform old-format data to new format |
 | `DOWNGRADE` | Producer (when writing for older consumers) | Transform new-format data to old format |
-| `UPDOWN` | Both upgrade and downgrade | Rules that apply for both migration directions |
+| `UPDOWN` | Both upgrade and downgrade | Rules that apply in both migration directions |
 
 ### Domain Rules
 

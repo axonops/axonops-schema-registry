@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,6 +23,8 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/kms"
 	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
 	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
+	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -51,12 +55,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Setup logger
+	// Bootstrap logger (JSON, used until config is loaded).
 	logLevel := slog.LevelInfo
 	if os.Getenv("SCHEMA_REGISTRY_LOG_LEVEL") == "debug" {
 		logLevel = slog.LevelDebug
 	}
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
@@ -69,11 +72,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Reconfigure logger from config (format + level).
+	switch cfg.Logging.Level {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn", "warning":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+	var logHandler slog.Handler
+	if cfg.Logging.Format == "text" {
+		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	} else {
+		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	}
+	logger = slog.New(logHandler)
+	slog.SetDefault(logger)
+
 	logger.Info("starting schema registry",
 		slog.String("version", version),
 		slog.String("storage", cfg.Storage.Type),
 		slog.String("address", cfg.Address()),
 	)
+
+	// Create metrics early so we can wrap storage with instrumentation
+	m := metrics.New()
 
 	// Create storage backend
 	store, err := createStorage(cfg, logger)
@@ -81,6 +107,9 @@ func main() {
 		logger.Error("failed to create storage backend", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+
+	// Wrap storage with instrumentation to record operation metrics
+	instrumentedStore := storage.NewInstrumentedStorage(store, cfg.Storage.Type, m)
 
 	// Create schema parser registry
 	schemaRegistry := schema.NewRegistry()
@@ -94,8 +123,8 @@ func main() {
 	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
 	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
 
-	// Create the registry service
-	reg := registry.New(store, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
+	// Create the registry service (uses instrumented storage for metrics)
+	reg := registry.New(instrumentedStore, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
 
 	// Wire KMS provider registry for server-side DEK encryption.
 	// Providers are only registered when their connection env vars are present.
@@ -107,6 +136,87 @@ func main() {
 	// Create server options
 	var serverOpts []api.ServerOption
 	serverOpts = append(serverOpts, api.WithBuildInfo(version, commit))
+	serverOpts = append(serverOpts, api.WithMetrics(m))
+
+	// Create audit logger if enabled
+	var auditLogger *auth.AuditLogger
+	if cfg.Security.Audit.Enabled {
+		var err error
+		auditLogger, err = auth.NewAuditLogger(cfg.Security.Audit)
+		if err != nil {
+			logger.Error("failed to create audit logger", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		auditLogger.SetMetrics(m)
+		serverOpts = append(serverOpts, api.WithAuditLogger(auditLogger))
+		logger.Info("audit logging enabled",
+			slog.Bool("stdout", cfg.Security.Audit.Outputs.Stdout.Enabled),
+			slog.Bool("file", cfg.Security.Audit.Outputs.File.Enabled || cfg.Security.Audit.LogFile != ""),
+			slog.Bool("syslog", cfg.Security.Audit.Outputs.Syslog.Enabled),
+			slog.Bool("webhook", cfg.Security.Audit.Outputs.Webhook.Enabled),
+			slog.Bool("include_body", cfg.Security.Audit.IncludeBody),
+		)
+	}
+
+	// Configure TLS if enabled — validate before the server starts listening.
+	// This exits immediately if the TLS config is invalid (bad min_version,
+	// insecure ciphers without allow_insecure_ciphers, etc.).
+	if cfg.Security.TLS.Enabled {
+		tlsConfig, tlsManager, err := auth.CreateServerTLSConfig(cfg.Security.TLS)
+		if err != nil {
+			logger.Error("failed to configure TLS", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		serverOpts = append(serverOpts, api.WithTLS(tlsConfig, tlsManager))
+		logger.Info("TLS enabled",
+			slog.String("min_version", cfg.Security.TLS.MinVersion),
+			slog.String("client_auth", cfg.Security.TLS.ClientAuth),
+		)
+
+		// Warn if insecure cipher suites have been explicitly allowed.
+		if insecure := tlsManager.InsecureCipherNames(); len(insecure) > 0 {
+			logger.Error("server has been explicitly configured to allow insecure TLS cipher suites",
+				slog.Any("insecure_ciphers", insecure),
+				slog.String("setting", "security.tls.allow_insecure_ciphers"),
+			)
+			if auditLogger != nil {
+				auditLogger.Log(&auth.AuditEvent{
+					EventType:  auth.AuditEventSecurityWarning,
+					Timestamp:  time.Now(),
+					Method:     "STARTUP",
+					ActorID:    "system",
+					ActorType:  "system",
+					Outcome:    "warning",
+					TargetType: "config",
+					TargetID:   "security.tls.cipher_suites",
+					Reason:     "insecure_ciphers_allowed",
+					Metadata: map[string]string{
+						"insecure_ciphers": strings.Join(insecure, ","),
+					},
+				})
+			}
+		}
+	} else {
+		// Warn when TLS is not enabled — traffic is unencrypted.
+		logger.Warn("server TLS is not enabled — HTTP traffic is unencrypted",
+			slog.String("setting", "security.tls.enabled"),
+			slog.Bool("current_value", false),
+		)
+		if auditLogger != nil {
+			auditLogger.Log(&auth.AuditEvent{
+				EventType:  auth.AuditEventSecurityWarning,
+				Timestamp:  time.Now(),
+				Method:     "STARTUP",
+				ActorID:    "system",
+				ActorType:  "system",
+				Outcome:    "warning",
+				TargetType: "config",
+				TargetID:   "security.tls",
+				Reason:     "server_tls_disabled",
+			})
+		}
+	}
+
 	var authService *auth.Service
 	var vaultStore *vault.Store
 
@@ -156,12 +266,18 @@ func main() {
 			authStorage = store
 		}
 
-		// Create auth service with secure API key configuration
+		// Create auth service with secure API key configuration.
+		// UserCacheTTL defaults to 60s to reduce database load for frequently
+		// authenticating users. CacheRefreshInterval ensures cluster consistency.
 		authService = auth.NewServiceWithConfig(authStorage, auth.ServiceConfig{
 			APIKeySecret:         cfg.Security.Auth.APIKey.Secret,
 			APIKeyPrefix:         cfg.Security.Auth.APIKey.KeyPrefix,
 			CacheRefreshInterval: time.Duration(cfg.Security.Auth.APIKey.CacheRefreshSeconds) * time.Second,
+			UserCacheTTL:         auth.DefaultUserCacheTTL,
 		})
+
+		// Wire metrics to auth service for cache metrics
+		authService.SetMetrics(m)
 
 		// Wire the service to the authenticator for database-backed auth
 		authenticator.SetService(authService)
@@ -194,6 +310,8 @@ func main() {
 			logger.Info("LDAP authentication enabled",
 				slog.String("url", cfg.Security.Auth.LDAP.URL),
 				slog.String("user_search_base", cfg.Security.Auth.LDAP.UserSearchBase),
+				slog.Bool("tls", strings.HasPrefix(cfg.Security.Auth.LDAP.URL, "ldaps://") || cfg.Security.Auth.LDAP.StartTLS),
+				slog.Bool("mtls", cfg.Security.Auth.LDAP.ClientCertFile != ""),
 			)
 			ldapProvider, err := auth.NewLDAPProvider(cfg.Security.Auth.LDAP)
 			if err != nil {
@@ -201,6 +319,35 @@ func main() {
 				os.Exit(1)
 			}
 			authenticator.SetLDAPProvider(ldapProvider)
+			if auditLogger != nil {
+				authenticator.SetAuditLogger(auditLogger)
+			}
+
+			// Warn if LDAP fallback to DB/htpasswd is enabled (default)
+			if cfg.Security.Auth.LDAP.AllowFallback == nil || *cfg.Security.Auth.LDAP.AllowFallback {
+				logger.Warn("LDAP allow_fallback is enabled — users not found in LDAP will be "+
+					"tried against database/htpasswd users. Users that exist in LDAP but provide "+
+					"wrong passwords are always rejected (no fallback). "+
+					"Set allow_fallback: false for strict LDAP-only auth.",
+					slog.String("setting", "security.auth.ldap.allow_fallback"),
+					slog.Bool("current_value", true),
+				)
+			}
+
+			// Emit audit event if LDAP is configured without TLS
+			if auditLogger != nil && !ldapProvider.IsSecure() {
+				auditLogger.Log(&auth.AuditEvent{
+					EventType:  auth.AuditEventSecurityWarning,
+					Timestamp:  time.Now(),
+					Method:     "STARTUP",
+					ActorID:    "system",
+					ActorType:  "system",
+					Outcome:    "warning",
+					TargetType: "config",
+					TargetID:   "security.auth.ldap",
+					Reason:     "ldap_no_tls",
+				})
+			}
 		}
 
 		// Setup OIDC provider if enabled
@@ -231,13 +378,36 @@ func main() {
 			authenticator.SetJWTProvider(jwtProvider)
 		}
 
+		// Load config-defined API keys if storage_type is "memory"
+		if strings.EqualFold(cfg.Security.Auth.APIKey.StorageType, "memory") {
+			memAPIKeys, err := auth.NewMemoryAPIKeyStore(cfg.Security.Auth.APIKey.Keys)
+			if err != nil {
+				logger.Error("failed to load config-defined API keys", slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			authenticator.SetMemoryAPIKeyStore(memAPIKeys)
+			logger.Info("config-defined API keys loaded", slog.Int("keys", memAPIKeys.Count()))
+		}
+
+		// Load htpasswd file if configured
+		if cfg.Security.Auth.Basic.HTPasswd != "" {
+			htpasswdStore, err := auth.LoadHTPasswdFile(cfg.Security.Auth.Basic.HTPasswd)
+			if err != nil {
+				logger.Error("failed to load htpasswd file", slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			authenticator.SetHTPasswdStore(htpasswdStore)
+			logger.Info("htpasswd file loaded", slog.Int("entries", htpasswdStore.Count()))
+		}
+
 		// Add auth option
 		serverOpts = append(serverOpts, api.WithAuth(authenticator, authorizer, authService))
 	}
 
 	// Create rate limiter if enabled
+	var rateLimiter *auth.RateLimiter
 	if cfg.Security.RateLimiting.Enabled {
-		rateLimiter := auth.NewRateLimiter(cfg.Security.RateLimiting)
+		rateLimiter = auth.NewRateLimiter(cfg.Security.RateLimiting)
 		serverOpts = append(serverOpts, api.WithRateLimiter(rateLimiter))
 		logger.Info("rate limiting enabled",
 			slog.Int("requests_per_second", cfg.Security.RateLimiting.RequestsPerSecond),
@@ -248,15 +418,87 @@ func main() {
 	// Create and start the HTTP server
 	server := api.NewServer(cfg, reg, logger, serverOpts...)
 
-	// Handle shutdown signals
+	// Enable per-principal metrics if configured (default: enabled).
+	if cfg.Security.Metrics.PerPrincipalMetrics == nil || *cfg.Security.Metrics.PerPrincipalMetrics {
+		server.Metrics().EnablePrincipalMetrics()
+		logger.Info("per-principal metrics enabled")
+	}
+
+	// Start periodic gauge metrics refresh (schemas_total, subjects_total).
+	gaugeRefreshInterval := time.Duration(cfg.Server.MetricsRefreshInterval) * time.Second
+	if gaugeRefreshInterval <= 0 {
+		gaugeRefreshInterval = 5 * time.Minute
+	}
+	gaugeStop := make(chan struct{})
+	m.StartGaugeRefresh(reg, gaugeRefreshInterval, gaugeStop)
+	logger.Info("gauge metrics refresh started", slog.Duration("interval", gaugeRefreshInterval))
+
+	// Create and start the MCP server if enabled
+	var mcpServer *mcpkg.Server
+	if cfg.MCP.Enabled {
+		var mcpOpts []mcpkg.Option
+		if authService != nil {
+			mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authService))
+		}
+		mcpOpts = append(mcpOpts, mcpkg.WithBuildInfo(commit, buildDate))
+		if cfg.Server.ClusterID != "" {
+			mcpOpts = append(mcpOpts, mcpkg.WithClusterID(cfg.Server.ClusterID))
+		}
+		mcpOpts = append(mcpOpts, mcpkg.WithMetrics(server.Metrics()))
+		if auditLogger != nil {
+			mcpOpts = append(mcpOpts, mcpkg.WithAuditLogger(auditLogger))
+		}
+		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version, mcpOpts...)
+	}
+
+	// Handle shutdown and reload signals
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start server in goroutine
-	serverErr := make(chan error, 1)
+	reload := make(chan os.Signal, 1)
+	signal.Notify(reload, syscall.SIGHUP)
+
+	// Handle SIGHUP for TLS certificate reload
+	go func() {
+		for range reload {
+			logger.Info("received SIGHUP, reloading TLS certificates")
+			if err := server.ReloadTLS(); err != nil {
+				logger.Error("TLS certificate reload failed", slog.String("error", err.Error()))
+			} else {
+				logger.Info("TLS certificates reloaded successfully")
+			}
+		}
+	}()
+
+	// Emit server startup audit event
+	if auditLogger != nil {
+		auditLogger.Log(&auth.AuditEvent{
+			EventType:  auth.AuditEventServerStartup,
+			Timestamp:  time.Now(),
+			Method:     "STARTUP",
+			ActorID:    "system",
+			ActorType:  "system",
+			Outcome:    "success",
+			TargetType: "server",
+			Metadata: map[string]string{
+				"version": version,
+				"storage": cfg.Storage.Type,
+			},
+		})
+	}
+
+	// Start servers in goroutines — both feed into the same error channel.
+	serverErr := make(chan error, 2)
 	go func() {
 		serverErr <- server.Start()
 	}()
+	if mcpServer != nil {
+		go func() {
+			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
+				serverErr <- fmt.Errorf("MCP server: %w", err)
+			}
+		}()
+	}
 
 	// Wait for shutdown signal or error
 	select {
@@ -268,11 +510,45 @@ func main() {
 	case sig := <-shutdown:
 		logger.Info("shutting down", slog.String("signal", sig.String()))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownTimeout := time.Duration(cfg.Server.ShutdownTimeout) * time.Second
+		if shutdownTimeout <= 0 {
+			shutdownTimeout = 30 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
+
+		close(gaugeStop)
 
 		if err := server.Shutdown(ctx); err != nil {
 			logger.Error("shutdown error", slog.String("error", err.Error()))
+		}
+
+		// Stop MCP server
+		if mcpServer != nil {
+			if err := mcpServer.Shutdown(ctx); err != nil {
+				logger.Error("MCP shutdown error", slog.String("error", err.Error()))
+			}
+		}
+
+		// Emit server shutdown audit event before closing the audit logger
+		if auditLogger != nil {
+			auditLogger.Log(&auth.AuditEvent{
+				EventType:  auth.AuditEventServerShutdown,
+				Timestamp:  time.Now(),
+				Method:     "SHUTDOWN",
+				ActorID:    "system",
+				ActorType:  "system",
+				Outcome:    "success",
+				TargetType: "server",
+			})
+			if err := auditLogger.Close(); err != nil {
+				logger.Error("audit logger close error", slog.String("error", err.Error()))
+			}
+		}
+
+		// Stop rate limiter cleanup goroutine
+		if rateLimiter != nil {
+			rateLimiter.Close()
 		}
 
 		// Stop auth service background goroutines
@@ -316,15 +592,18 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("database", cfg.Storage.PostgreSQL.Database),
 		)
 		pgCfg := postgres.Config{
-			Host:            cfg.Storage.PostgreSQL.Host,
-			Port:            cfg.Storage.PostgreSQL.Port,
-			Database:        cfg.Storage.PostgreSQL.Database,
-			Username:        cfg.Storage.PostgreSQL.User,
-			Password:        cfg.Storage.PostgreSQL.Password,
-			SSLMode:         cfg.Storage.PostgreSQL.SSLMode,
-			MaxOpenConns:    cfg.Storage.PostgreSQL.MaxOpenConns,
-			MaxIdleConns:    cfg.Storage.PostgreSQL.MaxIdleConns,
-			ConnMaxLifetime: time.Duration(cfg.Storage.PostgreSQL.ConnMaxLifetime) * time.Second,
+			Host:               cfg.Storage.PostgreSQL.Host,
+			Port:               cfg.Storage.PostgreSQL.Port,
+			Database:           cfg.Storage.PostgreSQL.Database,
+			Username:           cfg.Storage.PostgreSQL.User,
+			Password:           cfg.Storage.PostgreSQL.Password,
+			SSLMode:            cfg.Storage.PostgreSQL.SSLMode,
+			MaxOpenConns:       cfg.Storage.PostgreSQL.MaxOpenConns,
+			MaxIdleConns:       cfg.Storage.PostgreSQL.MaxIdleConns,
+			ConnMaxLifetime:    time.Duration(cfg.Storage.PostgreSQL.ConnMaxLifetime) * time.Second,
+			ConnectTimeout:     time.Duration(cfg.Storage.PostgreSQL.ConnectTimeout) * time.Second,
+			HealthCheckTimeout: time.Duration(cfg.Storage.PostgreSQL.HealthCheckTimeout) * time.Second,
+			SchemaMaxRetries:   cfg.Storage.PostgreSQL.SchemaMaxRetries,
 		}
 		if pgCfg.Host == "" {
 			pgCfg.Host = "localhost"
@@ -356,15 +635,18 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("database", cfg.Storage.MySQL.Database),
 		)
 		mysqlCfg := mysql.Config{
-			Host:            cfg.Storage.MySQL.Host,
-			Port:            cfg.Storage.MySQL.Port,
-			Database:        cfg.Storage.MySQL.Database,
-			Username:        cfg.Storage.MySQL.User,
-			Password:        cfg.Storage.MySQL.Password,
-			TLS:             cfg.Storage.MySQL.TLS,
-			MaxOpenConns:    cfg.Storage.MySQL.MaxOpenConns,
-			MaxIdleConns:    cfg.Storage.MySQL.MaxIdleConns,
-			ConnMaxLifetime: time.Duration(cfg.Storage.MySQL.ConnMaxLifetime) * time.Second,
+			Host:               cfg.Storage.MySQL.Host,
+			Port:               cfg.Storage.MySQL.Port,
+			Database:           cfg.Storage.MySQL.Database,
+			Username:           cfg.Storage.MySQL.User,
+			Password:           cfg.Storage.MySQL.Password,
+			TLS:                cfg.Storage.MySQL.TLS,
+			MaxOpenConns:       cfg.Storage.MySQL.MaxOpenConns,
+			MaxIdleConns:       cfg.Storage.MySQL.MaxIdleConns,
+			ConnMaxLifetime:    time.Duration(cfg.Storage.MySQL.ConnMaxLifetime) * time.Second,
+			ConnectTimeout:     time.Duration(cfg.Storage.MySQL.ConnectTimeout) * time.Second,
+			HealthCheckTimeout: time.Duration(cfg.Storage.MySQL.HealthCheckTimeout) * time.Second,
+			SchemaMaxRetries:   cfg.Storage.MySQL.SchemaMaxRetries,
 		}
 		if mysqlCfg.Host == "" {
 			mysqlCfg.Host = "localhost"

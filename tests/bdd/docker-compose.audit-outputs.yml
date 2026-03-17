@@ -1,0 +1,48 @@
+# Audit outputs overlay for BDD tests.
+# Adds syslog-ng (TCP + TLS) and webhook-receiver containers for testing
+# multi-output audit delivery (file + syslog + webhook).
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.audit-outputs.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-audit-outputs.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-audit-outputs.yaml
+      # Override webhook URL to point to the webhook-receiver container
+      SCHEMA_REGISTRY_AUDIT_WEBHOOK_URL: "http://webhook-receiver:8088/"
+      # Override syslog address to point to the syslog-ng container (TLS)
+      SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS: "syslog-ng:6514"
+    volumes:
+      - ./certs/ca.pem:/etc/audit-certs/ca.pem:ro
+    depends_on:
+      syslog-ng:
+        condition: service_started
+      webhook-receiver:
+        condition: service_healthy
+
+  syslog-ng:
+    image: balabit/syslog-ng:4.2.0
+    volumes:
+      - ./docker/syslog-ng/syslog-ng-tls.conf:/etc/syslog-ng/syslog-ng.conf:ro
+      - ./certs:/etc/syslog-ng/certs:ro
+      - syslog-data:/var/log/syslog-audit
+    restart: "no"
+
+  webhook-receiver:
+    build:
+      context: ./docker/webhook-receiver
+      dockerfile: Dockerfile
+    ports:
+      - "${WEBHOOK_RECEIVER_PORT:-19013}:8088"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/health"]
+      interval: 3s
+      timeout: 2s
+      start_period: 10s
+      retries: 5
+    restart: "no"
+
+volumes:
+  syslog-data:

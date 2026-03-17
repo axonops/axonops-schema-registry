@@ -25,6 +25,34 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "json_consumer_v1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-refevo-consumer                           |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-refevo-consumer/versions        |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES REFERENCE VERSION
@@ -65,6 +93,34 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "json_ref1_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-refevo2-c2                              |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-refevo2-c2/versions           |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. MULTIPLE REFERENCES
@@ -91,6 +147,34 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-multiref-person                           |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-multiref-person/versions        |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 4. REFERENCEDBY TRACKING
@@ -125,6 +209,34 @@ Feature: JSON Schema Reference Evolution
     Then the response status should be 200
     When I get the referenced by for subject "json-refby-shared" version 1
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-refby-c2                                |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-refby-c2/versions             |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. SAME BODY WITH DIFFERENT REF VERSIONS — DIFFERENT IDS
@@ -165,6 +277,34 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "json_diff_v1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-diffref-b                               |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-diffref-b/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 6. DELETE REFERENCED SCHEMA — CONSUMER STILL RETRIEVABLE
@@ -188,6 +328,34 @@ Feature: JSON Schema Reference Evolution
     Then the response status should be 200
     When I get version 1 of subject "json-refdel-consumer"
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-refdel-consumer                           |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-refdel-consumer/versions        |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 7. COMPATIBILITY WITH REFERENCES
@@ -210,6 +378,34 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-refcompat-main                            |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-refcompat-main/versions         |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 8. REFERENCE CHAIN — A REFS B REFS C
@@ -242,3 +438,31 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-chain-a                                 |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-chain-a/versions              |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

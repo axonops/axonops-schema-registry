@@ -20,6 +20,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-int-long                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-int-long/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Type promotion int to float under BACKWARD
     Given subject "avro-compat-int-float" has compatibility level "BACKWARD"
@@ -32,6 +60,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-int-float                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-int-float/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Type promotion int to double under BACKWARD
     Given subject "avro-compat-int-double" has compatibility level "BACKWARD"
@@ -44,6 +100,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-int-double                       |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-int-double/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Type promotion long to float under BACKWARD
     Given subject "avro-compat-long-float" has compatibility level "BACKWARD"
@@ -56,6 +140,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-long-float                       |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-long-float/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Type promotion long to double under BACKWARD
     Given subject "avro-compat-long-double" has compatibility level "BACKWARD"
@@ -68,6 +180,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-long-double                      |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-long-double/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Type promotion float to double under BACKWARD
     Given subject "avro-compat-float-double" has compatibility level "BACKWARD"
@@ -80,6 +220,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-float-double                     |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-float-double/versions  |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 7. STRING BYTES BIDIRECTIONAL (FULL)
@@ -96,6 +264,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-str-bytes                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-str-bytes/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 8. TYPE PROMOTION INSIDE UNION
@@ -112,6 +308,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":["null","long"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-compat-union-promote                        |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-compat-union-promote/versions     |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 9. COLLECTION ITEM PROMOTION
@@ -128,6 +352,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":{"type":"array","items":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-compat-array-promote                        |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-compat-array-promote/versions     |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 10. MAP VALUE PROMOTION
@@ -144,6 +396,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":{"type":"map","values":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-compat-map-promote                        |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-compat-map-promote/versions     |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 11. ENUM REMOVING SYMBOL WITH DEFAULT — COMPATIBLE
@@ -160,6 +440,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B"],"default":"A"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-compat-enum-default                        |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-compat-enum-default/versions     |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   # ==========================================================================
   # 12. ENUM REMOVING SYMBOL WITHOUT DEFAULT — INCOMPATIBLE
@@ -224,6 +532,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"NewName","aliases":["OldName"],"fields":[{"name":"x","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-compat-record-alias                         |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-compat-record-alias/versions      |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 16. FIELD ALIAS ENABLES BACKWARD-COMPATIBLE RENAME
@@ -240,6 +576,34 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"new_field","type":"string","aliases":["old_field"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-compat-field-alias                         |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-compat-field-alias/versions      |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   # ==========================================================================
   # 17. 5-VERSION EVOLUTION CHAIN UNDER BACKWARD_TRANSITIVE
@@ -296,6 +660,34 @@ Feature: Avro Advanced Compatibility
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-compat-5v-chain                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-compat-5v-chain/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 18. FULL_TRANSITIVE 3-VERSION CHAIN
@@ -329,3 +721,31 @@ Feature: Avro Advanced Compatibility
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-compat-full-trans                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-compat-full-trans/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |

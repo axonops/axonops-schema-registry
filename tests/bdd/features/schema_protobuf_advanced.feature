@@ -40,6 +40,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "AllScalarTypes"
     And the response should contain "field_double"
     And the response should contain "field_bytes"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-1                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 2. Deeply nested messages (4+ levels)
@@ -72,6 +100,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "Outer"
     And the response should contain "Core"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-2                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-2/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 3. Enum with allow_alias option
@@ -100,6 +156,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "PRIORITY_CRITICAL"
     And the response should contain "PRIORITY_URGENT"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-3                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-3/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 4. Enum with reserved values
@@ -128,6 +212,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "ErrorCode"
     And the response should contain "reserved"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-4                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-4/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 5. Oneof with multiple field types
@@ -155,6 +267,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "oneof"
     And the response should contain "email"
     And the response should contain "push_device_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-5                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-5/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 6. Oneof with message type fields
@@ -192,6 +332,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "shape_type"
     And the response should contain "Circle"
     And the response should contain "Triangle"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-6                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-6/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 7. Map with enum values
@@ -218,6 +386,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "FeatureConfig"
     And the response should contain "FeatureFlag"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-7                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-7/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 8. Map with nested message values
@@ -248,6 +444,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "UserProfiles"
     And the response should contain "UserProfile"
     And the response should contain "Address"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-8                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-8/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 9. Repeated message fields
@@ -280,6 +504,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Playlist"
     And the response should contain "repeated"
     And the response should contain "Track"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-adv-9                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-adv-9/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # --------------------------------------------------------------------------
   # 10. Service with server streaming
@@ -308,6 +560,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "EventStream"
     And the response should contain "stream"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-10                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-10/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 11. Service with client streaming
@@ -336,6 +616,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "LogIngestion"
     And the response should contain "stream"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-11                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-11/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 12. Service with bidirectional streaming
@@ -363,6 +671,34 @@ Feature: Advanced Protobuf Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "ChatService"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-12                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-12/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 13. Service with multiple methods
@@ -413,6 +749,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "GetUser"
     And the response should contain "CreateUser"
     And the response should contain "ListUsers"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-13                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-13/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 14. Proto2 required fields
@@ -436,6 +800,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "LegacyRecord"
     And the response should contain "required"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-14                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-14/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 15. Proto2 default values
@@ -459,6 +851,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "ConfigEntry"
     And the response should contain "default"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-15                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-15/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 16. Well-known type: google.protobuf.Timestamp
@@ -482,6 +902,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "AuditEvent"
     And the response should contain "google.protobuf.Timestamp"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-16                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-16/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 17. Well-known type: google.protobuf.Duration
@@ -504,6 +952,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "TaskExecution"
     And the response should contain "google.protobuf.Duration"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-17                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-17/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 18. Well-known type: google.protobuf.Any
@@ -526,6 +1002,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "Envelope"
     And the response should contain "google.protobuf.Any"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-18                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-18/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 19. Well-known type: google.protobuf.Struct
@@ -548,6 +1052,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "DynamicConfig"
     And the response should contain "google.protobuf.Struct"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-19                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-19/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 20. Well-known type: google.protobuf.FieldMask
@@ -570,6 +1102,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "UpdateRequest"
     And the response should contain "google.protobuf.FieldMask"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-20                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-20/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 21. Well-known type: google.protobuf.StringValue (wrapper)
@@ -593,6 +1153,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "NullableFields"
     And the response should contain "google.protobuf.StringValue"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-21                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-21/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 22. Package with nested package name (a.b.c)
@@ -616,6 +1204,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "io.axonops.schema.registry.events"
     And the response should contain "SchemaRegistered"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-22                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-22/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 23. Message with reserved field numbers
@@ -639,6 +1255,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "EvolvingMessage"
     And the response should contain "reserved"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-23                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-23/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 24. Message with reserved field names
@@ -662,6 +1306,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "MigratedMessage"
     And the response should contain "old_field"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-24                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-24/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 25. Message with 30+ fields (stress test)
@@ -713,6 +1385,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "WideMessage"
     And the response should contain "field_01"
     And the response should contain "field_32"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-25                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-25/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 26. Multiple messages with cross-references
@@ -765,6 +1465,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Customer"
     And the response should contain "Money"
     And the response should contain "ShippingAddress"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-26                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-26/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 27. Enum used across multiple messages
@@ -803,6 +1531,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Order"
     And the response should contain "Shipment"
     And the response should contain "Payment"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-27                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-27/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 28. Nested enum inside message
@@ -834,6 +1590,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "HttpRequest"
     And the response should contain "METHOD_GET"
     And the response should contain "METHOD_DELETE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-28                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-28/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 29. Proto3 optional keyword
@@ -858,6 +1642,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "UserPreferences"
     And the response should contain "optional"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-29                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-29/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 30. Complex real-world: gRPC service with request/response messages
@@ -938,6 +1750,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "GetProduct"
     And the response should contain "WatchProducts"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-30                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-30/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 31. Complex real-world: Kafka event message with header and payload
@@ -988,6 +1828,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "KafkaEventEnvelope"
     And the response should contain "EventHeader"
     And the response should contain "DeadLetterEvent"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-31                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-31/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 32. Complex real-world: Cloud events proto with any payload
@@ -1042,6 +1910,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "CloudEventAttributeValue"
     And the response should contain "CloudEventBatch"
     And the response should contain "google.protobuf.Any"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-32                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-32/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 33. Round-trip: register, get by ID, verify schema field
@@ -1069,6 +1965,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response field "subject" should be "proto-adv-33"
     And the response field "version" should be 1
     And the response should contain "RoundTripTest"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-33                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-33/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 34. Fingerprint stability: same schema in 2 subjects yields same ID
@@ -1094,6 +2018,34 @@ Feature: Advanced Protobuf Schema Parsing
       """
     Then the response status should be 200
     And I store the response field "id" as "second_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | proto-adv-34b                      |
+      | schema_id            | *                                  |
+      | version              | *                                  |
+      | schema_type          | PROTOBUF                           |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/proto-adv-34b/versions   |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # --------------------------------------------------------------------------
   # 35. Large proto with nested messages, enums, services combined
@@ -1200,6 +2152,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "ShipmentStatus"
     And the response should contain "Warehouse"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-35                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-35/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 36. Map of string to bytes
@@ -1222,6 +2202,34 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "BlobStore"
     And the response should contain "blobs"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-36                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-36/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 37. Deeply nested oneof
@@ -1283,6 +2291,34 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Section"
     And the response should contain "TextBlock"
     And the response should contain "oneof"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-37                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-37/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # --------------------------------------------------------------------------
   # 38. Multiple services in one file
@@ -1350,3 +2386,31 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "MetricsService"
     And the response should contain "DataPoint"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | proto-adv-38                      |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | PROTOBUF                          |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/proto-adv-38/versions   |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |

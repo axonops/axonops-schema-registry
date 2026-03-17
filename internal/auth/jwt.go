@@ -40,12 +40,21 @@ type JWTProvider struct {
 
 // NewJWTProvider creates a new JWT authentication provider.
 func NewJWTProvider(cfg config.JWTConfig) (*JWTProvider, error) {
+	jwksCacheTTL := 5 * time.Minute
+	if cfg.JWKSCacheTTL > 0 {
+		jwksCacheTTL = time.Duration(cfg.JWKSCacheTTL) * time.Second
+	}
+	httpTimeout := 10 * time.Second
+	if cfg.HTTPTimeout > 0 {
+		httpTimeout = time.Duration(cfg.HTTPTimeout) * time.Second
+	}
+
 	p := &JWTProvider{
 		config:       cfg,
 		jwksKeys:     make(map[string]any),
-		jwksCacheTTL: 5 * time.Minute, // Default JWKS cache TTL
+		jwksCacheTTL: jwksCacheTTL,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: httpTimeout,
 		},
 	}
 
@@ -448,5 +457,8 @@ func (p *JWTProvider) determineRole(claims jwt.MapClaims) string {
 	}
 
 	// Default role
+	if p.config.DefaultRole != "" {
+		return p.config.DefaultRole
+	}
 	return "readonly"
 }

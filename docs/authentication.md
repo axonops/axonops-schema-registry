@@ -71,7 +71,7 @@ Authentication is optional but recommended for production deployments. When enab
 2. **Basic Auth** -- database users with bcrypt-hashed passwords, with LDAP fallback if configured
 3. **OIDC Bearer Token** -- OpenID Connect token validation
 4. **JWT Bearer Token** -- static key or JWKS-based token validation
-5. **mTLS Client Certificate** -- client certificate Common Name used as identity
+5. **mTLS (Transport Only)** -- client certificate verification at the transport layer (not an auth method)
 
 When authentication is disabled (the default), all endpoints are accessible without credentials. The health check (`/`) and metrics (`/metrics`) endpoints are always unauthenticated regardless of configuration.
 
@@ -95,7 +95,7 @@ security:
       default_role: readonly
 ```
 
-The `methods` list defines which authentication methods are active and the order in which they are tried. Valid values are `api_key`, `basic`, `jwt`, `oidc`, and `mtls`.
+The `methods` list defines which authentication methods are active and the order in which they are tried. Valid values are `api_key`, `basic`, `jwt`, and `oidc`. mTLS is transport-level security configured via `security.tls.*`, not an auth method.
 
 When a request fails all configured methods, the registry returns `401 Unauthorized` with appropriate `WWW-Authenticate` headers for each enabled method.
 
@@ -156,7 +156,7 @@ This approach is useful when you want to create the admin user before starting t
 
 ## Basic Authentication
 
-Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured, it is tried as a fallback when database authentication fails.
+Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured and `allow_fallback` is `true` (the default), credentials for users **not found** in LDAP are tried against the database as a fallback. Users that **exist** in LDAP but provide the wrong password are rejected immediately — no fallback occurs. Set `allow_fallback: false` to disable fallback entirely.
 
 ### Configuration
 
@@ -312,6 +312,9 @@ security:
       default_role: "readonly"
       start_tls: true
       ca_cert_file: "/etc/ssl/certs/ldap-ca.pem"
+      client_cert_file: "/etc/ssl/certs/ldap-client.pem"
+      client_key_file: "/etc/ssl/private/ldap-client-key.pem"
+      allow_fallback: true            # Set to false for strict LDAP-only auth
       connection_timeout: 10
       request_timeout: 30
 ```
@@ -331,7 +334,9 @@ For encrypted connections:
 - **LDAPS** -- use `ldaps://` in the URL (e.g., `ldaps://ldap.example.com:636`)
 - **StartTLS** -- set `start_tls: true` with a plain `ldap://` URL
 
-Both methods support custom CA certificates via `ca_cert_file`. For development and testing environments, `insecure_skip_verify: true` disables certificate validation (not recommended for production).
+Both methods support custom CA certificates via `ca_cert_file` and client certificate authentication (mTLS) via `client_cert_file` / `client_key_file`. For development and testing environments, `insecure_skip_verify: true` disables certificate validation (not recommended for production).
+
+> **Security warning:** If LDAP is configured without TLS (`ldap://` URL and `start_tls: false`), the registry logs a warning at startup and emits a `security_warning` audit event with `reason: ldap_no_tls`. Bind credentials and user passwords are transmitted in plaintext over non-TLS connections, which MUST be avoided in production.
 
 ### Configuration Reference
 
@@ -350,9 +355,24 @@ Both methods support custom CA certificates via `ca_cert_file`. For development 
 | `default_role` | Role assigned when no group mapping matches | `readonly` |
 | `start_tls` | Upgrade connection to TLS via StartTLS | `false` |
 | `ca_cert_file` | Path to CA certificate for TLS verification | `""` |
+| `client_cert_file` | Path to client certificate for mTLS | `""` |
+| `client_key_file` | Path to client private key for mTLS | `""` |
 | `insecure_skip_verify` | Skip TLS certificate verification | `false` |
+| `allow_fallback` | Allow fallback to DB/htpasswd when user is not found in LDAP | `true` |
 | `connection_timeout` | Connection timeout in seconds | `10` |
 | `request_timeout` | Search request timeout in seconds | `30` |
+
+### Fallback Behavior
+
+By default (`allow_fallback: true`), when an LDAP user search returns "user not found", the registry falls back to other configured authentication methods (database users, htpasswd). This allows mixed environments where some users are in LDAP and others are local accounts (e.g. a bootstrap admin user).
+
+> **Security note:** Fallback only occurs when the user does **not exist** in LDAP. If the user **exists** in LDAP but provides the wrong password, the request is rejected immediately with HTTP 401 — no fallback occurs. This prevents users from bypassing LDAP password policies (complexity requirements, expiry, account lockout, MFA) by authenticating against a local database password instead.
+
+Set `allow_fallback: false` for strict LDAP-only authentication. In this mode, all LDAP failures (user not found, wrong password, server unreachable) result in an immediate HTTP 401 — no fallback to database or htpasswd users occurs.
+
+### Audit Logging
+
+LDAP-authenticated requests use `auth_method: ldap` in audit events. Users who authenticated via DB/htpasswd fallback (not found in LDAP) use `auth_method: ldap_fallback`, distinguishing them from direct database authentication (`auth_method: basic`). See [Audit Logging](auditing.md#actor-types-and-authentication-methods) for details.
 
 ## OIDC (OpenID Connect)
 
@@ -485,13 +505,15 @@ curl -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
 | `audience` | Expected token audience (`aud` claim) | `""` |
 | `claims_mapping` | Map of standard claim names to custom claim names | `{}` |
 
-## mTLS (Mutual TLS)
+## mTLS (Mutual TLS) — Transport Security
 
-Mutual TLS authentication uses client certificates to identify users. The Common Name (CN) from the client certificate's subject is used as the username.
+mTLS is **transport-level security only**. It verifies that connecting clients present a valid certificate signed by a trusted CA, but it does NOT provide authentication or authorization. To get user identity and RBAC, layer mTLS with an authentication method such as `basic`, `jwt`, or `oidc`.
+
+> **Important:** `mtls` is NOT a valid value for `security.auth.methods`. It is configured exclusively via `security.tls.*` settings.
 
 ### Configuration
 
-First, enable TLS on the server:
+Enable TLS with client certificate verification:
 
 ```yaml
 security:
@@ -501,19 +523,26 @@ security:
     key_file: "/etc/schema-registry/server.key"
     ca_file: "/etc/schema-registry/ca.crt"
     client_auth: "verify"
-    min_version: "TLS1.2"
+    min_version: "TLS1.3"
 ```
 
-Then enable mTLS as an authentication method:
+To combine mTLS with authentication and RBAC:
 
 ```yaml
 security:
+  tls:
+    enabled: true
+    cert_file: "/etc/schema-registry/server.crt"
+    key_file: "/etc/schema-registry/server.key"
+    ca_file: "/etc/schema-registry/ca.crt"
+    client_auth: "verify"
   auth:
     enabled: true
     methods:
-      - mtls
+      - basic
     rbac:
-      default_role: developer
+      enabled: true
+      default_role: readonly
 ```
 
 ### Client Auth Modes
@@ -525,7 +554,7 @@ security:
 | `require` | Client certificate required but not verified against CA |
 | `verify` | Client certificate required and verified against the CA in `ca_file` |
 
-For mTLS authentication, use `verify` to ensure clients present valid certificates signed by your CA.
+For mTLS transport security, use `verify` to ensure clients present valid certificates signed by your CA.
 
 ### Usage
 
@@ -534,7 +563,9 @@ curl --cert client.crt --key client.key --cacert ca.crt \
   https://localhost:8081/subjects
 ```
 
-The authenticated username is the CN from the client certificate. Users authenticated via mTLS are assigned the `default_role` from the RBAC configuration.
+### Audit Events
+
+When mTLS is active, all audit events include `"transport_security": "mtls"`. When TLS is used without client certificates, audit events include `"transport_security": "tls"`. Without TLS, events include `"transport_security": "none"`.
 
 ## Roles and Permissions
 
@@ -560,7 +591,7 @@ security:
         - ops-lead
 ```
 
-Users listed in `super_admins` have all permissions regardless of their assigned role. The `default_role` is applied when an authentication method does not provide a role (e.g., mTLS, config-based basic auth).
+Users listed in `super_admins` have all permissions regardless of their assigned role. The `default_role` is applied when an authentication method does not provide a role (e.g., config-based basic auth).
 
 ## User Management API
 

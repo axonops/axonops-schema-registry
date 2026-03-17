@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -17,17 +18,39 @@ type Config struct {
 	Compatibility CompatibilityConfig `yaml:"compatibility"`
 	Logging       LoggingConfig       `yaml:"logging"`
 	Security      SecurityConfig      `yaml:"security"`
+	MCP           MCPConfig           `yaml:"mcp"`
+}
+
+// MCPConfig represents MCP (Model Context Protocol) server configuration.
+type MCPConfig struct {
+	Enabled              bool     `yaml:"enabled"`
+	Host                 string   `yaml:"host"`
+	Port                 int      `yaml:"port"`
+	AuthToken            string   `yaml:"auth_token"`            // Bearer token for v1 auth
+	ReadOnly             bool     `yaml:"read_only"`             // Restrict to read-only tools
+	ToolPolicy           string   `yaml:"tool_policy"`           // "allow_all" (default), "deny_list", "allow_list"
+	AllowedTools         []string `yaml:"allowed_tools"`         // Tools to allow (for allow_list mode)
+	DeniedTools          []string `yaml:"denied_tools"`          // Tools to deny (for deny_list mode)
+	AllowedOrigins       []string `yaml:"allowed_origins"`       // Origin header allowlist (empty = allow all)
+	RequireConfirmations bool     `yaml:"require_confirmations"` // Enable two-phase confirmations for destructive ops
+	ConfirmationTTLSecs  int      `yaml:"confirmation_ttl"`      // Confirmation token TTL in seconds (default: 300)
+	LogSchemas           bool     `yaml:"log_schemas"`           // Log full schema bodies in debug output (default: false)
+	PermissionPreset     string   `yaml:"permission_preset"`     // "readonly", "developer", "operator", "admin", "full"
+	PermissionScopes     []string `yaml:"permission_scopes"`     // Individual scopes when preset is empty
+	ReadHeaderTimeout    int      `yaml:"read_header_timeout"`   // HTTP ReadHeaderTimeout in seconds (default: 10)
 }
 
 // ServerConfig represents HTTP server configuration.
 type ServerConfig struct {
-	Host               string `yaml:"host"`
-	Port               int    `yaml:"port"`
-	ReadTimeout        int    `yaml:"read_timeout"`
-	WriteTimeout       int    `yaml:"write_timeout"`
-	DocsEnabled        bool   `yaml:"docs_enabled"`
-	ClusterID          string `yaml:"cluster_id"`
-	MaxRequestBodySize int64  `yaml:"max_request_body_size"`
+	Host                   string `yaml:"host"`
+	Port                   int    `yaml:"port"`
+	ReadTimeout            int    `yaml:"read_timeout"`
+	WriteTimeout           int    `yaml:"write_timeout"`
+	ShutdownTimeout        int    `yaml:"shutdown_timeout"` // Graceful shutdown timeout in seconds (default: 30)
+	DocsEnabled            bool   `yaml:"docs_enabled"`
+	ClusterID              string `yaml:"cluster_id"`
+	MaxRequestBodySize     int64  `yaml:"max_request_body_size"`
+	MetricsRefreshInterval int    `yaml:"metrics_refresh_interval"` // Gauge metrics refresh interval in seconds (default: 300)
 }
 
 // StorageConfig represents storage backend configuration.
@@ -42,28 +65,34 @@ type StorageConfig struct {
 
 // PostgreSQLConfig represents PostgreSQL connection configuration.
 type PostgreSQLConfig struct {
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	Database        string `yaml:"database"`
-	User            string `yaml:"user"`
-	Password        string `yaml:"password"`
-	SSLMode         string `yaml:"ssl_mode"`
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // seconds
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Database           string `yaml:"database"`
+	User               string `yaml:"user"`
+	Password           string `yaml:"password"`
+	SSLMode            string `yaml:"ssl_mode"`
+	MaxOpenConns       int    `yaml:"max_open_conns"`
+	MaxIdleConns       int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime    int    `yaml:"conn_max_lifetime"`    // seconds
+	ConnectTimeout     int    `yaml:"connect_timeout"`      // Initial connection ping timeout in seconds (default: 5)
+	HealthCheckTimeout int    `yaml:"health_check_timeout"` // Health check timeout in seconds (default: 2)
+	SchemaMaxRetries   int    `yaml:"schema_max_retries"`   // Max retries for schema creation (default: 15)
 }
 
 // MySQLConfig represents MySQL connection configuration.
 type MySQLConfig struct {
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	Database        string `yaml:"database"`
-	User            string `yaml:"user"`
-	Password        string `yaml:"password"`
-	TLS             string `yaml:"tls"` // true, false, skip-verify, preferred
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // seconds
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Database           string `yaml:"database"`
+	User               string `yaml:"user"`
+	Password           string `yaml:"password"`
+	TLS                string `yaml:"tls"` // true, false, skip-verify, preferred
+	MaxOpenConns       int    `yaml:"max_open_conns"`
+	MaxIdleConns       int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime    int    `yaml:"conn_max_lifetime"`    // seconds
+	ConnectTimeout     int    `yaml:"connect_timeout"`      // Initial connection ping timeout in seconds (default: 5)
+	HealthCheckTimeout int    `yaml:"health_check_timeout"` // Health check timeout in seconds (default: 2)
+	SchemaMaxRetries   int    `yaml:"schema_max_retries"`   // Max retries for schema creation (default: 15)
 }
 
 // CassandraConfig represents Cassandra connection configuration.
@@ -114,23 +143,35 @@ type SecurityConfig struct {
 	Auth         AuthConfig      `yaml:"auth"`
 	RateLimiting RateLimitConfig `yaml:"rate_limiting"`
 	Audit        AuditConfig     `yaml:"audit"`
+	Metrics      SecurityMetrics `yaml:"metrics"`
+}
+
+// SecurityMetrics represents security-related metrics configuration.
+type SecurityMetrics struct {
+	// PerPrincipalMetrics enables per-principal (user identity) Prometheus metrics
+	// tracking request counts, errors, and endpoint usage by authenticated principal.
+	// This adds a `principal` label to metrics, which MAY increase cardinality.
+	// Default: true.
+	PerPrincipalMetrics *bool `yaml:"per_principal_metrics"`
 }
 
 // TLSConfig represents TLS configuration.
 type TLSConfig struct {
-	Enabled    bool   `yaml:"enabled"`
-	CertFile   string `yaml:"cert_file"`
-	KeyFile    string `yaml:"key_file"`
-	CAFile     string `yaml:"ca_file"`     // For client cert verification
-	MinVersion string `yaml:"min_version"` // TLS1.2, TLS1.3
-	ClientAuth string `yaml:"client_auth"` // none, request, require, verify
-	AutoReload bool   `yaml:"auto_reload"` // Reload certs without restart
+	Enabled              bool     `yaml:"enabled"`
+	CertFile             string   `yaml:"cert_file"`
+	KeyFile              string   `yaml:"key_file"`
+	CAFile               string   `yaml:"ca_file"`                // For client cert verification
+	MinVersion           string   `yaml:"min_version"`            // TLS1.2, TLS1.3 (default: TLS1.3, minimum: TLS1.2)
+	ClientAuth           string   `yaml:"client_auth"`            // none, request, require, verify
+	AutoReload           bool     `yaml:"auto_reload"`            // Reload certs via SIGHUP without restart
+	CipherSuites         []string `yaml:"cipher_suites"`          // Explicit cipher suite names; omit for Go's safe defaults
+	AllowInsecureCiphers bool     `yaml:"allow_insecure_ciphers"` // Allow ciphers from tls.InsecureCipherSuites() (default: false)
 }
 
 // AuthConfig represents authentication configuration.
 type AuthConfig struct {
 	Enabled   bool            `yaml:"enabled"`
-	Methods   []string        `yaml:"methods"` // basic, api_key, jwt, oidc, mtls
+	Methods   []string        `yaml:"methods"` // basic, api_key, jwt, oidc
 	Bootstrap BootstrapConfig `yaml:"bootstrap"`
 	Basic     BasicAuthConfig `yaml:"basic"`
 	LDAP      LDAPConfig      `yaml:"ldap"`
@@ -162,8 +203,8 @@ type BootstrapConfig struct {
 // BasicAuthConfig represents basic authentication configuration.
 type BasicAuthConfig struct {
 	Realm    string            `yaml:"realm"`
-	Users    map[string]string `yaml:"users"` // username -> bcrypt hash
-	HTPasswd string            `yaml:"htpasswd_file"`
+	Users    map[string]string `yaml:"users"`         // username -> bcrypt hash
+	HTPasswd string            `yaml:"htpasswd_file"` // Path to Apache-style htpasswd file (bcrypt only)
 }
 
 // LDAPConfig represents LDAP authentication configuration.
@@ -175,7 +216,7 @@ type LDAPConfig struct {
 	BaseDN             string            `yaml:"base_dn"`              // Base DN for searches
 	UserSearchFilter   string            `yaml:"user_search_filter"`   // e.g., (sAMAccountName=%s)
 	UserSearchBase     string            `yaml:"user_search_base"`     // e.g., OU=Users,DC=example,DC=com
-	GroupSearchFilter  string            `yaml:"group_search_filter"`  // e.g., (member=%s)
+	GroupSearchFilter  string            `yaml:"group_search_filter"`  // e.g., (member=%s) — searches for groups containing user DN
 	GroupSearchBase    string            `yaml:"group_search_base"`    // e.g., OU=Groups,DC=example,DC=com
 	UsernameAttribute  string            `yaml:"username_attribute"`   // sAMAccountName, uid, userPrincipalName
 	EmailAttribute     string            `yaml:"email_attribute"`      // mail
@@ -185,8 +226,11 @@ type LDAPConfig struct {
 	StartTLS           bool              `yaml:"start_tls"`            // Use STARTTLS
 	InsecureSkipVerify bool              `yaml:"insecure_skip_verify"` // Skip TLS verification
 	CACertFile         string            `yaml:"ca_cert_file"`         // CA cert for TLS
+	ClientCertFile     string            `yaml:"client_cert_file"`     // Client cert for mTLS
+	ClientKeyFile      string            `yaml:"client_key_file"`      // Client key for mTLS
 	ConnectionTimeout  int               `yaml:"connection_timeout"`   // Seconds, default 10
 	RequestTimeout     int               `yaml:"request_timeout"`      // Seconds, default 30
+	AllowFallback      *bool             `yaml:"allow_fallback"`       // Allow fallback to DB/htpasswd when LDAP fails (default: true)
 }
 
 // OIDCConfig represents OpenID Connect authentication configuration.
@@ -195,8 +239,6 @@ type OIDCConfig struct {
 	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
 	ClientID          string            `yaml:"client_id"`          // For token validation
 	ClientSecret      string            `yaml:"client_secret"`      // #nosec G117 -- OIDC config field, not a hardcoded secret
-	RedirectURL       string            `yaml:"redirect_url"`       // Callback URL
-	Scopes            []string          `yaml:"scopes"`             // openid, profile, email
 	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
 	RolesClaim        string            `yaml:"roles_claim"`        // roles, groups
 	RoleMapping       map[string]string `yaml:"role_mapping"`       // OIDC role -> registry role
@@ -211,7 +253,7 @@ type OIDCConfig struct {
 type APIKeyConfig struct {
 	Header      string `yaml:"header"`       // X-API-Key
 	QueryParam  string `yaml:"query_param"`  // api_key
-	StorageType string `yaml:"storage_type"` // memory, database
+	StorageType string `yaml:"storage_type"` // "database" (default) or "memory" (config-defined keys)
 	// Secret is used as a pepper for HMAC-SHA256 hashing of API keys.
 	// This provides defense-in-depth: even if the database is compromised,
 	// the attacker cannot verify API keys without this secret.
@@ -224,6 +266,15 @@ type APIKeyConfig struct {
 	// CacheRefreshSeconds is how often (in seconds) the API key cache is refreshed
 	// from the database. This ensures cluster consistency. Default is 60 seconds.
 	CacheRefreshSeconds int `yaml:"cache_refresh_seconds"`
+	// Keys defines API keys in config (used when storage_type is "memory").
+	Keys []ConfigAPIKey `yaml:"keys"`
+}
+
+// ConfigAPIKey represents an API key defined in the config file.
+type ConfigAPIKey struct {
+	Name    string `yaml:"name"`     // Identifier for the key
+	KeyHash string `yaml:"key_hash"` // bcrypt hash of the API key
+	Role    string `yaml:"role"`     // Role assigned to this key
 }
 
 // JWTConfig represents JWT authentication configuration.
@@ -234,6 +285,9 @@ type JWTConfig struct {
 	PublicKeyFile string            `yaml:"public_key_file"`
 	Algorithm     string            `yaml:"algorithm"` // RS256, ES256
 	ClaimsMapping map[string]string `yaml:"claims_mapping"`
+	DefaultRole   string            `yaml:"default_role"`   // Fallback role when no claim matches (default: "readonly")
+	JWKSCacheTTL  int               `yaml:"jwks_cache_ttl"` // JWKS cache TTL in seconds (default: 300)
+	HTTPTimeout   int               `yaml:"http_timeout"`   // JWKS HTTP client timeout in seconds (default: 10)
 }
 
 // RBACConfig represents RBAC configuration.
@@ -254,20 +308,75 @@ type RateLimitConfig struct {
 
 // AuditConfig represents audit logging configuration.
 type AuditConfig struct {
-	Enabled     bool     `yaml:"enabled"`
-	LogFile     string   `yaml:"log_file"`
-	Events      []string `yaml:"events"` // schema_register, schema_delete, config_change
-	IncludeBody bool     `yaml:"include_body"`
+	Enabled     bool               `yaml:"enabled"`
+	LogFile     string             `yaml:"log_file,omitempty"` // Deprecated: use Outputs.File instead
+	Events      []string           `yaml:"events"`             // schema_register, schema_delete, config_update
+	IncludeBody bool               `yaml:"include_body"`
+	BufferSize  int                `yaml:"buffer_size"` // Async channel buffer size (default: 10000, 0 = sync)
+	Outputs     AuditOutputsConfig `yaml:"outputs"`
+}
+
+// AuditOutputsConfig represents the multi-output audit configuration.
+type AuditOutputsConfig struct {
+	Stdout  AuditStdoutConfig  `yaml:"stdout"`
+	File    AuditFileConfig    `yaml:"file"`
+	Syslog  AuditSyslogConfig  `yaml:"syslog"`
+	Webhook AuditWebhookConfig `yaml:"webhook"`
+}
+
+// AuditStdoutConfig configures stdout audit output.
+type AuditStdoutConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	FormatType string `yaml:"format"` // "json" (default) or "cef"
+}
+
+// AuditFileConfig configures file audit output with rotation.
+type AuditFileConfig struct {
+	Enabled     bool   `yaml:"enabled"`
+	Path        string `yaml:"path"`
+	FormatType  string `yaml:"format"`       // "json" (default) or "cef"
+	MaxSizeMB   int    `yaml:"max_size_mb"`  // Max size in MB before rotation (default: 100)
+	MaxBackups  int    `yaml:"max_backups"`  // Max number of old files to retain (default: 5)
+	MaxAgeDays  int    `yaml:"max_age_days"` // Max age in days before deletion (default: 30)
+	Compress    *bool  `yaml:"compress"`     // Compress rotated files (default: true)
+	Permissions string `yaml:"permissions"`  // File permissions (default: "0600")
+}
+
+// AuditSyslogConfig configures syslog audit output (RFC 5424).
+type AuditSyslogConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	Network    string `yaml:"network"`  // "tcp", "udp", "tcp+tls" (default: "tcp")
+	Address    string `yaml:"address"`  // host:port
+	AppName    string `yaml:"app_name"` // syslog APP-NAME (default: "schema-registry")
+	Facility   string `yaml:"facility"` // syslog facility (default: "local0")
+	FormatType string `yaml:"format"`   // "json" (default) or "cef"
+	TLSCert    string `yaml:"tls_cert"` // Client certificate for TLS
+	TLSKey     string `yaml:"tls_key"`  // Client key for TLS
+	TLSCA      string `yaml:"tls_ca"`   // CA certificate for TLS
+}
+
+// AuditWebhookConfig configures webhook audit output.
+type AuditWebhookConfig struct {
+	Enabled       bool              `yaml:"enabled"`
+	URL           string            `yaml:"url"`            // Webhook endpoint URL
+	FormatType    string            `yaml:"format"`         // "json" (default) or "cef"
+	Headers       map[string]string `yaml:"headers"`        // Custom HTTP headers
+	BatchSize     int               `yaml:"batch_size"`     // Events per batch (default: 100)
+	FlushInterval string            `yaml:"flush_interval"` // Flush interval (default: "5s")
+	Timeout       string            `yaml:"timeout"`        // HTTP timeout (default: "10s")
+	MaxRetries    int               `yaml:"max_retries"`    // Retry count for 5xx (default: 3)
+	BufferSize    int               `yaml:"buffer_size"`    // Channel buffer size (default: 10000)
 }
 
 // DefaultConfig returns a configuration with default values.
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Host:         "0.0.0.0",
-			Port:         8081,
-			ReadTimeout:  30,
-			WriteTimeout: 30,
+			Host:            "0.0.0.0",
+			Port:            8081,
+			ReadTimeout:     30,
+			WriteTimeout:    30,
+			ShutdownTimeout: 30,
 		},
 		Storage: StorageConfig{
 			Type: "memory",
@@ -284,6 +393,15 @@ func DefaultConfig() *Config {
 				APIKey: APIKeyConfig{
 					CacheRefreshSeconds: 60, // Default to 60 seconds, 0 means disabled
 				},
+			},
+		},
+		MCP: MCPConfig{
+			Host: "127.0.0.1",
+			Port: 9081,
+			AllowedOrigins: []string{
+				"http://localhost:*",
+				"https://localhost:*",
+				"vscode-webview://*",
 			},
 		},
 	}
@@ -321,14 +439,38 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+// envInt parses an integer from an env var value, logging a warning on failure.
+func envInt(envVar, value string) (int, bool) {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		slog.Warn("ignoring invalid env var value",
+			slog.String("var", envVar),
+			slog.String("value", value),
+			slog.String("error", err.Error()),
+		)
+		return 0, false
+	}
+	return n, true
+}
+
 // applyEnvOverrides applies environment variable overrides.
 func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_HOST"); v != "" {
 		c.Server.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Server.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_PORT", v); ok {
+			c.Server.Port = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT", v); ok {
+			c.Server.ShutdownTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_METRICS_REFRESH_INTERVAL"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_METRICS_REFRESH_INTERVAL", v); ok {
+			c.Server.MetricsRefreshInterval = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_STORAGE_TYPE"); v != "" {
@@ -346,8 +488,8 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.PostgreSQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.PostgreSQL.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_PORT", v); ok {
+			c.Storage.PostgreSQL.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_DATABASE"); v != "" {
@@ -362,14 +504,29 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_SSLMODE"); v != "" {
 		c.Storage.PostgreSQL.SSLMode = v
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT", v); ok {
+			c.Storage.PostgreSQL.ConnectTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT", v); ok {
+			c.Storage.PostgreSQL.HealthCheckTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES", v); ok {
+			c.Storage.PostgreSQL.SchemaMaxRetries = n
+		}
+	}
 
 	// MySQL overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HOST"); v != "" {
 		c.Storage.MySQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.MySQL.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_PORT", v); ok {
+			c.Storage.MySQL.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_DATABASE"); v != "" {
@@ -384,6 +541,21 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_TLS"); v != "" {
 		c.Storage.MySQL.TLS = v
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT", v); ok {
+			c.Storage.MySQL.ConnectTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT", v); ok {
+			c.Storage.MySQL.HealthCheckTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES", v); ok {
+			c.Storage.MySQL.SchemaMaxRetries = n
+		}
+	}
 
 	// Cassandra overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_HOSTS"); v != "" {
@@ -394,8 +566,8 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.Cassandra.Hosts = hosts
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.Cassandra.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_PORT", v); ok {
+			c.Storage.Cassandra.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_KEYSPACE"); v != "" {
@@ -429,13 +601,82 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.Cassandra.ConnectTimeout = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES", v); ok {
 			c.Storage.Cassandra.MaxRetries = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE", v); ok {
 			c.Storage.Cassandra.IDBlockSize = n
+		}
+	}
+
+	// MCP overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ENABLED"); v != "" {
+		c.MCP.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_HOST"); v != "" {
+		c.MCP.Host = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PORT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_PORT", v); ok {
+			c.MCP.Port = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_AUTH_TOKEN"); v != "" {
+		c.MCP.AuthToken = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_ONLY"); v != "" {
+		c.MCP.ReadOnly = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ALLOWED_ORIGINS"); v != "" {
+		origins := strings.Split(v, ",")
+		for i := range origins {
+			origins[i] = strings.TrimSpace(origins[i])
+		}
+		c.MCP.AllowedOrigins = origins
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS"); v != "" {
+		c.MCP.RequireConfirmations = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL", v); ok {
+			c.MCP.ConfirmationTTLSecs = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_LOG_SCHEMAS"); v != "" {
+		c.MCP.LogSchemas = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PERMISSION_PRESET"); v != "" {
+		c.MCP.PermissionPreset = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES"); v != "" {
+		scopes := strings.Split(v, ",")
+		for i := range scopes {
+			scopes[i] = strings.TrimSpace(scopes[i])
+		}
+		c.MCP.PermissionScopes = scopes
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_TOOL_POLICY"); v != "" {
+		c.MCP.ToolPolicy = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS"); v != "" {
+		tools := strings.Split(v, ",")
+		for i := range tools {
+			tools[i] = strings.TrimSpace(tools[i])
+		}
+		c.MCP.AllowedTools = tools
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_DENIED_TOOLS"); v != "" {
+		tools := strings.Split(v, ",")
+		for i := range tools {
+			tools[i] = strings.TrimSpace(tools[i])
+		}
+		c.MCP.DeniedTools = tools
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT", v); ok {
+			c.MCP.ReadHeaderTimeout = n
 		}
 	}
 
@@ -486,6 +727,322 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_BASE_PATH"); v != "" {
 		c.Storage.Vault.BasePath = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_CERT_FILE"); v != "" {
+		c.Storage.Vault.TLSCertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_KEY_FILE"); v != "" {
+		c.Storage.Vault.TLSKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_CA_FILE"); v != "" {
+		c.Storage.Vault.TLSCAFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_SKIP_VERIFY"); v != "" {
+		c.Storage.Vault.TLSSkipVerify = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// JWT overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_ISSUER"); v != "" {
+		c.Security.Auth.JWT.Issuer = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_AUDIENCE"); v != "" {
+		c.Security.Auth.JWT.Audience = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_JWKS_URL"); v != "" {
+		c.Security.Auth.JWT.JWKSURL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_PUBLIC_KEY_FILE"); v != "" {
+		c.Security.Auth.JWT.PublicKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_ALGORITHM"); v != "" {
+		c.Security.Auth.JWT.Algorithm = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.JWT.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL", v); ok {
+			c.Security.Auth.JWT.JWKSCacheTTL = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT", v); ok {
+			c.Security.Auth.JWT.HTTPTimeout = n
+		}
+	}
+
+	// Auth overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUTH_ENABLED"); v != "" {
+		c.Security.Auth.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUTH_METHODS"); v != "" {
+		methods := strings.Split(v, ",")
+		for i := range methods {
+			methods[i] = strings.TrimSpace(methods[i])
+		}
+		c.Security.Auth.Methods = methods
+	}
+
+	// LDAP overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_ENABLED"); v != "" {
+		c.Security.Auth.LDAP.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_URL"); v != "" {
+		c.Security.Auth.LDAP.URL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BIND_DN"); v != "" {
+		c.Security.Auth.LDAP.BindDN = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BIND_PASSWORD"); v != "" {
+		c.Security.Auth.LDAP.BindPassword = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BASE_DN"); v != "" {
+		c.Security.Auth.LDAP.BaseDN = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USER_SEARCH_FILTER"); v != "" {
+		c.Security.Auth.LDAP.UserSearchFilter = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USER_SEARCH_BASE"); v != "" {
+		c.Security.Auth.LDAP.UserSearchBase = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_FILTER"); v != "" {
+		c.Security.Auth.LDAP.GroupSearchFilter = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_BASE"); v != "" {
+		c.Security.Auth.LDAP.GroupSearchBase = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USERNAME_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.UsernameAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_EMAIL_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.EmailAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.GroupAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.LDAP.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_START_TLS"); v != "" {
+		c.Security.Auth.LDAP.StartTLS = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_INSECURE_SKIP_VERIFY"); v != "" {
+		c.Security.Auth.LDAP.InsecureSkipVerify = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CA_CERT_FILE"); v != "" {
+		c.Security.Auth.LDAP.CACertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CLIENT_CERT_FILE"); v != "" {
+		c.Security.Auth.LDAP.ClientCertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CLIENT_KEY_FILE"); v != "" {
+		c.Security.Auth.LDAP.ClientKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT", v); ok {
+			c.Security.Auth.LDAP.ConnectionTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT", v); ok {
+			c.Security.Auth.LDAP.RequestTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_ALLOW_FALLBACK"); v != "" {
+		b := strings.ToLower(v) == "true" || v == "1"
+		c.Security.Auth.LDAP.AllowFallback = &b
+	}
+
+	// OIDC overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ENABLED"); v != "" {
+		c.Security.Auth.OIDC.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ISSUER_URL"); v != "" {
+		c.Security.Auth.OIDC.IssuerURL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_CLIENT_ID"); v != "" {
+		c.Security.Auth.OIDC.ClientID = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_CLIENT_SECRET"); v != "" {
+		c.Security.Auth.OIDC.ClientSecret = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_USERNAME_CLAIM"); v != "" {
+		c.Security.Auth.OIDC.UsernameClaim = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ROLES_CLAIM"); v != "" {
+		c.Security.Auth.OIDC.RolesClaim = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.OIDC.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_REQUIRED_AUDIENCE"); v != "" {
+		c.Security.Auth.OIDC.RequiredAudience = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_ISSUER_CHECK"); v != "" {
+		c.Security.Auth.OIDC.SkipIssuerCheck = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK"); v != "" {
+		c.Security.Auth.OIDC.SkipExpiryCheck = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// TLS overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ENABLED"); v != "" {
+		c.Security.TLS.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CERT_FILE"); v != "" {
+		c.Security.TLS.CertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_KEY_FILE"); v != "" {
+		c.Security.TLS.KeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CA_FILE"); v != "" {
+		c.Security.TLS.CAFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_MIN_VERSION"); v != "" {
+		c.Security.TLS.MinVersion = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CLIENT_AUTH"); v != "" {
+		c.Security.TLS.ClientAuth = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CIPHER_SUITES"); v != "" {
+		suites := strings.Split(v, ",")
+		for i := range suites {
+			suites[i] = strings.TrimSpace(suites[i])
+		}
+		c.Security.TLS.CipherSuites = suites
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS"); v != "" {
+		c.Security.TLS.AllowInsecureCiphers = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// Rate limiting overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_ENABLED"); v != "" {
+		c.Security.RateLimiting.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_RPS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_RATE_LIMIT_RPS", v); ok {
+			c.Security.RateLimiting.RequestsPerSecond = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_BURST"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_RATE_LIMIT_BURST", v); ok {
+			c.Security.RateLimiting.BurstSize = n
+		}
+	}
+
+	// Audit overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_ENABLED"); v != "" {
+		c.Security.Audit.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY"); v != "" {
+		c.Security.Audit.IncludeBody = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE", v); ok {
+			c.Security.Audit.BufferSize = n
+		}
+	}
+
+	// Audit stdout output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Stdout.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_STDOUT_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Stdout.FormatType = v
+	}
+
+	// Audit file output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.File.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_PATH"); v != "" {
+		c.Security.Audit.Outputs.File.Path = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.File.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB", v); ok {
+			c.Security.Audit.Outputs.File.MaxSizeMB = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS", v); ok {
+			c.Security.Audit.Outputs.File.MaxBackups = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS", v); ok {
+			c.Security.Audit.Outputs.File.MaxAgeDays = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_COMPRESS"); v != "" {
+		b := strings.ToLower(v) == "true" || v == "1"
+		c.Security.Audit.Outputs.File.Compress = &b
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_PERMISSIONS"); v != "" {
+		c.Security.Audit.Outputs.File.Permissions = v
+	}
+
+	// Audit syslog output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_NETWORK"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Network = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Address = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_APP_NAME"); v != "" {
+		c.Security.Audit.Outputs.Syslog.AppName = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_FACILITY"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Facility = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Syslog.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CERT"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSCert = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_KEY"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSKey = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CA"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSCA = v
+	}
+
+	// Audit webhook output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Webhook.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_URL"); v != "" {
+		c.Security.Audit.Outputs.Webhook.URL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Webhook.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BATCH_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BATCH_SIZE", v); ok {
+			c.Security.Audit.Outputs.Webhook.BatchSize = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_FLUSH_INTERVAL"); v != "" {
+		c.Security.Audit.Outputs.Webhook.FlushInterval = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_TIMEOUT"); v != "" {
+		c.Security.Audit.Outputs.Webhook.Timeout = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES", v); ok {
+			c.Security.Audit.Outputs.Webhook.MaxRetries = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE", v); ok {
+			c.Security.Audit.Outputs.Webhook.BufferSize = n
+		}
 	}
 }
 
@@ -540,10 +1097,57 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid compatibility level: %s", c.Compatibility.DefaultLevel)
 	}
 
+	// Validate audit config
+	if err := c.validateAuditConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateAuditConfig validates the audit configuration.
+func (c *Config) validateAuditConfig() error {
+	audit := &c.Security.Audit
+
+	// Validate format types
+	validFormats := map[string]bool{"": true, "json": true, "cef": true}
+	if !validFormats[audit.Outputs.Stdout.FormatType] {
+		return fmt.Errorf("invalid audit stdout format: %q (must be \"json\" or \"cef\")", audit.Outputs.Stdout.FormatType)
+	}
+	if !validFormats[audit.Outputs.File.FormatType] {
+		return fmt.Errorf("invalid audit file format: %q (must be \"json\" or \"cef\")", audit.Outputs.File.FormatType)
+	}
+	if !validFormats[audit.Outputs.Syslog.FormatType] {
+		return fmt.Errorf("invalid audit syslog format: %q (must be \"json\" or \"cef\")", audit.Outputs.Syslog.FormatType)
+	}
+	if !validFormats[audit.Outputs.Webhook.FormatType] {
+		return fmt.Errorf("invalid audit webhook format: %q (must be \"json\" or \"cef\")", audit.Outputs.Webhook.FormatType)
+	}
+
+	// File output requires a path when enabled
+	if audit.Outputs.File.Enabled && audit.Outputs.File.Path == "" {
+		return fmt.Errorf("audit file output enabled but no path specified")
+	}
+
+	// Syslog output requires an address when enabled
+	if audit.Outputs.Syslog.Enabled && audit.Outputs.Syslog.Address == "" {
+		return fmt.Errorf("audit syslog output enabled but no address specified")
+	}
+
+	// Webhook output requires a URL when enabled
+	if audit.Outputs.Webhook.Enabled && audit.Outputs.Webhook.URL == "" {
+		return fmt.Errorf("audit webhook output enabled but no URL specified")
+	}
+
 	return nil
 }
 
 // Address returns the server address string.
 func (c *Config) Address() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+}
+
+// MCPAddress returns the MCP server address string.
+func (c *Config) MCPAddress() string {
+	return fmt.Sprintf("%s:%d", c.MCP.Host, c.MCP.Port)
 }

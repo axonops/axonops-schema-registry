@@ -49,9 +49,9 @@ VALID_COMPATIBILITY_LEVELS = {
 class TestProtobufSchemaRegistration:
     """Test Protobuf schema registration produces consistent fingerprints."""
 
-    def test_register_user_proto(self, schema_registry_url, confluent_version):
+    def test_register_user_proto(self, schema_registry_conf, confluent_version):
         """Test that User proto schema registration produces consistent schema ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_PROTO, "PROTOBUF")
 
@@ -67,9 +67,9 @@ class TestProtobufSchemaRegistration:
 
         print(f"Confluent Python {confluent_version}: Proto User schema registered with ID {schema_id}")
 
-    def test_register_event_proto(self, schema_registry_url, confluent_version):
+    def test_register_event_proto(self, schema_registry_conf, confluent_version):
         """Test that Event proto schema registration produces consistent schema ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(EVENT_PROTO, "PROTOBUF")
 
@@ -79,9 +79,9 @@ class TestProtobufSchemaRegistration:
         assert schema_id > 0
         print(f"Confluent Python {confluent_version}: Proto Event schema registered with ID {schema_id}")
 
-    def test_proto_schema_deduplication(self, schema_registry_url, confluent_version):
+    def test_proto_schema_deduplication(self, schema_registry_conf, confluent_version):
         """Test that registering the same proto schema twice returns the same ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_PROTO, "PROTOBUF")
 
@@ -97,9 +97,9 @@ class TestProtobufSchemaRegistration:
 class TestProtobufWireFormat:
     """Test Protobuf wire format compatibility."""
 
-    def test_wire_format_header(self, schema_registry_url, confluent_version):
+    def test_wire_format_header(self, schema_registry_conf, confluent_version):
         """Test that serialized protobuf data has correct wire format header."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # For Protobuf, we need to work with generated classes
         # Here we test the schema registration and wire format structure
@@ -122,9 +122,9 @@ class TestProtobufWireFormat:
 class TestProtobufSchemaEvolution:
     """Test Protobuf schema evolution compatibility."""
 
-    def test_add_optional_field(self, schema_registry_url, confluent_version):
+    def test_add_optional_field(self, schema_registry_conf, confluent_version):
         """Test adding optional field (backward compatible in proto3)."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         v1_proto = """
 syntax = "proto3";
@@ -162,9 +162,9 @@ message Record {
 class TestProtobufGlobalSchemaID:
     """Test global schema ID behavior (Confluent-compatible)."""
 
-    def test_same_schema_across_subjects(self, schema_registry_url, confluent_version):
+    def test_same_schema_across_subjects(self, schema_registry_conf, confluent_version):
         """Test that same Protobuf schema under different subjects returns same global ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_PROTO, "PROTOBUF")
 
@@ -190,7 +190,7 @@ class TestProtobufGlobalSchemaID:
 class TestProtobufConcurrentRegistration:
     """Test concurrent schema registration."""
 
-    def test_concurrent_registration_returns_consistent_ids(self, schema_registry_url, confluent_version):
+    def test_concurrent_registration_returns_consistent_ids(self, schema_registry_conf, confluent_version):
         """Test that concurrent registrations return the same schema ID."""
         subject = f"python-proto-concurrent-{int(time.time() * 1000)}-value"
         num_threads = 10
@@ -203,7 +203,7 @@ class TestProtobufConcurrentRegistration:
         def register_schema(thread_id):
             try:
                 # Each thread gets its own client
-                thread_client = SchemaRegistryClient({"url": schema_registry_url})
+                thread_client = SchemaRegistryClient(schema_registry_conf)
 
                 # Wait for all threads to be ready
                 barrier.wait()
@@ -231,7 +231,7 @@ class TestProtobufConcurrentRegistration:
             f"All concurrent registrations should return the same schema ID, got: {unique_ids}"
 
         # Verify only one version was created
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
         versions = client.get_versions(subject)
         assert len(versions) == 1, \
             f"Only one version should exist after concurrent registration, got: {len(versions)}"
@@ -242,9 +242,9 @@ class TestProtobufConcurrentRegistration:
 class TestProtobufConfigEndpoints:
     """Test config endpoints."""
 
-    def test_get_global_compatibility(self, schema_registry_url):
+    def test_get_global_compatibility(self, schema_registry_url, schema_registry_auth):
         """Test that global compatibility returns a valid Confluent level."""
-        response = requests.get(f"{schema_registry_url}/config")
+        response = requests.get(f"{schema_registry_url}/config", auth=schema_registry_auth)
         assert response.status_code == 200
 
         config = response.json()
@@ -259,10 +259,10 @@ class TestProtobufConfigEndpoints:
 class TestProtobufIncompatibleSchemaEvolution:
     """Test incompatible schema evolution fails correctly."""
 
-    def test_incompatible_schema_rejected(self, schema_registry_url, confluent_version):
+    def test_incompatible_schema_rejected(self, schema_registry_url, schema_registry_conf, schema_registry_auth, confluent_version):
         """Test that incompatible schema evolution fails with correct error."""
         subject = f"python-proto-incompat-{int(time.time() * 1000)}-value"
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # Register v1 schema
         schema = Schema(USER_PROTO, "PROTOBUF")
@@ -272,12 +272,13 @@ class TestProtobufIncompatibleSchemaEvolution:
         response = requests.put(
             f"{schema_registry_url}/config/{subject}",
             json={"compatibility": "BACKWARD"},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            auth=schema_registry_auth
         )
         assert response.status_code == 200
 
         # Verify compatibility was set
-        response = requests.get(f"{schema_registry_url}/config/{subject}")
+        response = requests.get(f"{schema_registry_url}/config/{subject}", auth=schema_registry_auth)
         assert response.status_code == 200
         assert response.json().get("compatibilityLevel") == "BACKWARD"
 
@@ -313,17 +314,17 @@ message User {
 class TestProtobufCacheBehavior:
     """Test cache behavior with fresh clients."""
 
-    def test_fresh_client_cache_miss(self, schema_registry_url, confluent_version):
+    def test_fresh_client_cache_miss(self, schema_registry_conf, confluent_version):
         """Test that a fresh client can fetch schema after cache bypass."""
         subject = f"python-proto-cache-{int(time.time() * 1000)}-value"
 
         # Register schema with first client
-        client1 = SchemaRegistryClient({"url": schema_registry_url})
+        client1 = SchemaRegistryClient(schema_registry_conf)
         schema = Schema(USER_PROTO, "PROTOBUF")
         schema_id = client1.register_schema(subject, schema)
 
         # Create a completely new client (empty cache)
-        client2 = SchemaRegistryClient({"url": schema_registry_url})
+        client2 = SchemaRegistryClient(schema_registry_conf)
 
         # Fetch schema with fresh client (cache miss, must hit registry)
         fetched = client2.get_schema(schema_id)
@@ -337,7 +338,7 @@ class TestProtobufCacheBehavior:
 class TestProtobufSchemaCanonicalisation:
     """Test schema canonicalization."""
 
-    def test_same_schema_different_formatting(self, schema_registry_url, confluent_version):
+    def test_same_schema_different_formatting(self, schema_registry_conf, confluent_version):
         """Test that same schema with different formatting returns same ID."""
         # Same Protobuf schema content but with different formatting
         # This tests that the registry canonicalizes schemas before comparison
@@ -364,7 +365,7 @@ message Canonical {
         subject1 = f"python-proto-canon1-{int(time.time() * 1000)}-value"
         subject2 = f"python-proto-canon2-{int(time.time() * 1000)}-value"
 
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # Register compact schema
         schema1 = Schema(compact_proto, "PROTOBUF")

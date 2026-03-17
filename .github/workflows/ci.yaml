@@ -32,7 +32,7 @@ jobs:
         run: go build -v ./...
 
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: make test-unit COVERPROFILE=coverage.out
 
       - name: Build integration test binary
         run: go test -c -tags=integration -o integration.test ./tests/integration/...
@@ -380,7 +380,7 @@ jobs:
   conformance-memory:
     name: Conformance (Memory)
     runs-on: ubuntu-latest
-    needs: [gate, postgres-tests, mysql-tests, cassandra-tests]
+    needs: [gate]
     steps:
       - name: Download test binaries
         uses: actions/download-artifact@v4
@@ -396,7 +396,7 @@ jobs:
   conformance-postgres:
     name: Conformance (PostgreSQL)
     runs-on: ubuntu-latest
-    needs: [gate, postgres-tests, mysql-tests, cassandra-tests]
+    needs: [gate]
     services:
       postgres:
         image: postgres:15
@@ -440,7 +440,7 @@ jobs:
   conformance-mysql:
     name: Conformance (MySQL)
     runs-on: ubuntu-latest
-    needs: [gate, postgres-tests, mysql-tests, cassandra-tests]
+    needs: [gate]
     services:
       mysql:
         image: mysql:8
@@ -485,7 +485,7 @@ jobs:
   conformance-cassandra:
     name: Conformance (Cassandra)
     runs-on: ubuntu-latest
-    needs: [gate, postgres-tests, mysql-tests, cassandra-tests]
+    needs: [gate]
     steps:
       - name: Download test binaries
         uses: actions/download-artifact@v4
@@ -1153,7 +1153,7 @@ jobs:
           # Run the full migration test
           ./tests/migration/test-migration.sh
 
-  # BDD functional tests — in-process, no Docker, fast (~147 scenarios)
+  # BDD functional tests — Docker-deployed binary, memory backend (TestFeatures only)
   bdd-functional-tests:
     name: BDD Functional Tests
     runs-on: ubuntu-latest
@@ -1169,10 +1169,229 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD functional tests (in-process)
-        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+      - name: Run BDD functional tests (Docker)
+        run: make test-bdd-functional
 
-  # BDD tests — KMS encryption (Vault Transit + OpenBao Transit, in-process server)
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v || true
+
+  # BDD MCP core tests — Docker-deployed binary, memory backend
+  bdd-mcp-tests:
+    name: BDD Tests (MCP Core)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD MCP core tests (Docker)
+        run: make test-bdd-mcp
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp -f docker-compose.base.yml -f docker-compose.mcp.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp -f docker-compose.base.yml -f docker-compose.mcp.yml down -v || true
+
+  # BDD MCP metrics tests — Docker-deployed binary, memory backend
+  bdd-mcp-metrics-tests:
+    name: BDD Tests (MCP Metrics)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD MCP metrics tests (Docker)
+        run: make test-bdd-mcp-metrics
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-metrics -f docker-compose.base.yml -f docker-compose.mcp.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-metrics -f docker-compose.base.yml -f docker-compose.mcp.yml down -v || true
+
+  # BDD MCP confirmation tests — Docker-deployed binary, memory backend
+  bdd-mcp-confirmation-tests:
+    name: BDD Tests (MCP Confirmations)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD MCP confirmation tests (Docker)
+        run: make test-bdd-mcp-confirmations
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-confirm -f docker-compose.base.yml -f docker-compose.mcp.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-confirm -f docker-compose.base.yml -f docker-compose.mcp.yml down -v || true
+
+  # BDD MCP permission preset tests — Docker-deployed binary, memory backend
+  bdd-mcp-permission-tests:
+    name: BDD Tests (MCP Permissions)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD MCP permission preset tests (Docker)
+        run: make test-bdd-mcp-permissions
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: |
+          for p in readonly developer operator admin full; do
+            docker compose -p "bdd-mcp-$p" -f docker-compose.base.yml -f docker-compose.mcp.yml logs --tail=50 || true
+          done
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          for p in readonly developer operator admin full; do
+            docker compose -p "bdd-mcp-$p" -f docker-compose.base.yml -f docker-compose.mcp.yml down -v || true
+          done
+
+  # BDD MCP audit tests — Docker-deployed binary, memory backend
+  bdd-mcp-audit-tests:
+    name: BDD Tests (MCP Audit)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD MCP audit tests (Docker)
+        run: make test-bdd-mcp-audit
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-audit -f docker-compose.base.yml -f docker-compose.mcp-audit.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mcp-audit -f docker-compose.base.yml -f docker-compose.mcp-audit.yml down -v || true
+
+  # BDD REST audit tests — Docker-deployed binary, memory backend
+  bdd-rest-audit-tests:
+    name: BDD Tests (REST Audit)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD REST audit tests (Docker)
+        run: make test-bdd-rest-audit
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-rest-audit -f docker-compose.base.yml -f docker-compose.memory.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-rest-audit -f docker-compose.base.yml -f docker-compose.memory.yml down -v || true
+
+  # BDD tests — Audit outputs (Docker Compose with syslog-ng + webhook-receiver)
+  bdd-audit-outputs-tests:
+    name: BDD Tests (Audit Outputs)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD audit outputs tests (Docker)
+        run: make test-bdd-audit-outputs
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-audit-outputs -f docker-compose.base.yml -f docker-compose.audit-outputs.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-audit-outputs -f docker-compose.base.yml -f docker-compose.audit-outputs.yml down -v || true
+
+  # BDD tests — KMS encryption (Docker Compose with Vault + OpenBao overlay)
   bdd-kms-tests:
     name: BDD Tests (KMS Encryption)
     runs-on: ubuntu-latest
@@ -1188,40 +1407,24 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Start KMS services (Vault + OpenBao)
-        working-directory: tests/bdd
-        run: |
-          # Start Vault and OpenBao in background, then run the init service
-          docker compose -f docker-compose.kms.yml up -d vault openbao
-          # Wait for health
-          for i in $(seq 1 30); do
-            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
-            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
-            sleep 2
-          done
-          # Run the init service (enables Transit engines + creates test keys)
-          docker compose -f docker-compose.kms.yml run --rm setup-kms
+      - name: Run BDD KMS encryption tests (memory backend, Docker)
+        run: make test-bdd-kms BACKEND=memory
 
-      - name: Run BDD KMS encryption tests
-        env:
-          BDD_TAGS: "@kms"
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
-
-      - name: Show KMS container logs on failure
+      - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.kms.yml logs --tail=100 || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
 
-      - name: Cleanup KMS containers
+      - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.kms.yml down -v || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml down -v || true
 
-  # BDD tests — KMS encryption against PostgreSQL backend
+  # BDD tests — KMS encryption against PostgreSQL backend (Docker Compose with DB overlay)
   bdd-kms-postgres-tests:
     name: BDD Tests (KMS + PostgreSQL)
     runs-on: ubuntu-latest
@@ -1237,29 +1440,24 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (postgres backend)
-        env:
-          BDD_BACKEND: postgres
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms"
-          CONTAINER_CMD: docker
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+      - name: Run BDD KMS tests (postgres backend, Docker)
+        run: make test-bdd-kms BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml down -v || true
 
-  # BDD tests — KMS encryption against MySQL backend
+  # BDD tests — KMS encryption against MySQL backend (Docker Compose with DB overlay)
   bdd-kms-mysql-tests:
     name: BDD Tests (KMS + MySQL)
     runs-on: ubuntu-latest
@@ -1275,29 +1473,24 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (mysql backend)
-        env:
-          BDD_BACKEND: mysql
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms"
-          CONTAINER_CMD: docker
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+      - name: Run BDD KMS tests (mysql backend, Docker)
+        run: make test-bdd-kms BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml down -v || true
 
-  # BDD tests — KMS encryption against Cassandra backend
+  # BDD tests — KMS encryption against Cassandra backend (Docker Compose with DB overlay)
   bdd-kms-cassandra-tests:
     name: BDD Tests (KMS + Cassandra)
     runs-on: ubuntu-latest
@@ -1313,27 +1506,211 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (cassandra backend)
-        env:
-          BDD_BACKEND: cassandra
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms"
-          CONTAINER_CMD: docker
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+      - name: Run BDD KMS tests (cassandra backend, Docker)
+        run: make test-bdd-kms BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
+
+  # BDD tests — Internal user (basic) auth with memory backend + client SerDe tests
+  bdd-basic-auth-tests:
+    name: BDD Tests (Basic Auth + SerDe)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD basic auth tests (memory backend, Docker)
+        run: make test-bdd-auth
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml logs --tail=100 || true
+
+      # --- Client SerDe tests against basic-auth registry ---
+      # Start a fresh compose stack and run Go, Java, Python compatibility
+      # tests with bootstrap admin credentials (admin / admin-password).
+
+      - name: Start basic-auth compose stack for client SerDe tests
+        working-directory: tests/bdd
+        run: |
+          REGISTRY_PORT=18098 docker compose -p basic-auth-serde \
+            -f docker-compose.base.yml -f docker-compose.auth.yml \
+            -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml \
+            up -d --build --wait --wait-timeout 120
+
+      - name: Wait for registry health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -u admin:admin-password http://localhost:18098/subjects > /dev/null 2>&1; then
+              echo "Registry is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Registry did not become healthy"
+          exit 1
+
+      - name: Run Go compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: cd tests/compatibility/go && go test -v -timeout 5m ./...
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run Java compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: |
+          cd tests/compatibility/java
+          mvn test -P confluent-8.1 \
+            -Dschema.registry.url=http://localhost:18098 \
+            -Dschema.registry.username=admin \
+            -Dschema.registry.password=admin-password -q
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Python compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: |
+          cd tests/compatibility/python
+          python3 -m venv .venv && . .venv/bin/activate
+          pip install --quiet --upgrade pip
+          pip install --quiet "confluent-kafka[avro,json,protobuf]==2.8.0" pytest
+          pytest -v --tb=short
+
+      - name: Show SerDe container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml down -v || true
+          docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml down -v || true
+
+  # BDD tests — Auth scenarios against PostgreSQL (Docker Compose with DB overlay)
+  bdd-auth-postgres-tests:
+    name: BDD Tests (Auth + PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD auth tests (postgres backend, Docker)
+        run: make test-bdd-auth BACKEND=postgres
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-postgres.yml down -v || true
+
+  # BDD tests — Auth scenarios against MySQL (Docker Compose with DB overlay)
+  bdd-auth-mysql-tests:
+    name: BDD Tests (Auth + MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD auth tests (mysql backend, Docker)
+        run: make test-bdd-auth BACKEND=mysql
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-mysql.yml down -v || true
+
+  # BDD tests — Auth scenarios against Cassandra (Docker Compose with DB overlay)
+  bdd-auth-cassandra-tests:
+    name: BDD Tests (Auth + Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD auth tests (cassandra backend, Docker)
+        run: make test-bdd-auth BACKEND=cassandra
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-cassandra.yml down -v || true
 
   # Java Data Contract & CSFLE tests — Java Confluent SerDe with rule execution + Vault encryption
   java-data-contract-csfle-tests:
@@ -1457,7 +1834,13 @@ jobs:
           SCHEMA_REGISTRY_URL: http://localhost:8081
           VAULT_URL: http://localhost:18200
           VAULT_TOKEN: test-root-token
-        run: go test -v -timeout 10m ./...
+        run: |
+          go test -v -timeout 10m ./... 2>&1 | tee go_test_output.txt
+          # Fail CI if any tests were skipped (match "--- SKIP:" lines)
+          if grep -q '^\s*--- SKIP:' go_test_output.txt; then
+            echo "::error::Tests were skipped! All Go serde tests must run in CI."
+            exit 1
+          fi
 
       - name: Show KMS container logs on failure
         if: failure()
@@ -1582,10 +1965,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (memory backend)
-        env:
-          BDD_BACKEND: memory
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=memory
 
       - name: Show container logs on failure
         if: failure()
@@ -1614,10 +1994,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (postgres backend)
-        env:
-          BDD_BACKEND: postgres
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
@@ -1646,10 +2023,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (mysql backend)
-        env:
-          BDD_BACKEND: mysql
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
@@ -1678,10 +2052,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (cassandra backend)
-        env:
-          BDD_BACKEND: cassandra
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+        run: make test-bdd BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
@@ -1710,10 +2081,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (confluent backend)
-        env:
-          BDD_BACKEND: confluent
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
+        run: make test-bdd BACKEND=confluent
 
       - name: Show container logs on failure
         if: failure()
@@ -1724,3 +2092,225 @@ jobs:
         if: always()
         working-directory: tests/bdd
         run: docker compose -f docker-compose.confluent.yml down -v || true
+
+  # BDD LDAP authentication tests — Docker-deployed binary with OpenLDAP
+  bdd-ldap-tests:
+    name: BDD Tests (LDAP)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD LDAP tests (Docker)
+        run: make test-bdd-ldap
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml logs --tail=100 || true
+
+      # --- Client SerDe tests against LDAP-authenticated registry ---
+      # Start a fresh compose stack (BDD test cleans up its own) and run
+      # Go, Java, Python compatibility tests with LDAP admin credentials.
+
+      - name: Start LDAP compose stack for client SerDe tests
+        working-directory: tests/bdd
+        run: |
+          REGISTRY_PORT=18092 docker compose -p ldap-serde \
+            -f docker-compose.base.yml -f docker-compose.ldap.yml \
+            -f docker-compose.no-tls.yml \
+            up -d --build --wait --wait-timeout 120
+
+      - name: Wait for registry health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -u admin:adminpass http://localhost:18092/subjects > /dev/null 2>&1; then
+              echo "Registry is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Registry did not become healthy"
+          exit 1
+
+      - name: Run Go compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: cd tests/compatibility/go && go test -v -timeout 5m ./...
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run Java compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: |
+          cd tests/compatibility/java
+          mvn test -P confluent-8.1 \
+            -Dschema.registry.url=http://localhost:18092 \
+            -Dschema.registry.username=admin \
+            -Dschema.registry.password=adminpass -q
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Python compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: |
+          cd tests/compatibility/python
+          python3 -m venv .venv && . .venv/bin/activate
+          pip install --quiet --upgrade pip
+          pip install --quiet "confluent-kafka[avro,json,protobuf]==2.8.0" pytest
+          pytest -v --tb=short
+
+      - name: Show SerDe container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml -f docker-compose.no-tls.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
+          docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml -f docker-compose.no-tls.yml down -v || true
+
+  # BDD OIDC tests — Docker-deployed binary with Keycloak OIDC provider
+  bdd-oidc-tests:
+    name: BDD Tests (OIDC)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD OIDC tests (Docker)
+        run: make test-bdd-oidc
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-oidc -f docker-compose.base.yml -f docker-compose.oidc.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-oidc -f docker-compose.base.yml -f docker-compose.oidc.yml down -v || true
+
+  # BDD JWT authentication tests — Docker-deployed binary with RSA key pair (no external services)
+  bdd-jwt-tests:
+    name: BDD Tests (JWT)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD JWT tests (Docker)
+        run: make test-bdd-jwt
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-jwt -f docker-compose.base.yml -f docker-compose.jwt.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-jwt -f docker-compose.base.yml -f docker-compose.jwt.yml down -v || true
+
+  # BDD mTLS transport tests — Docker-deployed binary with client certificate verification
+  bdd-mtls-tests:
+    name: BDD Tests (mTLS Transport)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD mTLS tests (Docker)
+        run: make test-bdd-mtls
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mtls -f docker-compose.base.yml -f docker-compose.mtls.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-mtls -f docker-compose.base.yml -f docker-compose.mtls.yml down -v || true
+
+  # BDD mTLS + Basic auth tests — Docker-deployed binary with client cert + auth + RBAC
+  bdd-mtls-auth-tests:
+    name: BDD Tests (mTLS + Auth)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD mTLS + auth tests (Docker)
+        run: make test-bdd-mtls-auth
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mtls-auth -f docker-compose.base.yml -f docker-compose.mtls-auth.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-mtls-auth -f docker-compose.base.yml -f docker-compose.mtls-auth.yml down -v || true

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 )
 
 // RateLimiter implements token bucket rate limiting.
@@ -17,6 +18,8 @@ type RateLimiter struct {
 	global    *tokenBucket
 	clients   map[string]*tokenBucket
 	endpoints map[string]*tokenBucket
+	metrics   *metrics.Metrics // Prometheus metrics (optional)
+	stopCh    chan struct{}    // signals cleanup goroutine to stop
 }
 
 // tokenBucket implements the token bucket algorithm.
@@ -29,18 +32,49 @@ type tokenBucket struct {
 }
 
 // NewRateLimiter creates a new rate limiter.
+// When per-client limiting is enabled, a background goroutine periodically
+// cleans up stale client buckets (every 5 minutes, removes entries idle > 1 hour).
+// Call Close() to stop the cleanup goroutine.
 func NewRateLimiter(cfg config.RateLimitConfig) *RateLimiter {
 	rl := &RateLimiter{
 		config:    cfg,
 		clients:   make(map[string]*tokenBucket),
 		endpoints: make(map[string]*tokenBucket),
+		stopCh:    make(chan struct{}),
 	}
 
 	if cfg.Enabled {
 		rl.global = newTokenBucket(float64(cfg.BurstSize), float64(cfg.RequestsPerSecond))
+		if cfg.PerClient {
+			go rl.cleanupLoop()
+		}
 	}
 
 	return rl
+}
+
+// Close stops the cleanup goroutine.
+func (rl *RateLimiter) Close() {
+	select {
+	case <-rl.stopCh:
+		// already closed
+	default:
+		close(rl.stopCh)
+	}
+}
+
+// cleanupLoop periodically removes stale client buckets.
+func (rl *RateLimiter) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			rl.CleanupStaleClients(1 * time.Hour)
+		case <-rl.stopCh:
+			return
+		}
+	}
 }
 
 // newTokenBucket creates a new token bucket.
@@ -83,6 +117,11 @@ func (tb *tokenBucket) remaining() int {
 	return int(tb.tokens)
 }
 
+// SetMetrics sets the Prometheus metrics instance for recording rate limit metrics.
+func (rl *RateLimiter) SetMetrics(m *metrics.Metrics) {
+	rl.metrics = m
+}
+
 // Middleware returns HTTP middleware for rate limiting.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +149,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(bucket.remaining()))
 
 		if !bucket.allow() {
+			if rl.metrics != nil {
+				rl.metrics.RecordRateLimitHit(key)
+			}
 			w.Header().Set("Retry-After", "1")
 			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
 			return

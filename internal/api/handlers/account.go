@@ -90,6 +90,11 @@ func (h *AccountHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = user.Username
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

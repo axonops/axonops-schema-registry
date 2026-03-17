@@ -1,0 +1,27 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
+security:
+  audit:
+    enabled: true
+    log_file: /tmp/audit.log
+  auth:
+    enabled: true
+    methods:
+      - jwt
+    jwt:
+      issuer: "test-issuer"
+      audience: "schema-registry"
+      public_key_file: "/etc/jwt/jwt-public.pem"
+      algorithm: "RS256"
+      default_role: "readonly"
+    rbac:
+      enabled: true
+      default_role: readonly

@@ -7,6 +7,18 @@ info:
     multi-backend storage. It supports **Avro**, **Protobuf**, and **JSON Schema**
     formats for schema management.
 
+    ## API Compatibility
+
+    Each endpoint group is marked with its compatibility tier:
+
+    - **Confluent compatible (Community)** — available in the free/open-source
+      Confluent Schema Registry: Schemas, Subjects, Config, Mode, Compatibility,
+      Metadata, Health.
+    - **Confluent compatible (Enterprise)** — requires a Confluent Enterprise
+      license, included free in AxonOps: Import, Contexts, Exporters, DEK Registry.
+    - **AxonOps extension** — unique to AxonOps Schema Registry: Analysis, Admin,
+      Account, Documentation.
+
     ## Key Concepts
 
     - **Schema**: A versioned definition of a data structure (Avro record, Protobuf message,
@@ -16,10 +28,10 @@ info:
     - **Version**: An incrementing integer assigned each time a new schema is registered under
       a subject.
     - **Compatibility**: A policy that controls whether a new schema version is allowed based on
-      its relationship to previous versions. Levels include BACKWARD, FORWARD, FULL, and
-      their TRANSITIVE variants.
+      its relationship to previous versions. Levels include `BACKWARD`, `FORWARD`, `FULL`, and
+      their `TRANSITIVE` variants.
     - **Mode**: Controls whether a subject (or the entire registry) accepts writes. Modes
-      include READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+      include `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
     - **Reference**: A pointer from one schema to another, enabling cross-subject schema
       composition (e.g. Avro named types, Protobuf imports, JSON Schema $ref).
     - **Metadata**: Key-value tags and properties attached to a schema for data contract
@@ -55,76 +67,139 @@ servers:
     description: Local development server
 
 tags:
+  # ── Confluent Schema Registry (Community) Compatible ───────────────
   - name: Schemas
+    x-compatibility: confluent-community
     description: >-
-      Operations for retrieving schemas by their globally unique ID, listing all schemas,
-      and querying supported schema types. Every schema registered in the registry receives
-      a unique integer ID that persists across subjects.
+      **Confluent compatible (Community).** Operations for retrieving schemas by their
+      globally unique ID, listing all schemas, and querying supported schema types. Every
+      schema registered in the registry receives a unique integer ID that persists across
+      subjects.
   - name: Subjects
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing subjects and their schema versions. A subject is a named scope
-      (typically corresponding to a Kafka topic) under which one or more schema versions are
-      registered. Subjects support soft-delete and permanent-delete semantics.
+      **Confluent compatible (Community).** Operations for managing subjects and their
+      schema versions. A subject is a named scope (typically corresponding to a Kafka topic)
+      under which one or more schema versions are registered. Subjects support soft-delete
+      and permanent-delete semantics.
   - name: Config
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing compatibility configuration at the global and per-subject level.
-      The compatibility level determines what changes are permitted when registering a new
-      schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD,
-      FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
+      **Confluent compatible (Community).** Operations for managing compatibility
+      configuration at the global and per-subject level. The compatibility level determines
+      what changes are permitted when registering a new schema version. Supported levels are
+      `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and
+      `FULL_TRANSITIVE`.
   - name: Mode
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing the registry mode at the global and per-subject level.
-      The mode controls whether schema registration (writes) is permitted. Supported modes
-      are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+      **Confluent compatible (Community).** Operations for managing the registry mode at
+      the global and per-subject level. The mode controls whether schema registration (writes)
+      is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
   - name: Compatibility
+    x-compatibility: confluent-community
     description: >-
-      Operations for testing whether a candidate schema is compatible with existing schema
-      versions under a subject, without actually registering it.
-  - name: Import
-    description: >-
-      Operations for bulk-importing schemas from another schema registry, preserving original
-      schema IDs. This is used for migration scenarios.
-  - name: Exporters
-    description: >-
-      Operations for managing schema exporters. Exporters enable Schema Linking by replicating
-      schemas from one registry to another. Each exporter has a name, a context, an optional
-      subject filter, and configuration for connecting to the destination registry. Exporters
-      can be paused, resumed, and reset. This API follows the Confluent Schema Linking format.
-  - name: Contexts
-    description: >-
-      Operations for managing schema registry contexts. Contexts provide multi-tenant schema
-      isolation — each context has its own independent schema IDs, subjects, versions,
-      compatibility config, and modes. Subjects are qualified with a context prefix using the
-      Confluent-compatible format `:.contextname:subject`. All standard registry routes are
-      also available under `/contexts/{context}/...` for context-scoped access.
+      **Confluent compatible (Community).** Operations for testing whether a candidate
+      schema is compatible with existing schema versions under a subject, without actually
+      registering it.
   - name: Metadata
+    x-compatibility: confluent-community
     description: >-
-      Operations for retrieving registry metadata such as the cluster ID and server version.
-  - name: Account
-    description: >-
-      Self-service account endpoints for authenticated users to view their own profile and
-      change their password.
-  - name: Admin
-    description: >-
-      Administrative endpoints for managing users, API keys, and roles. These endpoints
-      require admin-level permissions.
+      **Confluent compatible (Community).** Operations for retrieving registry metadata
+      such as the cluster ID and server version.
   - name: Health
+    x-compatibility: confluent-community
     description: >-
-      Kubernetes-style health check endpoints for liveness, readiness, and startup probes.
-      These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle
-      management. The liveness probe confirms the process is alive, the readiness probe
-      confirms the service can handle traffic (storage backend is reachable), and the
-      startup probe confirms initialization is complete.
+      **Confluent compatible (Community).** Kubernetes-style health check endpoints for
+      liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD
+      be used for Kubernetes pod lifecycle management. The liveness probe confirms the process
+      is alive, the readiness probe confirms the service can handle traffic (storage backend
+      is reachable), and the startup probe confirms initialization is complete.
+  # ── Confluent Schema Registry (Enterprise) Compatible ──────────────
+  - name: Import
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for bulk-importing schemas from
+      another schema registry, preserving original schema IDs. This is used for migration
+      scenarios. In Confluent, this feature requires an Enterprise license.
+  - name: Contexts
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for managing schema registry
+      contexts. Contexts provide multi-tenant schema isolation — each context has its own
+      independent schema IDs, subjects, versions, compatibility config, and modes. Subjects
+      are qualified with a context prefix using the Confluent-compatible format
+      `:.contextname:subject`. All standard registry routes are also available under
+      `/contexts/{context}/...` for context-scoped access. In Confluent, this feature
+      requires an Enterprise license.
+  - name: Exporters
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for managing schema exporters.
+      Exporters enable Schema Linking by replicating schemas from one registry to another.
+      Each exporter has a name, a context, an optional subject filter, and configuration for
+      connecting to the destination registry. Exporters can be paused, resumed, and reset.
+      This API follows the Confluent Schema Linking format. In Confluent, this feature
+      requires an Enterprise license.
   - name: DEK Registry
+    x-compatibility: confluent-enterprise
     description: >-
-      Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs).
-      KEKs are top-level encryption keys identified by name, associated with a KMS provider.
-      DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows
-      the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix.
+      **Confluent compatible (Enterprise).** Operations for managing Data Encryption Keys
+      (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by
+      name, associated with a KMS provider. DEKs are per-subject encryption keys managed
+      under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry
+      format and uses the `/dek-registry/v1` prefix. In Confluent, this feature requires an
+      Enterprise license.
+  # ── AxonOps Schema Registry Extensions ─────────────────────────────
+  - name: Analysis
+    x-compatibility: axonops
+    description: >-
+      **AxonOps extension.** Schema analysis endpoints for validation, normalization, quality
+      scoring, field search, similarity detection, compatibility suggestions, and registry-wide
+      statistics. These endpoints are designed primarily to support AI-assisted schema
+      management workflows via the MCP server, and are also available as a REST API for
+      programmatic access, CI/CD pipelines, and custom tooling. All analysis operations
+      are read-only and do not modify registry state.
+  - name: Admin
+    x-compatibility: axonops
+    description: >-
+      **AxonOps extension.** Administrative endpoints for managing users, API keys, and roles.
+      These endpoints require admin-level permissions and are part of the AxonOps built-in
+      RBAC system.
+  - name: Account
+    x-compatibility: axonops
+    description: >-
+      **AxonOps extension.** Self-service account endpoints for authenticated users to view
+      their own profile and change their password.
   - name: Documentation
+    x-compatibility: axonops
     description: >-
-      Endpoints for serving the interactive API documentation (Swagger UI) and the raw
-      OpenAPI specification. Available only when the server is configured with docs_enabled.
+      **AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger
+      UI) and the raw OpenAPI specification. Available only when the server is configured with
+      `docs_enabled: true`.
+
+x-tagGroups:
+  - name: Confluent Schema Registry Compatible (Community)
+    tags:
+      - Schemas
+      - Subjects
+      - Config
+      - Mode
+      - Compatibility
+      - Metadata
+      - Health
+  - name: Confluent Schema Registry Compatible (Enterprise)
+    tags:
+      - Import
+      - Contexts
+      - Exporters
+      - DEK Registry
+  - name: AxonOps Extensions
+    tags:
+      - Analysis
+      - Admin
+      - Account
+      - Documentation
 
 security:
   - basicAuth: []
@@ -303,7 +378,7 @@ paths:
       summary: Get supported schema types
       description: >-
         Returns the list of schema types supported by this registry. The response is an
-        array of strings. Currently supported types are AVRO, PROTOBUF, and JSON.
+        array of strings. Currently supported types are `AVRO`, `PROTOBUF`, and `JSON`.
       operationId: getSchemaTypes
       tags:
         - Schemas
@@ -1440,8 +1515,8 @@ paths:
       summary: Get global mode
       description: >-
         Returns the global registry mode. The mode controls whether the registry accepts
-        schema registration (write) operations. Possible modes are READWRITE (default),
-        READONLY, READONLY_OVERRIDE, and IMPORT.
+        schema registration (write) operations. Possible modes are `READWRITE` (default),
+        `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
       operationId: getGlobalMode
       tags:
         - Mode
@@ -1458,7 +1533,7 @@ paths:
       summary: Set global mode
       description: >-
         Updates the global registry mode. The `mode` field MUST be set to a valid mode
-        string (READWRITE, READONLY, READONLY_OVERRIDE, or IMPORT). The `force` query
+        string (`READWRITE`, `READONLY`, `READONLY_OVERRIDE`, or `IMPORT`). The `force` query
         parameter MAY be set to `true` to bypass validation checks when changing mode.
       operationId: setGlobalMode
       tags:
@@ -1930,7 +2005,7 @@ paths:
       summary: Update an exporter
       description: >-
         Updates the configuration of the specified exporter. All fields in the request body
-        are applied as the new configuration. The exporter name cannot be changed.
+        are applied as the new configuration. The exporter name CANNOT be changed.
       operationId: updateExporter
       tags:
         - Exporters
@@ -4217,7 +4292,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '401':
-          description: Authentication required.
+          description: Authentication REQUIRED.
           content:
             application/json:
               schema:
@@ -4257,13 +4332,13 @@ paths:
         '204':
           description: Password changed successfully.
         '400':
-          description: Missing required fields.
+          description: Missing REQUIRED fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required.
+          description: Authentication REQUIRED.
           content:
             application/json:
               schema:
@@ -4315,7 +4390,7 @@ paths:
       summary: Create a new user
       description: >-
         Creates a new user in the registry. The `username`, `password`, and `role` fields
-        are required. The `role` MUST be one of `super_admin`, `admin`, `developer`, or
+        are REQUIRED. The `role` MUST be one of `super_admin`, `admin`, `developer`, or
         `readonly`. The caller MUST have admin write permissions.
       operationId: createUser
       tags:
@@ -4334,7 +4409,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Missing required fields or invalid role.
+          description: Missing REQUIRED fields or invalid role.
           content:
             application/json:
               schema:
@@ -4521,7 +4596,7 @@ paths:
         seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one
         of `super_admin`, `admin`, `developer`, or `readonly`.
 
-        The raw API key secret is returned ONLY in the creation response and cannot be
+        The raw API key secret is returned ONLY in the creation response and CANNOT be
         retrieved afterward. Clients SHOULD store the key securely immediately after
         creation.
 
@@ -4546,7 +4621,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateAPIKeyResponse'
         '400':
-          description: Missing required fields, invalid role, or invalid expires_in.
+          description: Missing REQUIRED fields, invalid role, or invalid `expires_in`.
           content:
             application/json:
               schema:
@@ -5016,7 +5091,7 @@ paths:
                 error_code: 40470
                 message: "KEK 'my-kek' not found"
         '422':
-          description: KEK must be soft-deleted before permanent delete.
+          description: KEK MUST be soft-deleted before permanent delete.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -5334,7 +5409,7 @@ paths:
                     error_code: 40471
                     message: "DEK for subject 'my-topic-value' not found"
         '422':
-          description: DEK must be soft-deleted before permanent delete.
+          description: DEK MUST be soft-deleted before permanent delete.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -5815,6 +5890,2693 @@ paths:
                   value:
                     error_code: 40471
                     message: "DEK for subject 'my-topic-value' not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # Analysis & Intelligence endpoints
+  # These provide schema analysis, quality scoring, field search, and registry statistics.
+  # ---------------------------------------------------------------------------
+
+  /schemas/validate:
+    post:
+      summary: Validate a schema
+      description: >-
+        Parses and validates a schema string without registering it. Returns whether the
+        schema is syntactically and structurally valid for the given `schemaType`. Use this
+        endpoint to pre-validate schemas before registration.
+
+
+        **Validation rules by schema type:**
+
+        - **Avro**: Parses the JSON string using the [Avro specification](https://avro.apache.org/docs/current/specification/).
+        Validates record structure, field types, enum symbols (MUST be non-empty), fixed sizes
+        (MUST be > 0), default values (MUST match the field type), union syntax, and named type
+        references. Uses the `github.com/hamba/avro/v2` library.
+
+        - **Protobuf**: Compiles the `.proto` source using `github.com/bufbuild/protocompile`.
+        Validates message definitions, field numbering (MUST be unique), import resolution,
+        service definitions, and proto2/proto3 syntax rules.
+
+        - **JSON Schema**: Parses against JSON Schema Draft-07 using `github.com/santhosh-tekuri/jsonschema/v5`.
+        Validates `$ref` resolution, `type` keywords, `properties`, `required` arrays, and
+        boolean root schemas (`true`/`false`).
+
+
+        When the schema is valid, `is_valid` is `true` and `error` is empty. When invalid,
+        `is_valid` is `false` and `error` contains the parse error message from the underlying
+        library. The response always includes the detected `schema_type`.
+      operationId: validateSchema
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                  description: The raw schema string to validate.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+                  description: The schema type. Defaults to `AVRO` if omitted.
+      responses:
+        '200':
+          description: Validation result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_valid:
+                    type: boolean
+                  schema_type:
+                    type: string
+                  error:
+                    type: string
+        '400':
+          description: Invalid request body.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/normalize:
+    post:
+      summary: Normalize a schema
+      description: >-
+        Parses a schema and returns its canonical (normalized) form along with a SHA-256
+        content fingerprint. The canonical form removes formatting differences and produces a
+        deterministic representation suitable for deduplication.
+
+
+        **Normalization by schema type:**
+
+        - **Avro**: Applies the [Avro Parsing Canonical Form (PCF)](https://avro.apache.org/docs/current/specification/#parsing-canonical-form-for-schemas),
+        which strips `doc`, `aliases`, `order`, and `default` fields. Named types are
+        replaced with their fully-qualified names on second reference. JSON keys are sorted
+        deterministically.
+
+        - **Protobuf**: Compiles and re-serializes the `.proto` source, normalizing whitespace,
+        comment removal, and import ordering.
+
+        - **JSON Schema**: Parses the JSON and re-serializes with deterministic key ordering
+        (per [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-4), JSON objects are
+        unordered, so `{"type":"object","properties":...}` and `{"properties":...,"type":"object"}`
+        normalize to the same canonical form).
+
+
+        The `fingerprint` is a SHA-256 hash of the canonical form, hex-encoded. Two schemas with
+        the same fingerprint are semantically identical and will share a single global ID in
+        the registry.
+      operationId: normalizeSchema
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                  description: The raw schema string to normalize.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+                  description: The schema type.
+      responses:
+        '200':
+          description: Normalized schema with fingerprint.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schema_type:
+                    type: string
+                  canonical:
+                    type: string
+                  fingerprint:
+                    type: string
+        '422':
+          description: Schema could not be parsed.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/search:
+    post:
+      summary: Search schemas by content
+      description: >-
+        Searches across all subjects for schemas whose content matches a query string
+        or regular expression. Returns matching subject-version pairs. Useful for finding
+        schemas that reference a particular type or contain specific field definitions.
+      operationId: searchSchemas
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: The search query (plain text or regex pattern).
+                regex:
+                  type: boolean
+                  default: false
+                  description: If `true`, treat `query` as a regular expression.
+                limit:
+                  type: integer
+                  default: 50
+                  description: Maximum number of results to return.
+      responses:
+        '200':
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  count:
+                    type: integer
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        version:
+                          type: integer
+                        schema_type:
+                          type: string
+        '400':
+          description: Invalid request or regex pattern.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/search/field:
+    post:
+      summary: Find schemas by field name
+      description: >-
+        Searches across all subjects for schemas containing a specific field. Fields are
+        extracted by parsing each schema: Avro records are walked recursively (including nested
+        records, arrays, maps, and unions), JSON Schema `properties` are extracted (including
+        nested objects), and Protobuf messages are parsed for field declarations. Nested fields
+        use dot-notation paths (e.g., `address.street`).
+
+
+        **Matching modes:**
+
+        - **`exact`** (default): Generates naming convention variants of the query
+        (`snake_case`, `camelCase`, `PascalCase`, `kebab-case`) and matches any variant
+        case-insensitively. For example, searching for `userName` also matches `user_name`,
+        `UserName`, and `user-name`. Matched fields return a score of `1.0`.
+
+        - **`fuzzy`**: Computes a similarity score using
+        [Levenshtein edit distance](https://en.wikipedia.org/wiki/Levenshtein_distance),
+        normalized to a 0.0–1.0 range (`1.0 - editDistance / maxLength`). Only fields with
+        a score at or above `threshold` (default `0.6`) are returned. Comparison is
+        case-insensitive.
+
+        - **`regex`**: Compiles the query as a Go regular expression and matches against each
+        field name. Returns a `400` error if the regex is invalid.
+      operationId: findSchemasByField
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - field
+              properties:
+                field:
+                  type: string
+                  description: The field name to search for.
+                mode:
+                  type: string
+                  enum: [exact, fuzzy, regex]
+                  default: exact
+                  description: The matching mode.
+                threshold:
+                  type: number
+                  default: 0.6
+                  description: Minimum similarity score for fuzzy matching (0.0 to 1.0).
+                limit:
+                  type: integer
+                  default: 50
+                  description: Maximum number of results.
+      responses:
+        '200':
+          description: Field search results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  mode:
+                    type: string
+                  count:
+                    type: integer
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        field_name:
+                          type: string
+                        field_type:
+                          type: string
+                        field_path:
+                          type: string
+                        score:
+                          type: number
+                        schema_type:
+                          type: string
+        '400':
+          description: Invalid request or regex pattern.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/search/type:
+    post:
+      summary: Find schemas by field type
+      description: >-
+        Searches across all subjects for schemas containing fields of a given type.
+        Useful for finding all schemas that use a specific custom type, logical type,
+        or primitive type across the registry.
+
+
+        Field types are extracted from parsed schemas: Avro field types include primitives
+        (`string`, `int`, `long`, `boolean`, etc.), named types (e.g., `com.example.Address`),
+        logical types, and union representations. JSON Schema types come from the `type`
+        keyword. Protobuf types include scalar types (`int32`, `string`, etc.) and message
+        type references.
+
+
+        When `regex` is `false` (default), the type name is matched exactly
+        (case-insensitive). When `regex` is `true`, the pattern is compiled as a Go regular
+        expression and matched against each field's type string, allowing patterns like
+        `^int(32|64)$` or `.*Timestamp.*`.
+      operationId: findSchemasByType
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type_pattern
+              properties:
+                type_pattern:
+                  type: string
+                  description: The type name or pattern to search for.
+                regex:
+                  type: boolean
+                  default: false
+                  description: If `true`, treat `type_pattern` as a regular expression.
+                limit:
+                  type: integer
+                  default: 50
+                  description: Maximum number of results.
+      responses:
+        '200':
+          description: Type search results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type_pattern:
+                    type: string
+                  count:
+                    type: integer
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        field_name:
+                          type: string
+                        field_type:
+                          type: string
+        '400':
+          description: Invalid regex pattern.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/similar:
+    post:
+      summary: Find similar schemas
+      description: >-
+        Finds schemas that are structurally similar to a given subject's latest schema
+        by comparing field name sets. Useful for detecting duplicate or near-duplicate
+        schemas across subjects, identifying candidates for schema consolidation, or
+        finding schemas that model related domain entities.
+
+
+        Similarity is computed using the
+        [Jaccard similarity coefficient](https://en.wikipedia.org/wiki/Jaccard_index):
+        `|intersection| / |union|` of the two schemas' field name sets. Field names are
+        normalized to `snake_case` before comparison so that `userName` and `user_name`
+        are treated as the same field. A score of `1.0` means identical field sets;
+        `0.0` means no fields in common. The response includes the list of `shared_fields`
+        for each match.
+
+
+        The default `threshold` of `0.3` returns schemas sharing at least 30% of their
+        field names. Increase to `0.8`+ to find near-duplicates only.
+      operationId: findSimilarSchemas
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+              properties:
+                subject:
+                  type: string
+                  description: The source subject to compare against.
+                threshold:
+                  type: number
+                  default: 0.3
+                  description: Minimum Jaccard similarity score (0.0 to 1.0).
+                limit:
+                  type: integer
+                  default: 10
+                  description: Maximum number of results.
+      responses:
+        '200':
+          description: Similar schemas found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  count:
+                    type: integer
+                  similar:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        similarity:
+                          type: number
+                        shared_fields:
+                          type: array
+                          items:
+                            type: string
+        '404':
+          description: Source subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/quality:
+    post:
+      summary: Score schema quality
+      description: >-
+        Scores a schema's quality across four weighted categories, producing an overall
+        score from 0 to 100 with a letter grade. Provide either a raw schema string or a
+        subject name to score the latest version.
+
+
+        **Scoring categories (25 points each, 100 total):**
+
+
+        1. **Naming (25 pts)** — Checks whether field names follow `snake_case` convention.
+        Fields containing uppercase letters, hyphens, or spaces are flagged. Score is
+        proportional to the fraction of well-named fields: `25 × (good / total)`. This
+        convention aligns with the
+        [Avro specification's recommendation](https://avro.apache.org/docs/current/specification/#names)
+        and is the most common field naming convention across Avro, Protobuf, and JSON Schema.
+
+
+        2. **Documentation (25 pts)** — Counts the fraction of fields that have a `doc`
+        string (Avro), comment (Protobuf), or `description` (JSON Schema). Score is `25 ×
+        (documented / total)`. Undocumented schemas are harder to understand and maintain.
+
+
+        3. **Type Safety (25 pts)** — Penalizes fields that use overly generic types:
+        `string`, `bytes`, `any`, or `object`. These types provide no semantic meaning and
+        bypass serialization validation. Score is `25 × (specific / total)`. Fields using
+        domain-specific types (e.g., `com.example.EmailAddress`), enums, or logical types
+        score higher.
+
+
+        4. **Evolution Readiness (25 pts)** — Evaluates whether the schema is prepared for
+        safe evolution: +10 pts if any field has a default value (enables adding fields
+        without breaking consumers), +8 pts if a `namespace` (Avro) or `package` (Protobuf)
+        is declared (prevents naming conflicts), +7 pts if schema-level documentation
+        exists.
+
+
+        **Grades:** A (≥90), B (≥80), C (≥70), D (≥60), F (<60).
+
+
+        The `quick_wins` array contains actionable suggestions (e.g., "Rename field
+        `userName` to `user_name`", "Add documentation to fields").
+      operationId: scoreSchemaQuality
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schema:
+                  type: string
+                  description: The raw schema string to score. Either `schema` or `subject` MUST be provided.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+                  description: The schema type.
+                subject:
+                  type: string
+                  description: Score the latest schema version of this subject.
+      responses:
+        '200':
+          description: Quality score result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overall_score:
+                    type: integer
+                  max_score:
+                    type: integer
+                  grade:
+                    type: string
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        score:
+                          type: integer
+                        max_score:
+                          type: integer
+                        issues:
+                          type: array
+                          items:
+                            type: string
+                  quick_wins:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Neither schema nor subject provided.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/complexity:
+    post:
+      summary: Get schema complexity
+      description: >-
+        Computes structural complexity metrics for a schema and assigns a complexity grade
+        from A (simple) to D (very complex). Provide either a raw schema string or a
+        subject name to analyze the latest version.
+
+
+        **Metrics computed:**
+
+        - `field_count` — Total number of fields across all nested records/objects.
+
+        - `max_depth` — Maximum nesting level. A flat record has depth 1; a record with
+        a nested record field has depth 2, etc. Computed from the dot-notation field paths
+        (e.g., `address.street.number` has depth 3).
+
+
+        **Complexity grades:**
+
+        - **A** — ≤15 fields AND ≤3 nesting depth. Simple, easy to understand and maintain.
+
+        - **B** — ≤30 fields AND ≤4 nesting depth. Moderate complexity, typical for most
+        domain objects.
+
+        - **C** — ≤50 fields AND ≤5 nesting depth. Complex schema that may benefit from
+        decomposition into referenced sub-schemas.
+
+        - **D** — >50 fields OR >5 nesting depth. Very complex; strongly consider breaking
+        into smaller, referenced schemas for maintainability and reuse.
+      operationId: getSchemaComplexity
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schema:
+                  type: string
+                  description: The raw schema string. Either `schema` or `subject` MUST be provided.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+                subject:
+                  type: string
+                  description: Analyze the latest schema version of this subject.
+      responses:
+        '200':
+          description: Complexity analysis result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schema_type:
+                    type: string
+                  field_count:
+                    type: integer
+                  max_depth:
+                    type: integer
+                  grade:
+                    type: string
+        '400':
+          description: Neither schema nor subject provided.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /subjects/validate:
+    post:
+      summary: Validate a subject name
+      description: >-
+        Checks whether a subject name follows the conventions of a given naming strategy.
+        Returns validation issues and a suggested corrected name. These strategies correspond
+        to the Confluent Schema Registry
+        [subject name strategies](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy)
+        used by Kafka serializers.
+
+
+        **Naming strategies:**
+
+        - **`topic_name`** (default) — Subject MUST end with `-key` or `-value` (e.g.,
+        `orders-value`, `users-key`). This is the default Confluent `TopicNameStrategy`
+        where the subject is `{topic}-{key|value}`.
+
+        - **`record_name`** — Subject MUST be a valid qualified name using dot-separated
+        identifiers (e.g., `com.example.User`). Each identifier MUST start with a letter
+        or underscore, followed by letters, digits, or underscores. This matches the Confluent
+        `RecordNameStrategy` where the subject is the fully-qualified schema name.
+
+        - **`topic_record_name`** — Subject MUST contain a hyphen separating the topic
+        and record portions (e.g., `orders-com.example.Order`). This matches the Confluent
+        `TopicRecordNameStrategy` where the subject is `{topic}-{record_name}`.
+      operationId: validateSubjectName
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+              properties:
+                subject:
+                  type: string
+                  description: The subject name to validate.
+                strategy:
+                  type: string
+                  enum: [topic_name, record_name, topic_record_name]
+                  default: topic_name
+                  description: The naming strategy to validate against.
+      responses:
+        '200':
+          description: Validation result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  strategy:
+                    type: string
+                  valid:
+                    type: boolean
+                  issues:
+                    type: array
+                    items:
+                      type: string
+                  suggestion:
+                    type: string
+        '400':
+          description: The `subject` field is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/match:
+    post:
+      summary: Match subjects by pattern
+      description: >-
+        Finds subjects matching a pattern. Useful for discovering subjects when the exact
+        name is not known, or for filtering subjects by naming convention.
+
+
+        **Matching modes:**
+
+        - **`regex`** (default) — Compiles the pattern as a Go regular expression and tests
+        each subject name. Returns a `400` error for invalid regex.
+
+        - **`glob`** — Matches using wildcard patterns where `*` matches any sequence of
+        characters. Comparison is case-insensitive. For example, `orders-*` matches
+        `orders-value`, `orders-key`, and `orders-avro-value`.
+
+        - **`fuzzy`** — Computes Levenshtein-based similarity (0.0–1.0) between the
+        pattern and each subject name. Only subjects with a score at or above `threshold`
+        (default `0.6`) are returned. Useful for finding subjects with typos or slight
+        naming variations.
+      operationId: matchSubjects
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pattern
+              properties:
+                pattern:
+                  type: string
+                  description: The pattern to match subject names against.
+                mode:
+                  type: string
+                  enum: [regex, glob, fuzzy]
+                  default: regex
+                  description: The matching mode.
+                threshold:
+                  type: number
+                  default: 0.6
+                  description: Minimum similarity score for fuzzy matching (0.0 to 1.0).
+      responses:
+        '200':
+          description: Matching subjects.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pattern:
+                    type: string
+                  mode:
+                    type: string
+                  count:
+                    type: integer
+                  matches:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Invalid pattern or regex.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /subjects/count:
+    get:
+      summary: Count subjects
+      description: >-
+        Returns the total number of active (non-deleted) subjects in the registry.
+      operationId: countSubjects
+      tags:
+        - Analysis
+      responses:
+        '200':
+          description: Subject count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /subjects/{subject}/history:
+    get:
+      summary: Get schema history
+      description: >-
+        Returns the full version history of a subject, listing each version with its
+        schema ID and type. Useful for understanding schema evolution over time.
+      operationId: getSchemaHistory
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  count:
+                    type: integer
+                  history:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        version:
+                          type: integer
+                        schema_id:
+                          type: integer
+                          format: int64
+                        schema_type:
+                          type: string
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions/count:
+    get:
+      summary: Count versions
+      description: >-
+        Returns the number of schema versions registered under a subject.
+      operationId: countVersions
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version count.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  count:
+                    type: integer
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions/{version}/dependencies:
+    get:
+      summary: Get dependency graph
+      description: >-
+        Returns the dependency graph for a specific schema version, showing which other
+        schemas reference this schema via cross-subject references.
+      operationId: getDependencyGraph
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: The schema version number.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dependency graph.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  version:
+                    type: integer
+                  schema_id:
+                    type: integer
+                    format: int64
+                  referenced_by:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        version:
+                          type: integer
+        '400':
+          description: Invalid version number.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions/{version}/export:
+    get:
+      summary: Export a schema version
+      description: >-
+        Exports a single schema version with its full metadata including the schema body,
+        type, compatibility level, and version information. Useful for backup and migration.
+      operationId: exportSchema
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: The schema version number.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Exported schema version.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  version:
+                    type: integer
+                  id:
+                    type: integer
+                    format: int64
+                  schema:
+                    type: string
+                  schema_type:
+                    type: string
+                  compatibility_level:
+                    type: string
+        '400':
+          description: Invalid version number.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/export:
+    get:
+      summary: Export all versions of a subject
+      description: >-
+        Exports all schema versions registered under a subject. Returns each version
+        with its schema body, ID, and type. Useful for backup and migration.
+      operationId: exportSubject
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: All exported versions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  count:
+                    type: integer
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        version:
+                          type: integer
+                        id:
+                          type: integer
+                          format: int64
+                        schema:
+                          type: string
+                        schema_type:
+                          type: string
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/diff:
+    post:
+      summary: Diff two schema versions
+      description: >-
+        Compares two versions of a subject's schema and returns the structural differences
+        at the field level. If `version2` is omitted, compares against the latest version.
+
+
+        The diff extracts fields from both schema versions and computes:
+
+        - **`added`** — Fields present in version2 but not in version1 (new fields).
+
+        - **`removed`** — Fields present in version1 but not in version2 (deleted fields).
+
+        - **`changed`** — Fields present in both versions but with a different type
+        (e.g., a field changed from `string` to `int`), showing both `old_type` and `new_type`.
+
+
+        Field matching uses normalized `snake_case` names, so `userName` in version1 and
+        `user_name` in version2 are treated as the same field. This endpoint is read-only
+        and does not perform compatibility checking — use
+        `POST /compatibility/subjects/{subject}/versions/{version}` for that.
+      operationId: diffSchemas
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version1:
+                  type: integer
+                  default: 1
+                  description: The first version to compare.
+                version2:
+                  type: integer
+                  description: The second version to compare. Defaults to latest.
+      responses:
+        '200':
+          description: Schema diff result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  version1:
+                    type: integer
+                  version2:
+                    type: integer
+                  added:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        type:
+                          type: string
+                  removed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        type:
+                          type: string
+                  changed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        old_type:
+                          type: string
+                        new_type:
+                          type: string
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/evolve:
+    post:
+      summary: Suggest schema evolution
+      description: >-
+        Given a subject and a set of proposed changes, provides guidance on how to evolve
+        the schema while maintaining compatibility with the subject's configured compatibility
+        level. Returns the subject's current version, its compatibility level, and a message
+        describing whether the proposed changes are safe.
+
+
+        Each change in the `changes` array describes an `action` (`add`, `remove`, or
+        `modify`), the `field` name, and optionally a `type`. The endpoint evaluates these
+        against the compatibility rules — for example, under `BACKWARD` compatibility,
+        adding a field with a default is safe, but removing a field is not.
+      operationId: suggestSchemaEvolution
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                changes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                      field:
+                        type: string
+                      type:
+                        type: string
+      responses:
+        '200':
+          description: Evolution suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  current_version:
+                    type: integer
+                  compatibility_level:
+                    type: string
+                  changes_requested:
+                    type: integer
+                  message:
+                    type: string
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/migrate:
+    post:
+      summary: Plan migration path
+      description: >-
+        Given a subject and a target schema, computes a step-by-step migration plan to
+        evolve from the subject's current latest schema to the target. Each step in the plan
+        is an individually compatible schema change that can be registered as a new version.
+
+
+        The planner diffs the current and target schemas (using the same field extraction as
+        the diff endpoint), then decomposes the changes into the minimum number of safe steps
+        based on the subject's compatibility level. For example, under `BACKWARD` compatibility,
+        a migration that adds two fields and removes one might be decomposed into: (1) add
+        field A with default, (2) add field B with default, (3) deprecate and remove field C
+        in a separate step.
+
+
+        The `steps` array contains human-readable descriptions of each migration step.
+        `step_count` is the total number of steps required.
+      operationId: planMigrationPath
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target_schema
+              properties:
+                target_schema:
+                  type: string
+                  description: The target schema to migrate to.
+                schema_type:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  description: The schema type of the target schema.
+      responses:
+        '200':
+          description: Migration plan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  current_version:
+                    type: integer
+                  compatibility_level:
+                    type: string
+                  steps:
+                    type: array
+                    items:
+                      type: string
+                  step_count:
+                    type: integer
+        '400':
+          description: The `target_schema` field is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /compatibility/check:
+    post:
+      summary: Check compatibility against multiple subjects
+      description: >-
+        Tests whether a schema is compatible with the latest version of multiple subjects
+        simultaneously. Returns per-subject compatibility results. Useful for validating
+        a shared schema across multiple topics.
+      operationId: checkCompatibilityMulti
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+                - subjects
+              properties:
+                schema:
+                  type: string
+                  description: The candidate schema to test.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+                subjects:
+                  type: array
+                  items:
+                    type: string
+                  description: The list of subjects to check compatibility against.
+      responses:
+        '200':
+          description: Per-subject compatibility results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        is_compatible:
+                          type: boolean
+                        error:
+                          type: string
+        '400':
+          description: The `schema` field is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /compatibility/subjects/{subject}/suggest:
+    post:
+      summary: Suggest compatible changes
+      description: >-
+        Returns rule-based suggestions for what kinds of schema changes are safe under the
+        subject's current compatibility level. Helps developers understand the constraints
+        before attempting schema evolution.
+
+
+        **Suggestions by compatibility level:**
+
+        - **BACKWARD / BACKWARD_TRANSITIVE** — "Add new fields with default values",
+        "Do NOT remove existing fields", "Do NOT change field types". New consumers can
+        read data written by old producers.
+
+        - **FORWARD / FORWARD_TRANSITIVE** — "Remove fields (new consumers will ignore
+        them)", "Do NOT add required fields without defaults". Old consumers can read data
+        written by new producers.
+
+        - **FULL / FULL_TRANSITIVE** — "Only add optional fields with defaults", "Do NOT
+        remove or rename fields". Both old and new consumers can read each other's data.
+
+        - **NONE** — "Any change is allowed (no compatibility checks)".
+      operationId: suggestCompatibleChange
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compatibility suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  compatibility_level:
+                    type: string
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+
+  /compatibility/subjects/{subject}/explain:
+    post:
+      summary: Explain compatibility failure
+      description: >-
+        Tests a schema against a subject's latest version and explains why the schema
+        is or is not compatible. Returns the compatibility level, result, and a human-readable
+        explanation of any failure.
+      operationId: explainCompatibilityFailure
+      tags:
+        - Analysis
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                  description: The candidate schema to test.
+                schemaType:
+                  type: string
+                  enum: [AVRO, PROTOBUF, JSON]
+                  default: AVRO
+      responses:
+        '200':
+          description: Compatibility explanation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject:
+                    type: string
+                  compatibility_level:
+                    type: string
+                  is_compatible:
+                    type: boolean
+                  error:
+                    type: string
+                  explanation:
+                    type: string
+        '400':
+          description: The `schema` field is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /compatibility/compare:
+    post:
+      summary: Compare two subjects
+      description: >-
+        Compares the field structures of two subjects' latest schemas. Returns fields
+        that are shared between both, unique to the first subject, or unique to the
+        second subject. Useful for identifying field overlap and potential schema
+        consolidation opportunities.
+      operationId: compareSubjects
+      tags:
+        - Analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject1
+                - subject2
+              properties:
+                subject1:
+                  type: string
+                  description: The first subject name.
+                subject2:
+                  type: string
+                  description: The second subject name.
+      responses:
+        '200':
+          description: Comparison result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject1:
+                    type: string
+                  subject2:
+                    type: string
+                  shared:
+                    type: array
+                    items:
+                      type: string
+                  only_in_sub1:
+                    type: array
+                    items:
+                      type: string
+                  only_in_sub2:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: Both `subject1` and `subject2` fields are REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: One or both subjects not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /statistics:
+    get:
+      summary: Get registry statistics
+      description: >-
+        Returns aggregate statistics about the registry including the total number of
+        subjects, total number of schema versions, and a breakdown of schema types
+        (AVRO, PROTOBUF, JSON).
+      operationId: getRegistryStatistics
+      tags:
+        - Analysis
+      responses:
+        '200':
+          description: Registry statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject_count:
+                    type: integer
+                  version_count:
+                    type: integer
+                  type_counts:
+                    type: object
+                    additionalProperties:
+                      type: integer
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/fields/{field}:
+    get:
+      summary: Check field consistency
+      description: >-
+        Checks how a specific field name is used across all schemas in the registry and
+        reports whether its type is consistent. This is a data governance tool for detecting
+        type drift — for example, `user_id` being `long` in one schema and `string` in
+        another.
+
+
+        The search generates naming convention variants of the field name (`snake_case`,
+        `camelCase`, `PascalCase`, `kebab-case`) and matches any variant against every
+        schema's extracted fields. The response includes:
+
+        - `consistent` — `true` if all usages of this field have the same type
+        (i.e., `type_counts` has only one entry), `false` otherwise.
+
+        - `type_counts` — A map of type name to usage count (e.g.,
+        `{"long": 5, "string": 2}` indicates an inconsistency).
+
+        - `usages` — Each individual occurrence with its subject, matched field name,
+        and field type.
+      operationId: checkFieldConsistency
+      tags:
+        - Analysis
+      parameters:
+        - name: field
+          in: path
+          required: true
+          description: The field name to check.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Field consistency report.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  consistent:
+                    type: boolean
+                  type_counts:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  usages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        field_name:
+                          type: string
+                        field_type:
+                          type: string
+        '400':
+          description: The `field` parameter is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/patterns:
+    get:
+      summary: Detect schema patterns
+      description: >-
+        Analyzes all schemas in the registry and identifies common field patterns —
+        fields that appear in two or more subjects. Useful for discovering shared data
+        models and candidates for schema consolidation.
+      operationId: detectSchemaPatterns
+      tags:
+        - Analysis
+      responses:
+        '200':
+          description: Pattern detection results.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subject_count:
+                    type: integer
+                  common_fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        count:
+                          type: integer
+                  pattern_count:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # Context-scoped Analysis & Intelligence endpoints
+  # These mirror the root-level analysis routes scoped to a specific context.
+  # ---------------------------------------------------------------------------
+
+  /contexts/{context}/schemas/validate:
+    post:
+      summary: "[Context-scoped] Validate a schema"
+      description: >-
+        Context-scoped version of `/schemas/validate`. See the root-level operation for
+        full documentation.
+      operationId: validateSchemaContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+      responses:
+        '200':
+          description: Validation result.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/normalize:
+    post:
+      summary: "[Context-scoped] Normalize a schema"
+      description: >-
+        Context-scoped version of `/schemas/normalize`. See the root-level operation for
+        full documentation.
+      operationId: normalizeSchemaContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+      responses:
+        '200':
+          description: Normalized schema.
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          description: Schema could not be parsed.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/search:
+    post:
+      summary: "[Context-scoped] Search schemas by content"
+      description: >-
+        Context-scoped version of `/schemas/search`. See the root-level operation for
+        full documentation.
+      operationId: searchSchemasContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                regex:
+                  type: boolean
+                limit:
+                  type: integer
+      responses:
+        '200':
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/search/field:
+    post:
+      summary: "[Context-scoped] Find schemas by field name"
+      description: >-
+        Context-scoped version of `/schemas/search/field`. See the root-level operation
+        for full documentation.
+      operationId: findSchemasByFieldContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - field
+              properties:
+                field:
+                  type: string
+                mode:
+                  type: string
+                threshold:
+                  type: number
+                limit:
+                  type: integer
+      responses:
+        '200':
+          description: Field search results.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/search/type:
+    post:
+      summary: "[Context-scoped] Find schemas by field type"
+      description: >-
+        Context-scoped version of `/schemas/search/type`. See the root-level operation
+        for full documentation.
+      operationId: findSchemasByTypeContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type_pattern
+              properties:
+                type_pattern:
+                  type: string
+                regex:
+                  type: boolean
+                limit:
+                  type: integer
+      responses:
+        '200':
+          description: Type search results.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/similar:
+    post:
+      summary: "[Context-scoped] Find similar schemas"
+      description: >-
+        Context-scoped version of `/schemas/similar`. See the root-level operation for
+        full documentation.
+      operationId: findSimilarSchemasContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+              properties:
+                subject:
+                  type: string
+                threshold:
+                  type: number
+                limit:
+                  type: integer
+      responses:
+        '200':
+          description: Similar schemas.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/quality:
+    post:
+      summary: "[Context-scoped] Score schema quality"
+      description: >-
+        Context-scoped version of `/schemas/quality`. See the root-level operation for
+        full documentation.
+      operationId: scoreSchemaQualityContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+                subject:
+                  type: string
+      responses:
+        '200':
+          description: Quality score.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/complexity:
+    post:
+      summary: "[Context-scoped] Get schema complexity"
+      description: >-
+        Context-scoped version of `/schemas/complexity`. See the root-level operation
+        for full documentation.
+      operationId: getSchemaComplexityContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+                subject:
+                  type: string
+      responses:
+        '200':
+          description: Complexity analysis.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/validate:
+    post:
+      summary: "[Context-scoped] Validate a subject name"
+      description: >-
+        Context-scoped version of `/subjects/validate`. See the root-level operation
+        for full documentation.
+      operationId: validateSubjectNameContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+              properties:
+                subject:
+                  type: string
+                strategy:
+                  type: string
+      responses:
+        '200':
+          description: Validation result.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/match:
+    post:
+      summary: "[Context-scoped] Match subjects by pattern"
+      description: >-
+        Context-scoped version of `/subjects/match`. See the root-level operation for
+        full documentation.
+      operationId: matchSubjectsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pattern
+              properties:
+                pattern:
+                  type: string
+                mode:
+                  type: string
+                threshold:
+                  type: number
+      responses:
+        '200':
+          description: Matching subjects.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/count:
+    get:
+      summary: "[Context-scoped] Count subjects"
+      description: >-
+        Context-scoped version of `/subjects/count`. See the root-level operation for
+        full documentation.
+      operationId: countSubjectsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: Subject count.
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/history:
+    get:
+      summary: "[Context-scoped] Get schema history"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/history`. See the root-level
+        operation for full documentation.
+      operationId: getSchemaHistoryContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version history.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/versions/count:
+    get:
+      summary: "[Context-scoped] Count versions"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/count`. See the root-level
+        operation for full documentation.
+      operationId: countVersionsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Version count.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/versions/{version}/dependencies:
+    get:
+      summary: "[Context-scoped] Get dependency graph"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/{version}/dependencies`.
+        See the root-level operation for full documentation.
+      operationId: getDependencyGraphContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: The schema version number.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dependency graph.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid version.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/versions/{version}/export:
+    get:
+      summary: "[Context-scoped] Export a schema version"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/{version}/export`. See
+        the root-level operation for full documentation.
+      operationId: exportSchemaContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: The schema version number.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Exported schema version.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid version.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/export:
+    get:
+      summary: "[Context-scoped] Export all versions of a subject"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/export`. See the root-level
+        operation for full documentation.
+      operationId: exportSubjectContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Exported versions.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/diff:
+    post:
+      summary: "[Context-scoped] Diff two schema versions"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/diff`. See the root-level
+        operation for full documentation.
+      operationId: diffSchemasContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version1:
+                  type: integer
+                version2:
+                  type: integer
+      responses:
+        '200':
+          description: Schema diff.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/evolve:
+    post:
+      summary: "[Context-scoped] Suggest schema evolution"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/evolve`. See the root-level
+        operation for full documentation.
+      operationId: suggestSchemaEvolutionContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                changes:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Evolution suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/subjects/{subject}/migrate:
+    post:
+      summary: "[Context-scoped] Plan migration path"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/migrate`. See the root-level
+        operation for full documentation.
+      operationId: planMigrationPathContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target_schema
+              properties:
+                target_schema:
+                  type: string
+                schema_type:
+                  type: string
+      responses:
+        '200':
+          description: Migration plan.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: The `target_schema` field is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/compatibility/check:
+    post:
+      summary: "[Context-scoped] Check compatibility against multiple subjects"
+      description: >-
+        Context-scoped version of `/compatibility/check`. See the root-level operation
+        for full documentation.
+      operationId: checkCompatibilityMultiContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+                - subjects
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+                subjects:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Compatibility results.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/compatibility/subjects/{subject}/suggest:
+    post:
+      summary: "[Context-scoped] Suggest compatible changes"
+      description: >-
+        Context-scoped version of `/compatibility/subjects/{subject}/suggest`. See the
+        root-level operation for full documentation.
+      operationId: suggestCompatibleChangeContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Compatibility suggestions.
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /contexts/{context}/compatibility/subjects/{subject}/explain:
+    post:
+      summary: "[Context-scoped] Explain compatibility failure"
+      description: >-
+        Context-scoped version of `/compatibility/subjects/{subject}/explain`. See the
+        root-level operation for full documentation.
+      operationId: explainCompatibilityFailureContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subject
+          in: path
+          required: true
+          description: The subject name.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - schema
+              properties:
+                schema:
+                  type: string
+                schemaType:
+                  type: string
+      responses:
+        '200':
+          description: Compatibility explanation.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Invalid request.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/compatibility/compare:
+    post:
+      summary: "[Context-scoped] Compare two subjects"
+      description: >-
+        Context-scoped version of `/compatibility/compare`. See the root-level operation
+        for full documentation.
+      operationId: compareSubjectsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject1
+                - subject2
+              properties:
+                subject1:
+                  type: string
+                subject2:
+                  type: string
+      responses:
+        '200':
+          description: Comparison result.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Both `subject1` and `subject2` fields are REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /contexts/{context}/statistics:
+    get:
+      summary: "[Context-scoped] Get registry statistics"
+      description: >-
+        Context-scoped version of `/statistics`. See the root-level operation for
+        full documentation.
+      operationId: getRegistryStatisticsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: Registry statistics.
+          content:
+            application/json:
+              schema:
+                type: object
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/statistics/fields/{field}:
+    get:
+      summary: "[Context-scoped] Check field consistency"
+      description: >-
+        Context-scoped version of `/statistics/fields/{field}`. See the root-level
+        operation for full documentation.
+      operationId: checkFieldConsistencyContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: field
+          in: path
+          required: true
+          description: The field name.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Field consistency report.
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: The `field` parameter is REQUIRED.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/statistics/patterns:
+    get:
+      summary: "[Context-scoped] Detect schema patterns"
+      description: >-
+        Context-scoped version of `/statistics/patterns`. See the root-level operation
+        for full documentation.
+      operationId: detectSchemaPatternsContext
+      tags:
+        - Analysis
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: Pattern detection results.
+          content:
+            application/json:
+              schema:
+                type: object
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -7216,7 +9978,7 @@ components:
           type: string
           description: >-
             The raw API key secret. This value is shown ONLY once at creation time
-            and cannot be retrieved later.
+            and CANNOT be retrieved later.
           example: "axon_abcdefghijklmnopqrstuvwxyz1234567890"
         key_prefix:
           type: string
@@ -7600,7 +10362,7 @@ components:
             message: "Internal server error"
 
     Unauthorized:
-      description: Authentication is required.
+      description: Authentication is REQUIRED.
       content:
         application/json:
           schema:

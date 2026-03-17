@@ -1,0 +1,33 @@
+# Cassandra database overlay for BDD tests.
+# Adds a Cassandra service and overrides storage config via env vars.
+# Does NOT change the registry command — layer on top of any feature config.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-cassandra.yml up -d --build --wait
+
+services:
+  schema-registry:
+    environment:
+      SCHEMA_REGISTRY_STORAGE_TYPE: cassandra
+      SCHEMA_REGISTRY_CASSANDRA_HOSTS: cassandra
+      SCHEMA_REGISTRY_CASSANDRA_PORT: "9042"
+      SCHEMA_REGISTRY_CASSANDRA_KEYSPACE: schemaregistry
+      SCHEMA_REGISTRY_CASSANDRA_CONSISTENCY: ONE
+    depends_on:
+      cassandra:
+        condition: service_healthy
+
+  cassandra:
+    image: cassandra:5.0
+    environment:
+      CASSANDRA_CLUSTER_NAME: bdd-cluster
+      MAX_HEAP_SIZE: 256M
+      HEAP_NEWSIZE: 128M
+    ports:
+      - "${CASSANDRA_PORT:-19042}:9042"
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e \"CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class':'SimpleStrategy','replication_factor':1}\" && cqlsh -e 'DESCRIBE KEYSPACE schemaregistry'"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 30

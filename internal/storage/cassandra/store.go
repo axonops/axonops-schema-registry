@@ -334,24 +334,21 @@ func (s *Store) reserveIDBlock(ctx context.Context, registryCtx string, blockSiz
 }
 
 // GetMaxSchemaID returns the highest per-context schema ID currently assigned.
-// Uses the id_alloc table (next_id - 1) which is the definitive source of truth
-// for per-context ID allocation.
+// Scans actual schema data to find the true maximum, rather than reading the
+// block allocator's next_id which may be much higher due to pre-allocation.
 func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
-	var nextID int
+	var maxID int
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE registry_ctx = ? AND name = ?`, qident(s.cfg.Keyspace)),
-		registryCtx, "schema_id",
-	).WithContext(ctx).Scan(&nextID)
+		fmt.Sprintf(`SELECT MAX(schema_id) FROM %s.schemas_by_id WHERE registry_ctx = ? ALLOW FILTERING`, qident(s.cfg.Keyspace)),
+		registryCtx,
+	).WithContext(ctx).Scan(&maxID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
-	if nextID <= 1 {
-		return 0, nil
-	}
-	return int64(nextID - 1), nil
+	return int64(maxID), nil
 }
 
 // SetNextID sets the per-context ID sequence to start from the given value.
@@ -808,14 +805,14 @@ func (s *Store) findSchemaInSubject(ctx context.Context, registryCtx string, sub
 
 // GetSchemaByID retrieves a schema by its per-context ID.
 func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
-	var schemaType, schemaText string
+	var schemaType, schemaText, fp string
 	var metadataStr, rulesetStr string
 	var createdUUID gocql.UUID
 
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_type, schema_text, fingerprint, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
 		registryCtx, int(id),
-	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID, &metadataStr, &rulesetStr)
+	).WithContext(ctx).Scan(&schemaType, &schemaText, &fp, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -824,12 +821,13 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 	}
 
 	rec := &storage.SchemaRecord{
-		ID:         id,
-		SchemaType: storage.SchemaType(schemaType),
-		Schema:     schemaText,
-		CreatedAt:  createdUUID.Time(),
-		Metadata:   unmarshalJSONText[storage.Metadata](metadataStr),
-		RuleSet:    unmarshalJSONText[storage.RuleSet](rulesetStr),
+		ID:          id,
+		SchemaType:  storage.SchemaType(schemaType),
+		Schema:      schemaText,
+		Fingerprint: fp,
+		CreatedAt:   createdUUID.Time(),
+		Metadata:    unmarshalJSONText[storage.Metadata](metadataStr),
+		RuleSet:     unmarshalJSONText[storage.RuleSet](rulesetStr),
 	}
 
 	// Load references for this schema within this context
@@ -968,19 +966,20 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 
 	// Batch read all schema content — one query per ID (context-scoped PK)
 	type schemaContent struct {
-		schemaType string
-		schemaText string
-		createdAt  gocql.UUID
-		metaStr    string
-		ruleStr    string
+		schemaType  string
+		schemaText  string
+		fingerprint string
+		createdAt   gocql.UUID
+		metaStr     string
+		ruleStr     string
 	}
 	schemaMap := make(map[int]*schemaContent)
 	for id := range idSet {
 		var sc schemaContent
 		err := s.readQuery(
-			fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+			fmt.Sprintf(`SELECT schema_type, schema_text, fingerprint, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
 			registryCtx, id,
-		).WithContext(ctx).Scan(&sc.schemaType, &sc.schemaText, &sc.createdAt, &sc.metaStr, &sc.ruleStr)
+		).WithContext(ctx).Scan(&sc.schemaType, &sc.schemaText, &sc.fingerprint, &sc.createdAt, &sc.metaStr, &sc.ruleStr)
 		if err == nil {
 			cp := sc
 			schemaMap[id] = &cp
@@ -1014,16 +1013,17 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 			continue
 		}
 		rec := &storage.SchemaRecord{
-			ID:         int64(e.schemaID),
-			Subject:    subject,
-			Version:    e.version,
-			SchemaType: storage.SchemaType(sc.schemaType),
-			Schema:     sc.schemaText,
-			Deleted:    e.deleted,
-			CreatedAt:  e.createdAt.Time(),
-			References: refMap[e.schemaID],
-			Metadata:   unmarshalJSONText[storage.Metadata](sc.metaStr),
-			RuleSet:    unmarshalJSONText[storage.RuleSet](sc.ruleStr),
+			ID:          int64(e.schemaID),
+			Subject:     subject,
+			Version:     e.version,
+			SchemaType:  storage.SchemaType(sc.schemaType),
+			Schema:      sc.schemaText,
+			Fingerprint: sc.fingerprint,
+			Deleted:     e.deleted,
+			CreatedAt:   e.createdAt.Time(),
+			References:  refMap[e.schemaID],
+			Metadata:    unmarshalJSONText[storage.Metadata](sc.metaStr),
+			RuleSet:     unmarshalJSONText[storage.RuleSet](sc.ruleStr),
 		}
 		// Overlay per-version metadata/ruleset
 		if m := unmarshalJSONText[storage.Metadata](e.metadataStr); m != nil {

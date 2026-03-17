@@ -716,8 +716,9 @@ func TestServer_ImportSchemas_DuplicateID(t *testing.T) {
 	w = httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	// Total failure (0 imported, 1 error) returns 422
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("Expected status 422, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp types.ImportSchemasResponse
@@ -761,8 +762,9 @@ func TestServer_ImportSchemas_InvalidSchema(t *testing.T) {
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	// Total failure (0 imported, 1 error) returns 422
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("Expected status 422, got %d: %s", w.Code, w.Body.String())
 	}
 
 	var resp types.ImportSchemasResponse

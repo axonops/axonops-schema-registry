@@ -506,6 +506,34 @@ func (r *Registry) ListSubjects(ctx context.Context, registryCtx string, deleted
 	return r.storage.ListSubjects(ctx, registryCtx, deleted)
 }
 
+// SubjectCount returns the number of active (non-deleted) subjects in the default context.
+// Satisfies metrics.GaugeSource.
+func (r *Registry) SubjectCount() (int, error) {
+	subjects, err := r.storage.ListSubjects(context.Background(), registrycontext.DefaultContext, false)
+	if err != nil {
+		return 0, err
+	}
+	return len(subjects), nil
+}
+
+// SchemaCountsByType returns schema counts keyed by type (e.g. "AVRO", "JSON", "PROTOBUF").
+// Satisfies metrics.GaugeSource.
+func (r *Registry) SchemaCountsByType() (map[string]int, error) {
+	schemas, err := r.storage.ListSchemas(context.Background(), registrycontext.DefaultContext, &storage.ListSchemasParams{})
+	if err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	for _, s := range schemas {
+		st := string(s.SchemaType)
+		if st == "" {
+			st = "AVRO"
+		}
+		counts[st]++
+	}
+	return counts, nil
+}
+
 // GetVersions returns all versions for a subject within a context.
 func (r *Registry) GetVersions(ctx context.Context, registryCtx string, subject string, deleted bool) ([]int, error) {
 	schemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, deleted)
@@ -685,8 +713,12 @@ func (r *Registry) GetConfig(ctx context.Context, registryCtx string, subject st
 }
 
 // GetSubjectConfig gets the compatibility configuration for a specific subject only,
-// without falling back to the global default. Returns storage.ErrNotFound if not set.
+// without falling back to the global default. Returns storage.ErrNotFound if not set
+// or if subject is empty.
 func (r *Registry) GetSubjectConfig(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return "", storage.ErrNotFound
+	}
 	config, err := r.storage.GetConfig(ctx, registryCtx, subject)
 	if err != nil {
 		return "", err
@@ -698,6 +730,17 @@ func (r *Registry) GetSubjectConfig(ctx context.Context, registryCtx string, sub
 // without falling back to global. Returns storage.ErrNotFound if not set.
 func (r *Registry) GetSubjectConfigFull(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	return r.storage.GetConfig(ctx, registryCtx, subject)
+}
+
+// GetGlobalConfig gets the context-level global config without fallback to
+// the __GLOBAL context or to the compile-time default. Returns ("", ErrNotFound)
+// if no global config has been explicitly set for this context.
+func (r *Registry) GetGlobalConfig(ctx context.Context, registryCtx string) (string, error) {
+	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
+	if err != nil {
+		return "", err
+	}
+	return config.CompatibilityLevel, nil
 }
 
 // GetConfigFull gets the full configuration record using the 4-tier fallback chain.
@@ -818,6 +861,31 @@ func (r *Registry) DeleteConfig(ctx context.Context, registryCtx string, subject
 	return config.CompatibilityLevel, nil
 }
 
+// GetSubjectMode gets the mode for a specific subject without falling back to
+// the global default. Returns ("", ErrNotFound) if no subject-specific mode has
+// been set. Used by the audit system for before_hash on mode change events.
+func (r *Registry) GetSubjectMode(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return "", storage.ErrNotFound
+	}
+	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
+	if err != nil {
+		return "", err
+	}
+	return mode.Mode, nil
+}
+
+// GetGlobalMode gets the context-level global mode without fallback to the
+// __GLOBAL context or compile-time default. Returns ("", ErrNotFound) if no
+// global mode has been explicitly set for this context.
+func (r *Registry) GetGlobalMode(ctx context.Context, registryCtx string) (string, error) {
+	mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
+	if err != nil {
+		return "", err
+	}
+	return mode.Mode, nil
+}
+
 // GetMode gets the mode for a subject within a context using the 4-tier fallback chain.
 // Also implements the Confluent READONLY_OVERRIDE kill switch: if the default context's
 // resolved global mode is READONLY_OVERRIDE, it overrides all per-subject/per-context modes.
@@ -889,16 +957,6 @@ func (r *Registry) GetGlobalModeDirect(ctx context.Context, registryCtx string) 
 		return "READWRITE", nil
 	}
 	return "", fmt.Errorf("failed to get global mode: %w", err)
-}
-
-// GetSubjectMode gets the mode for a specific subject only,
-// without falling back to the global default. Returns storage.ErrNotFound if not set.
-func (r *Registry) GetSubjectMode(ctx context.Context, registryCtx string, subject string) (string, error) {
-	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
-	if err != nil {
-		return "", err
-	}
-	return mode.Mode, nil
 }
 
 // SetMode sets the mode for a subject within a context.
@@ -980,6 +1038,72 @@ func (r *Registry) hasSubjects(ctx context.Context, registryCtx string, subject 
 // GetReferencedBy gets subjects/versions that reference a schema within a context.
 func (r *Registry) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
 	return r.storage.GetReferencedBy(ctx, registryCtx, subject, version)
+}
+
+// ValidateResult holds the result of a schema validation.
+type ValidateResult struct {
+	Valid       bool   `json:"valid"`
+	SchemaType  string `json:"schema_type"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+	Canonical   string `json:"canonical,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+// ValidateSchema parses a schema and returns whether it is valid.
+func (r *Registry) ValidateSchema(ctx context.Context, registryCtx string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference) (*ValidateResult, error) {
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: "unsupported schema type"}, nil
+	}
+	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
+	if err != nil {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: fmt.Sprintf("failed to resolve references: %v", err)}, nil
+	}
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
+	if err != nil {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: err.Error()}, nil
+	}
+	return &ValidateResult{
+		Valid:       true,
+		SchemaType:  string(schemaType),
+		Fingerprint: parsed.Fingerprint(),
+		Canonical:   parsed.CanonicalString(),
+	}, nil
+}
+
+// NormalizeResult holds the result of a schema normalization.
+type NormalizeResult struct {
+	Normalized  string `json:"normalized"`
+	Fingerprint string `json:"fingerprint"`
+	SchemaType  string `json:"schema_type"`
+}
+
+// NormalizeSchema parses and normalizes a schema, returning the canonical form.
+func (r *Registry) NormalizeSchema(ctx context.Context, registryCtx string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference) (*NormalizeResult, error) {
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
+	}
+	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
+	}
+	normalized := parsed.Normalize()
+	return &NormalizeResult{
+		Normalized:  normalized.CanonicalString(),
+		Fingerprint: normalized.Fingerprint(),
+		SchemaType:  string(schemaType),
+	}, nil
 }
 
 // GetSchemaTypes returns the supported schema types.

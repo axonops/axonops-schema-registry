@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -50,6 +51,9 @@ type Service struct {
 
 	// cacheRefreshDone signals that the background refresh goroutine has stopped.
 	cacheRefreshDone chan struct{}
+
+	// metrics is the optional Prometheus metrics instance for recording cache metrics.
+	metrics *metrics.Metrics
 }
 
 // ServiceConfig contains configuration for the auth service.
@@ -123,6 +127,11 @@ func NewServiceWithConfig(store storage.AuthStorage, cfg ServiceConfig) *Service
 	return s
 }
 
+// SetMetrics sets the Prometheus metrics instance for recording cache metrics.
+func (s *Service) SetMetrics(m *metrics.Metrics) {
+	s.metrics = m
+}
+
 // Close stops the background cache refresh goroutine.
 // Should be called when shutting down the server.
 func (s *Service) Close() {
@@ -154,9 +163,19 @@ func (s *Service) runCacheRefresh() {
 }
 
 // refreshAPIKeyCache loads all API keys from the database into the cache.
+// The stop channel context ensures cache refresh is canceled on shutdown.
 func (s *Service) refreshAPIKeyCache() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-s.stopCacheRefresh:
+			bgCancel()
+		case <-bgCtx.Done():
+		}
+	}()
+	ctx, cancel := context.WithTimeout(bgCtx, 30*time.Second)
 	defer cancel()
+	defer bgCancel()
 
 	keys, err := s.storage.ListAPIKeys(ctx)
 	if err != nil {
@@ -182,6 +201,10 @@ func (s *Service) refreshAPIKeyCache() {
 	// Add/update all keys from database
 	for hash, key := range newKeys {
 		s.apiKeyCache.Store(hash, key)
+	}
+
+	if s.metrics != nil {
+		s.metrics.UpdateCacheSize("api_key", float64(len(newKeys)))
 	}
 }
 
@@ -397,6 +420,9 @@ func (s *Service) ValidateCredentials(ctx context.Context, username, password st
 		if time.Since(entry.verifiedAt) < s.userCacheTTL {
 			// Verify user is still enabled (could have been disabled)
 			if entry.user.Enabled {
+				if s.metrics != nil {
+					s.metrics.RecordCacheAccess("user_credentials", true)
+				}
 				return entry.user, nil
 			}
 			// User disabled, remove from cache
@@ -407,6 +433,9 @@ func (s *Service) ValidateCredentials(ctx context.Context, username, password st
 		s.userCredCache.Delete(cacheKey)
 	}
 
+	if s.metrics != nil {
+		s.metrics.RecordCacheAccess("user_credentials", false)
+	}
 	// Cache miss or expired - validate against database
 	user, err := s.storage.GetUserByUsername(ctx, username)
 	if err != nil {
@@ -526,11 +555,17 @@ func (s *Service) ValidateAPIKey(ctx context.Context, rawKey string) (*storage.A
 	if s.cacheRefreshInterval > 0 {
 		if cached, ok := s.apiKeyCache.Load(keyHashStr); ok {
 			record = cached.(*storage.APIKeyRecord)
+			if s.metrics != nil {
+				s.metrics.RecordCacheAccess("api_key", true)
+			}
 		}
 	}
 
 	// Cache miss or caching disabled - fall back to database
 	if record == nil {
+		if s.metrics != nil && s.cacheRefreshInterval > 0 {
+			s.metrics.RecordCacheAccess("api_key", false)
+		}
 		var err error
 		record, err = s.storage.GetAPIKeyByHash(ctx, keyHashStr)
 		if err != nil {
@@ -552,11 +587,11 @@ func (s *Service) ValidateAPIKey(ctx context.Context, rawKey string) (*storage.A
 		return nil, storage.ErrAPIKeyExpired
 	}
 
-	// Update last used time (non-blocking)
-	go func() {
-		bgCtx := context.Background()
-		_ = s.storage.UpdateAPIKeyLastUsed(bgCtx, record.ID)
-	}()
+	// Update last used time (non-blocking). Use WithoutCancel so the update
+	// completes even after the HTTP request context is canceled.
+	go func(ctx context.Context) {
+		_ = s.storage.UpdateAPIKeyLastUsed(ctx, record.ID)
+	}(context.WithoutCancel(ctx))
 
 	return record, nil
 }

@@ -19,6 +19,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"foo"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-back-add-def                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-back-add-def/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Backward — adding field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -32,6 +60,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | failure                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-back-add-nodef                         |
+      | schema_id            |                                                |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           |                                                |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-back-add-nodef/versions      |
+      | status_code          | 409                                            |
+      | reason               | incompatible                                   |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Backward — removing field is compatible (old reader ignores extra)
     Given the global compatibility level is "NONE"
@@ -45,6 +101,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                             |
+      | outcome              | success                                     |
+      | actor_id             |                                             |
+      | actor_type           | anonymous                                   |
+      | auth_method          |                                             |
+      | role                 |                                             |
+      | target_type          | subject                                     |
+      | target_id            | avro-ex-back-remove                         |
+      | schema_id            | *                                           |
+      | version              | *                                           |
+      | schema_type          | AVRO                                        |
+      | before_hash          |                                             |
+      | after_hash           | sha256:*                                    |
+      | context              | .                                           |
+      | transport_security   | tls                                         |
+      | source_ip            | *                                           |
+      | user_agent           | *                                           |
+      | method               | POST                                        |
+      | path                 | /subjects/avro-ex-back-remove/versions      |
+      | status_code          | 200                                         |
+      | reason               |                                             |
+      | error                |                                             |
+      | request_body         |                                             |
+      | metadata             |                                             |
+      | timestamp            | *                                           |
+      | duration_ms          | *                                           |
+      | request_id           | *                                           |
 
   Scenario: Backward — changing field name with alias is compatible
     Given the global compatibility level is "NONE"
@@ -58,6 +142,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1_new","type":"string","aliases":["f1"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | avro-ex-back-alias                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/avro-ex-back-alias/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Backward — evolving field type to union is compatible
     Given the global compatibility level is "NONE"
@@ -71,6 +183,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":["null","string"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-back-to-union                         |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-back-to-union/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Backward — removing type from union is incompatible
     Given the global compatibility level is "NONE"
@@ -84,6 +224,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                   |
+      | outcome              | failure                                           |
+      | actor_id             |                                                   |
+      | actor_type           | anonymous                                         |
+      | auth_method          |                                                   |
+      | role                 |                                                   |
+      | target_type          | subject                                           |
+      | target_id            | avro-ex-back-narrow-union                         |
+      | schema_id            |                                                   |
+      | version              | *                                                 |
+      | schema_type          | AVRO                                              |
+      | before_hash          |                                                   |
+      | after_hash           |                                                   |
+      | context              | .                                                 |
+      | transport_security   | tls                                               |
+      | source_ip            | *                                                 |
+      | user_agent           | *                                                 |
+      | method               | POST                                              |
+      | path                 | /subjects/avro-ex-back-narrow-union/versions      |
+      | status_code          | 409                                               |
+      | reason               | incompatible                                      |
+      | error                |                                                   |
+      | request_body         |                                                   |
+      | metadata             |                                                   |
+      | timestamp            | *                                                 |
+      | duration_ms          | *                                                 |
+      | request_id           | *                                                 |
 
   Scenario: Backward — adding type to union is compatible
     Given the global compatibility level is "NONE"
@@ -97,6 +265,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-ex-back-widen-union                         |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-ex-back-widen-union/versions      |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   Scenario: Backward — int to long promotion is compatible
     Given the global compatibility level is "NONE"
@@ -110,6 +306,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-back-int-long                         |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-back-int-long/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Backward — int to float promotion is compatible
     Given the global compatibility level is "NONE"
@@ -123,6 +347,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-back-int-float                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-back-int-float/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Backward — int to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -136,6 +388,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-ex-back-int-double                         |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-ex-back-int-double/versions      |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   Scenario: Backward — long to float promotion is compatible
     Given the global compatibility level is "NONE"
@@ -149,6 +429,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-ex-back-long-float                         |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-ex-back-long-float/versions      |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   Scenario: Backward — long to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -162,6 +470,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-ex-back-long-double                         |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-ex-back-long-double/versions      |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   Scenario: Backward — float to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -175,6 +511,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                   |
+      | outcome              | success                                           |
+      | actor_id             |                                                   |
+      | actor_type           | anonymous                                         |
+      | auth_method          |                                                   |
+      | role                 |                                                   |
+      | target_type          | subject                                           |
+      | target_id            | avro-ex-back-float-double                         |
+      | schema_id            | *                                                 |
+      | version              | *                                                 |
+      | schema_type          | AVRO                                              |
+      | before_hash          |                                                   |
+      | after_hash           | sha256:*                                          |
+      | context              | .                                                 |
+      | transport_security   | tls                                               |
+      | source_ip            | *                                                 |
+      | user_agent           | *                                                 |
+      | method               | POST                                              |
+      | path                 | /subjects/avro-ex-back-float-double/versions      |
+      | status_code          | 200                                               |
+      | reason               |                                                   |
+      | error                |                                                   |
+      | request_body         |                                                   |
+      | metadata             |                                                   |
+      | timestamp            | *                                                 |
+      | duration_ms          | *                                                 |
+      | request_id           | *                                                 |
 
   Scenario: Backward — string to bytes promotion is compatible
     Given the global compatibility level is "NONE"
@@ -188,6 +552,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-back-str-bytes                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-back-str-bytes/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Backward — bytes to string promotion is compatible
     Given the global compatibility level is "NONE"
@@ -201,6 +593,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-back-bytes-str                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-back-bytes-str/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Backward — changing field type incompatibly is rejected
     Given the global compatibility level is "NONE"
@@ -214,6 +634,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                   |
+      | outcome              | failure                                           |
+      | actor_id             |                                                   |
+      | actor_type           | anonymous                                         |
+      | auth_method          |                                                   |
+      | role                 |                                                   |
+      | target_type          | subject                                           |
+      | target_id            | avro-ex-back-type-change                          |
+      | schema_id            |                                                   |
+      | version              | *                                                 |
+      | schema_type          | AVRO                                              |
+      | before_hash          |                                                   |
+      | after_hash           |                                                   |
+      | context              | .                                                 |
+      | transport_security   | tls                                               |
+      | source_ip            | *                                                 |
+      | user_agent           | *                                                 |
+      | method               | POST                                              |
+      | path                 | /subjects/avro-ex-back-type-change/versions       |
+      | status_code          | 409                                               |
+      | reason               | incompatible                                      |
+      | error                |                                                   |
+      | request_body         |                                                   |
+      | metadata             |                                                   |
+      | timestamp            | *                                                 |
+      | duration_ms          | *                                                 |
+      | request_id           | *                                                 |
 
   Scenario: Backward — changing record name is incompatible
     Given the global compatibility level is "NONE"
@@ -227,6 +675,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Renamed","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | failure                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-back-rename                          |
+      | schema_id            |                                              |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-back-rename/versions       |
+      | status_code          | 409                                          |
+      | reason               | incompatible                                 |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Backward — adding enum symbol is compatible
     Given the global compatibility level is "NONE"
@@ -240,6 +716,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B","C"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-back-enum-add                          |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-back-enum-add/versions       |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Backward — removing enum symbol is incompatible
     Given the global compatibility level is "NONE"
@@ -253,6 +757,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B"]}}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                   |
+      | outcome              | failure                                           |
+      | actor_id             |                                                   |
+      | actor_type           | anonymous                                         |
+      | auth_method          |                                                   |
+      | role                 |                                                   |
+      | target_type          | subject                                           |
+      | target_id            | avro-ex-back-enum-remove                          |
+      | schema_id            |                                                   |
+      | version              | *                                                 |
+      | schema_type          | AVRO                                              |
+      | before_hash          |                                                   |
+      | after_hash           |                                                   |
+      | context              | .                                                 |
+      | transport_security   | tls                                               |
+      | source_ip            | *                                                 |
+      | user_agent           | *                                                 |
+      | method               | POST                                              |
+      | path                 | /subjects/avro-ex-back-enum-remove/versions       |
+      | status_code          | 409                                               |
+      | reason               | incompatible                                      |
+      | error                |                                                   |
+      | request_body         |                                                   |
+      | metadata             |                                                   |
+      | timestamp            | *                                                 |
+      | duration_ms          | *                                                 |
+      | request_id           | *                                                 |
 
   # ==========================================================================
   # FORWARD COMPATIBILITY (Section 23)
@@ -270,6 +802,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                             |
+      | outcome              | success                                     |
+      | actor_id             |                                             |
+      | actor_type           | anonymous                                   |
+      | auth_method          |                                             |
+      | role                 |                                             |
+      | target_type          | subject                                     |
+      | target_id            | avro-ex-fwd-add-def                         |
+      | schema_id            | *                                           |
+      | version              | *                                           |
+      | schema_type          | AVRO                                        |
+      | before_hash          |                                             |
+      | after_hash           | sha256:*                                    |
+      | context              | .                                           |
+      | transport_security   | tls                                         |
+      | source_ip            | *                                           |
+      | user_agent           | *                                           |
+      | method               | POST                                        |
+      | path                 | /subjects/avro-ex-fwd-add-def/versions      |
+      | status_code          | 200                                         |
+      | reason               |                                             |
+      | error                |                                             |
+      | request_body         |                                             |
+      | metadata             |                                             |
+      | timestamp            | *                                           |
+      | duration_ms          | *                                           |
+      | request_id           | *                                           |
 
   Scenario: Forward — adding field without default is compatible
     Given the global compatibility level is "NONE"
@@ -283,6 +843,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-fwd-add-nodef                         |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-fwd-add-nodef/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Forward — removing field with default is compatible
     Given the global compatibility level is "NONE"
@@ -296,6 +884,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-ex-fwd-remove-def                          |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-ex-fwd-remove-def/versions       |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   Scenario: Forward — removing field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -309,6 +925,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | failure                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | avro-ex-fwd-remove-nodef                           |
+      | schema_id            |                                                    |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           |                                                    |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/avro-ex-fwd-remove-nodef/versions        |
+      | status_code          | 409                                                |
+      | reason               | incompatible                                       |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   Scenario: Forward — int to long is incompatible (old reader can't read long)
     Given the global compatibility level is "NONE"
@@ -322,6 +966,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | failure                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-fwd-int-long                          |
+      | schema_id            |                                               |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           |                                               |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-fwd-int-long/versions       |
+      | status_code          | 409                                           |
+      | reason               | incompatible                                  |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Forward — long to int is compatible (old reader promotes int to long)
     Given the global compatibility level is "NONE"
@@ -335,6 +1007,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-fwd-long-int                          |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-fwd-long-int/versions       |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # FULL COMPATIBILITY (Section 24)
@@ -352,6 +1052,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-full-add-def                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-full-add-def/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Full — adding field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -365,6 +1093,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | failure                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-full-add-nodef                         |
+      | schema_id            |                                                |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           |                                                |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-full-add-nodef/versions      |
+      | status_code          | 409                                            |
+      | reason               | incompatible                                   |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Full — removing field with default is compatible
     Given the global compatibility level is "NONE"
@@ -378,6 +1134,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                 |
+      | outcome              | success                                         |
+      | actor_id             |                                                 |
+      | actor_type           | anonymous                                       |
+      | auth_method          |                                                 |
+      | role                 |                                                 |
+      | target_type          | subject                                         |
+      | target_id            | avro-ex-full-remove-def                         |
+      | schema_id            | *                                               |
+      | version              | *                                               |
+      | schema_type          | AVRO                                            |
+      | before_hash          |                                                 |
+      | after_hash           | sha256:*                                        |
+      | context              | .                                               |
+      | transport_security   | tls                                             |
+      | source_ip            | *                                               |
+      | user_agent           | *                                               |
+      | method               | POST                                            |
+      | path                 | /subjects/avro-ex-full-remove-def/versions      |
+      | status_code          | 200                                             |
+      | reason               |                                                 |
+      | error                |                                                 |
+      | request_body         |                                                 |
+      | metadata             |                                                 |
+      | timestamp            | *                                               |
+      | duration_ms          | *                                               |
+      | request_id           | *                                               |
 
   Scenario: Full — removing field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -391,6 +1175,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | failure                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | avro-ex-full-remove-nodef                          |
+      | schema_id            |                                                    |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           |                                                    |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/avro-ex-full-remove-nodef/versions       |
+      | status_code          | 409                                                |
+      | reason               | incompatible                                       |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   Scenario: Full — string/bytes bidirectional promotion is compatible
     Given the global compatibility level is "NONE"
@@ -404,6 +1216,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-ex-full-str-bytes                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-ex-full-str-bytes/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: Full — int to long is incompatible (only forward-compatible)
     Given the global compatibility level is "NONE"
@@ -417,6 +1257,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | failure                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-full-int-long                         |
+      | schema_id            |                                               |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           |                                               |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-full-int-long/versions      |
+      | status_code          | 409                                           |
+      | reason               | incompatible                                  |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # TRANSITIVE COMPATIBILITY (Section 25)
@@ -438,6 +1306,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"a"},{"name":"f3","type":"string","default":"b"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | avro-ex-bt-add                          |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/avro-ex-bt-add/versions       |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: BACKWARD_TRANSITIVE — removing default transitively is incompatible
     Given the global compatibility level is "NONE"
@@ -455,6 +1351,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | failure                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | avro-ex-bt-nodef                          |
+      | schema_id            |                                           |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/avro-ex-bt-nodef/versions       |
+      | status_code          | 409                                       |
+      | reason               | incompatible                              |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: FORWARD_TRANSITIVE — progressive field removal is compatible
     Given the global compatibility level is "NONE"
@@ -472,6 +1396,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | avro-ex-ft-remove                          |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/avro-ex-ft-remove/versions       |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: FORWARD_TRANSITIVE — adding field without default is compatible (old readers ignore new fields)
     Given the global compatibility level is "NONE"
@@ -489,6 +1441,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f3","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-ft-add-nodef                          |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-ft-add-nodef/versions       |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: FULL_TRANSITIVE — safe evolution with defaults is compatible
     Given the global compatibility level is "NONE"
@@ -506,6 +1486,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"a"},{"name":"f3","type":"string","default":"b"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                             |
+      | outcome              | success                                     |
+      | actor_id             |                                             |
+      | actor_type           | anonymous                                   |
+      | auth_method          |                                             |
+      | role                 |                                             |
+      | target_type          | subject                                     |
+      | target_id            | avro-ex-fullt-safe                          |
+      | schema_id            | *                                           |
+      | version              | *                                           |
+      | schema_type          | AVRO                                        |
+      | before_hash          |                                             |
+      | after_hash           | sha256:*                                    |
+      | context              | .                                           |
+      | transport_security   | tls                                         |
+      | source_ip            | *                                           |
+      | user_agent           | *                                           |
+      | method               | POST                                        |
+      | path                 | /subjects/avro-ex-fullt-safe/versions       |
+      | status_code          | 200                                         |
+      | reason               |                                             |
+      | error                |                                             |
+      | request_body         |                                             |
+      | metadata             |                                             |
+      | timestamp            | *                                           |
+      | duration_ms          | *                                           |
+      | request_id           | *                                           |
 
   Scenario: FULL_TRANSITIVE — field without default transitively is incompatible
     Given the global compatibility level is "NONE"
@@ -523,6 +1531,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | failure                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-fullt-nodef                          |
+      | schema_id            |                                              |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-fullt-nodef/versions       |
+      | status_code          | 409                                          |
+      | reason               | incompatible                                 |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # COMPATIBILITY CHECK ENDPOINT (REST API)
@@ -604,6 +1640,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"a","type":"string"},{"name":"b","type":"string","default":"x"}]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-nested-add                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-nested-add/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Backward — nested record type change is incompatible
     Given the global compatibility level is "NONE"
@@ -617,6 +1681,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"a","type":"int"}]}}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | failure                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-ex-nested-type                           |
+      | schema_id            |                                               |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           |                                               |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-ex-nested-type/versions        |
+      | status_code          | 409                                           |
+      | reason               | incompatible                                  |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # MAP AND ARRAY COMPATIBILITY
@@ -634,6 +1726,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"m","type":{"type":"map","values":"int"}}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | failure                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | avro-ex-map-type                           |
+      | schema_id            |                                            |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           |                                            |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/avro-ex-map-type/versions        |
+      | status_code          | 409                                        |
+      | reason               | incompatible                               |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Backward — array item type change is incompatible
     Given the global compatibility level is "NONE"
@@ -647,6 +1767,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"a","type":{"type":"array","items":"int"}}]}
       """
     Then the response status should be 409
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | failure                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-array-type                           |
+      | schema_id            |                                              |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-array-type/versions        |
+      | status_code          | 409                                          |
+      | reason               | incompatible                                 |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Backward — map value promotion (int to long) is compatible
     Given the global compatibility level is "NONE"
@@ -660,6 +1808,34 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"m","type":{"type":"map","values":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | avro-ex-map-promo                          |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/avro-ex-map-promo/versions       |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Backward — array item promotion (int to long) is compatible
     Given the global compatibility level is "NONE"
@@ -673,3 +1849,31 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"a","type":{"type":"array","items":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-ex-array-promo                          |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-ex-array-promo/versions       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

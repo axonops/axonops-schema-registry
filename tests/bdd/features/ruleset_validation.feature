@@ -37,6 +37,34 @@ Feature: RuleSet Validation
     And the response should have field "ruleSet"
     And the response body should contain "validateEmail"
     And the response body should contain "CONDITION"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | valid-ruleset                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/valid-ruleset/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Valid migration rule with UPGRADE mode succeeds
     When I POST "/subjects/migration-upgrade/versions" with body:
@@ -63,6 +91,34 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response body should contain "migrationRules"
     And the response body should contain "UPGRADE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | migration-upgrade                     |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/migration-upgrade/versions  |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Valid onSuccess and onFailure actions succeed
     When I POST "/subjects/on-actions/versions" with body:
@@ -90,6 +146,34 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response body should contain "DLQ"
     And the response body should contain "ERROR"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | on-actions                            |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/on-actions/versions         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Empty ruleSet (no rules) succeeds
     When I POST "/subjects/empty-ruleset/versions" with body:
@@ -104,6 +188,34 @@ Feature: RuleSet Validation
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | empty-ruleset                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/empty-ruleset/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Multiple valid rules in domainRules succeeds
     When I POST "/subjects/multi-rules/versions" with body:
@@ -144,6 +256,34 @@ Feature: RuleSet Validation
     And the response body should contain "rule1"
     And the response body should contain "rule2"
     And the response body should contain "rule3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | multi-rules                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/multi-rules/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Valid ruleSet in config PUT /config succeeds
     When I PUT "/config" with body:
@@ -168,6 +308,34 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response should have field "defaultRuleSet"
     And the response body should contain "globalRule"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | _global                               |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config                               |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Valid ruleSet in config PUT /config/{subject} succeeds
     When I PUT "/config/subject-rules" with body:
@@ -192,6 +360,34 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response should have field "overrideRuleSet"
     And the response body should contain "subjectRule"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | subject-rules                         |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/subject-rules                 |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # INVALID RULESETS — MISSING FIELDS
@@ -356,6 +552,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | domain-write                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/domain-write/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Domain rule mode READ succeeds
     When I POST "/subjects/domain-read/versions" with body:
@@ -377,6 +601,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | domain-read                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/domain-read/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Domain rule mode WRITEREAD succeeds
     When I POST "/subjects/domain-writeread/versions" with body:
@@ -398,6 +650,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | domain-writeread                      |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/domain-writeread/versions   |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # INVALID RULESETS — INVALID MODE FOR MIGRATION RULES
@@ -467,6 +747,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | mig-upgrade                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/mig-upgrade/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Migration rule mode DOWNGRADE succeeds
     When I POST "/subjects/mig-downgrade/versions" with body:
@@ -488,6 +796,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | mig-downgrade                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/mig-downgrade/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Migration rule mode UPDOWN succeeds
     When I POST "/subjects/mig-updown/versions" with body:
@@ -509,6 +845,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | mig-updown                            |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/mig-updown/versions         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # INVALID RULESETS — INVALID ON_SUCCESS / ON_FAILURE ACTIONS
@@ -600,6 +964,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | all-actions                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/all-actions/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # INVALID RULESETS — CONFIG OPERATIONS
@@ -666,6 +1058,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | mig-condition-rules                   |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/mig-condition-rules           |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Invalid rule kind in migration rules of config returns 422
     When I PUT "/config/bad-mig-rules" with body:
@@ -712,6 +1132,34 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | encoding-write                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/encoding-write/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Encoding rule mode must be WRITE, READ, or WRITEREAD
     When I POST "/subjects/encoding-invalid/versions" with body:

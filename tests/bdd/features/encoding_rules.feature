@@ -47,6 +47,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "PII"
     And the response body should contain "ssn-key"
     And the response body should contain "message.ssn"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-basic                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-basic/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # ALL THREE RULE TYPES TOGETHER
@@ -106,6 +134,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "encodingRules"
     And the response body should contain "compressPayload"
     And the response body should contain "COMPRESS"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-all-three                   |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-all-three/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # CONFIG WITH defaultRuleSet INCLUDING ENCODING RULES
@@ -139,6 +195,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "ENCRYPT"
     And the response body should contain "SENSITIVE"
     And the response body should contain "default-key"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | enc-rules-default-cfg                 |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/enc-rules-default-cfg         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # CONFIG WITH overrideRuleSet INCLUDING ENCODING RULES
@@ -170,6 +254,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "overrideCompress"
     And the response body should contain "COMPRESS"
     And the response body should contain "gzip"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | enc-rules-override-cfg                |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/enc-rules-override-cfg        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # SCHEMA WITHOUT RULES — ruleSet OMITTED
@@ -189,6 +301,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should not contain "encodingRules"
     And the response body should not contain "migrationRules"
     And the response body should not contain "domainRules"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-no-rules                    |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-no-rules/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # ENCODING RULES WITH ALL RULE FIELDS
@@ -241,6 +381,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "message.ssn"
     And the response body should contain "NONE"
     And the response body should contain "ERROR"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-all-fields                  |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-all-fields/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # MULTIPLE ENCODING RULES IN A SINGLE RULESET
@@ -297,6 +465,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "ssn-key"
     And the response body should contain "cc-key"
     And the response body should contain "COMPRESS"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-multiple                    |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-multiple/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # ENCODING RULES RETRIEVED VIA SCHEMA ID ENDPOINT
@@ -328,6 +524,34 @@ Feature: EncodingRules Support in RuleSet
     When I GET "/schemas/ids/{{enc_schema_id}}"
     Then the response status should be 200
     And the response should have field "schema"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-by-id                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-by-id/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # ENCODING RULES WITH DISABLED FLAG
@@ -361,6 +585,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "encodingRules"
     And the response body should contain "disabledEncrypt"
     And the response body should contain "disabled"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-disabled                    |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-disabled/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # CONFIG defaultRuleSet WITH ALL THREE RULE TYPES
@@ -415,6 +667,34 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "cfgEncodingEncrypt"
     And the response body should contain "CONFIDENTIAL"
     And the response body should contain "cfg-key"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | enc-rules-cfg-all-three               |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/enc-rules-cfg-all-three       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # ENCODING RULES PRESERVED ACROSS SCHEMA VERSIONS
@@ -478,3 +758,31 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "v2Compress"
     And the response body should contain "COMPRESS"
     And the response body should not contain "v1Encrypt"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | enc-rules-versioned                   |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/enc-rules-versioned/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |

@@ -38,6 +38,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "analytics"
     And the response body should contain "PII"
     And the response body should contain "SENSITIVE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-test                             |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-test/versions          |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   @data-contracts
   Scenario: Register schema with ruleSet — stored and returned
@@ -67,6 +95,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "checkEmail"
     And the response body should contain "CONDITION"
     And the response body should contain "WRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | ruleset-test                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/ruleset-test/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   @data-contracts
   Scenario: Register schema with both metadata and ruleSet
@@ -99,6 +155,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "ruleSet"
     And the response body should contain "restricted"
     And the response body should contain "maskSSN"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | both-meta-rules                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/both-meta-rules/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # METADATA DOES NOT AFFECT SCHEMA IDENTITY
@@ -126,6 +210,34 @@ Feature: Metadata and RuleSets (Data Contracts)
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-identity                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-identity/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # SCHEMA BY ID INCLUDES METADATA
@@ -146,6 +258,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/schemas/ids/{{schema_id}}"
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-byid                             |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-byid/versions          |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # LOOKUP SCHEMA INCLUDES METADATA
@@ -183,6 +323,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "subject"
     And the response field "subject" should be "meta-lookup"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-lookup                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-lookup                 |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # CONFIG WITH METADATA AND RULESETS
@@ -204,6 +372,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response field "compatibilityLevel" should be "BACKWARD"
     And the response should have field "defaultMetadata"
     And the response body should contain "platform"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | meta-cfg-subject                      |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/meta-cfg-subject              |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Set config with overrideMetadata
     When I PUT "/config/meta-override-subject" with body:
@@ -221,6 +417,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response field "compatibilityLevel" should be "FULL"
     And the response should have field "overrideMetadata"
     And the response body should contain "internal"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | meta-override-subject                 |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/meta-override-subject         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   @data-contracts
   Scenario: Set config with defaultRuleSet
@@ -246,6 +470,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "defaultRuleSet"
     And the response body should contain "defaultValidation"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | rules-cfg-subject                     |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/rules-cfg-subject             |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   @data-contracts
   Scenario: Set config with overrideRuleSet
@@ -271,6 +523,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "overrideRuleSet"
     And the response body should contain "overrideRule"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | rules-override-subject                |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/rules-override-subject        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Set config with alias
     When I PUT "/config/alias-target" with body:
@@ -284,6 +564,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/config/alias-target"
     Then the response status should be 200
     And the response field "alias" should be "my-alias"
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | alias-target                          |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config/alias-target                  |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # GLOBAL CONFIG WITH METADATA AND RULESETS
@@ -314,6 +622,34 @@ Feature: Metadata and RuleSets (Data Contracts)
       {"compatibility": "BACKWARD", "defaultMetadata": null}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | config_update                         |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | _global                               |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | PUT                                   |
+      | path                 | /config                               |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # SCHEMA WITHOUT METADATA — FIELDS OMITTED
@@ -332,6 +668,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response body should contain "confluent:version"
     And the response body should not contain "ruleSet"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | no-meta                               |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/no-meta/versions            |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # MIGRATION RULES
@@ -362,6 +726,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "migrationRules"
     And the response body should contain "upgradeV1toV2"
     And the response body should contain "UPGRADE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | migration-rules                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/migration-rules/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # GET /subjects/{subject}/metadata ENDPOINT
@@ -402,6 +794,34 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/subjects/meta-empty-test/metadata"
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-empty-test                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-empty-test/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Get subject metadata returns metadata from the latest version
     # Register v1 with metadata
@@ -430,3 +850,31 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response body should contain "v2"
     And the response body should contain "updated"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | meta-latest-test                      |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/meta-latest-test/versions   |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |

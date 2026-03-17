@@ -50,6 +50,21 @@ const (
 	SchemaTypeJSON     SchemaType = "JSON"
 )
 
+// ParseSchemaType validates a schema type string. Returns the parsed type and
+// true if valid, or empty string and false if invalid. Empty input defaults to
+// SchemaTypeAvro (Confluent behavior: case-sensitive, only "AVRO", "PROTOBUF", "JSON").
+func ParseSchemaType(raw string) (SchemaType, bool) {
+	if raw == "" {
+		return SchemaTypeAvro, true
+	}
+	switch SchemaType(raw) {
+	case SchemaTypeAvro, SchemaTypeProtobuf, SchemaTypeJSON:
+		return SchemaType(raw), true
+	default:
+		return "", false
+	}
+}
+
 // Metadata represents schema metadata for data contracts.
 type Metadata struct {
 	Tags       map[string][]string `json:"tags,omitempty"`

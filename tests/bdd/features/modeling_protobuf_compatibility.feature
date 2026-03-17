@@ -30,6 +30,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-varint-u32                         |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-varint-u32/versions     |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   Scenario: Varint group — int32 to int64 is compatible
     Given subject "proto-compat-varint-i64" has compatibility level "BACKWARD"
@@ -52,6 +80,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-varint-i64                         |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-varint-i64/versions     |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   Scenario: Varint group — int32 to bool is compatible
     Given subject "proto-compat-varint-bool" has compatibility level "BACKWARD"
@@ -74,6 +130,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                 |
+      | outcome            | success                                         |
+      | actor_id           |                                                 |
+      | actor_type         | anonymous                                       |
+      | auth_method        |                                                 |
+      | role               |                                                 |
+      | target_type        | subject                                         |
+      | target_id          | proto-compat-varint-bool                         |
+      | schema_id          | *                                               |
+      | version            | *                                               |
+      | schema_type        | PROTOBUF                                        |
+      | before_hash        |                                                 |
+      | after_hash         | sha256:*                                        |
+      | context            | .                                               |
+      | transport_security | tls                                             |
+      | source_ip          | *                                               |
+      | user_agent         | *                                               |
+      | method             | POST                                            |
+      | path               | /subjects/proto-compat-varint-bool/versions      |
+      | status_code        | 200                                             |
+      | reason             |                                                 |
+      | error              |                                                 |
+      | request_body       |                                                 |
+      | metadata           |                                                 |
+      | timestamp          | *                                               |
+      | duration_ms        | *                                               |
+      | request_id         | *                                               |
 
   # ==========================================================================
   # 4. ENUM AND INT32 COMPATIBLE (VARINT GROUP)
@@ -104,6 +188,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-enum-int                           |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-enum-int/versions       |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 5. ZIGZAG GROUP
@@ -130,6 +242,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-zigzag                             |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-zigzag/versions         |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 6. CROSS-GROUP INCOMPATIBLE
@@ -182,6 +322,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-32bit                              |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-32bit/versions          |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 8. 64-BIT GROUP
@@ -208,6 +376,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-64bit                              |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-64bit/versions          |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 9. LENGTH-DELIMITED GROUP
@@ -234,6 +430,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-len-delim                          |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-len-delim/versions      |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 10. ADDING FIELD TO ONEOF IS COMPATIBLE
@@ -265,6 +489,34 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-oneof-add                          |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-oneof-add/versions      |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 11. MOVING FIELD OUT OF ONEOF IS INCOMPATIBLE
@@ -369,6 +621,34 @@ service Search {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-service                            |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-service/versions        |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |
 
   # ==========================================================================
   # 14. 3-VERSION FIELD ADDITION CHAIN UNDER BACKWARD_TRANSITIVE
@@ -408,3 +688,31 @@ message Event {
 }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type         | schema_register                                |
+      | outcome            | success                                        |
+      | actor_id           |                                                |
+      | actor_type         | anonymous                                      |
+      | auth_method        |                                                |
+      | role               |                                                |
+      | target_type        | subject                                        |
+      | target_id          | proto-compat-3v-chain                           |
+      | schema_id          | *                                              |
+      | version            | *                                              |
+      | schema_type        | PROTOBUF                                       |
+      | before_hash        |                                                |
+      | after_hash         | sha256:*                                       |
+      | context            | .                                              |
+      | transport_security | tls                                            |
+      | source_ip          | *                                              |
+      | user_agent         | *                                              |
+      | method             | POST                                           |
+      | path               | /subjects/proto-compat-3v-chain/versions       |
+      | status_code        | 200                                            |
+      | reason             |                                                |
+      | error              |                                                |
+      | request_body       |                                                |
+      | metadata           |                                                |
+      | timestamp          | *                                              |
+      | duration_ms        | *                                              |
+      | request_id         | *                                              |

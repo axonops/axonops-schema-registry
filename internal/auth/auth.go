@@ -5,12 +5,16 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 )
 
 // ContextKey is used for storing auth info in context.
@@ -30,17 +34,21 @@ type User struct {
 	ID       int64
 	Username string
 	Role     string
-	Method   string // basic, api_key, jwt, oidc, mtls
+	Method   string // basic, api_key, jwt, oidc
 }
 
 // Authenticator handles authentication.
 type Authenticator struct {
-	config       config.AuthConfig
-	service      *Service           // Database-backed auth service
-	ldapProvider *LDAPProvider      // LDAP authentication provider
-	oidcProvider *OIDCProvider      // OIDC authentication provider
-	jwtProvider  *JWTProvider       // JWT authentication provider
-	apiKeys      map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
+	config        config.AuthConfig
+	service       *Service           // Database-backed auth service
+	ldapProvider  *LDAPProvider      // LDAP authentication provider
+	oidcProvider  *OIDCProvider      // OIDC authentication provider
+	jwtProvider   *JWTProvider       // JWT authentication provider
+	apiKeys       map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
+	memoryAPIKeys *MemoryAPIKeyStore // config-defined API keys (memory storage_type)
+	htpasswdStore *HTPasswdStore     // htpasswd file entries (optional)
+	metrics       *metrics.Metrics   // Prometheus metrics (optional)
+	auditLogger   *AuditLogger       // Audit logger for fallback events (optional)
 }
 
 // APIKey represents an API key.
@@ -80,6 +88,26 @@ func (a *Authenticator) SetJWTProvider(p *JWTProvider) {
 	a.jwtProvider = p
 }
 
+// SetMetrics sets the Prometheus metrics instance for recording auth metrics.
+func (a *Authenticator) SetMetrics(m *metrics.Metrics) {
+	a.metrics = m
+}
+
+// SetHTPasswdStore sets the htpasswd file store for Basic authentication.
+func (a *Authenticator) SetHTPasswdStore(store *HTPasswdStore) {
+	a.htpasswdStore = store
+}
+
+// SetMemoryAPIKeyStore sets the config-defined API key store.
+func (a *Authenticator) SetMemoryAPIKeyStore(store *MemoryAPIKeyStore) {
+	a.memoryAPIKeys = store
+}
+
+// SetAuditLogger sets the audit logger for recording auth fallback events.
+func (a *Authenticator) SetAuditLogger(al *AuditLogger) {
+	a.auditLogger = al
+}
+
 // AddAPIKey adds an API key (for legacy/config-based auth).
 func (a *Authenticator) AddAPIKey(key *APIKey) {
 	a.apiKeys[key.Key] = key
@@ -93,22 +121,53 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		start := time.Now()
+
 		// Try each enabled authentication method
 		for _, method := range a.config.Methods {
 			user, ok := a.authenticate(r, method)
 			if ok {
+				if a.metrics != nil {
+					a.metrics.RecordAuthAttempt(user.Method, true, "", time.Since(start))
+				}
 				// Store user in context
 				ctx := context.WithValue(r.Context(), UserContextKey, user)
 				ctx = context.WithValue(ctx, RoleContextKey, user.Role)
 				if user.ID > 0 {
 					ctx = context.WithValue(ctx, UserIDContextKey, user.ID)
 				}
+
+				// Propagate actor info to the audit middleware via the shared
+				// AuditHints pointer (audit middleware runs before auth in the
+				// chi middleware chain, so context-based communication is
+				// one-directional — audit injects the pointer, auth fills it).
+				if hints := GetAuditHints(r.Context()); hints != nil {
+					hints.ActorID = user.Username
+					hints.Role = user.Role
+					hints.AuthMethod = user.Method
+					hints.ActorType = actorTypeFromAuthMethod(user.Method)
+				}
+
+				// Record per-principal HTTP request metrics.
+				if a.metrics != nil {
+					rw := &principalResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+					wrappedNext := http.HandlerFunc(func(w2 http.ResponseWriter, r2 *http.Request) {
+						next.ServeHTTP(w2, r2)
+					})
+					wrappedNext.ServeHTTP(rw, r.WithContext(ctx))
+					a.metrics.RecordPrincipalRequest(user.Username, r.Method, normalizePrincipalPath(r.URL.Path), http.StatusText(rw.statusCode))
+					return
+				}
+
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 		}
 
 		// No authentication succeeded
+		if a.metrics != nil {
+			a.metrics.RecordAuthAttempt("unknown", false, "no_valid_credentials", time.Since(start))
+		}
 		a.unauthorized(w, r)
 	})
 }
@@ -124,8 +183,6 @@ func (a *Authenticator) authenticate(r *http.Request, method string) (*User, boo
 		return a.authenticateJWT(r)
 	case "oidc":
 		return a.authenticateOIDC(r)
-	case "mtls":
-		return a.authenticateMTLS(r)
 	default:
 		return nil, false
 	}
@@ -169,12 +226,68 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 	}
 
 	// Try LDAP authentication first if enabled
+	ldapFallback := false
 	if a.ldapProvider != nil {
 		user, err := a.ldapProvider.Authenticate(r.Context(), username, password)
 		if err == nil && user != nil {
 			return user, true
 		}
-		// LDAP failed, continue to other auth methods
+
+		// LDAP failed — decide whether to fall back based on the error type.
+		//
+		// Security policy: only fall back for "user not found" (user doesn't exist
+		// in LDAP, may exist in DB). Never fall back for "invalid credentials"
+		// (user exists in LDAP but password is wrong) — this would bypass LDAP
+		// password policies (complexity, expiry, lockout, MFA).
+		//
+		// If allow_fallback is explicitly false, never fall back regardless of error.
+		if a.config.LDAP.AllowFallback != nil && !*a.config.LDAP.AllowFallback {
+			return nil, false
+		}
+
+		// Only fall back when the user was not found in LDAP.
+		// For invalid credentials (user exists, wrong password), reject immediately.
+		if errors.Is(err, ErrLDAPInvalidCredentials) {
+			slog.Warn("LDAP authentication failed: invalid credentials, no fallback to database",
+				slog.String("username", username),
+				slog.String("source_ip", r.RemoteAddr),
+			)
+			return nil, false
+		}
+
+		// User not found in LDAP — fallback to DB/htpasswd.
+		ldapFallback = true
+		slog.Warn("LDAP user not found, falling back to database/htpasswd auth",
+			slog.String("username", username),
+			slog.String("source_ip", r.RemoteAddr),
+		)
+		if a.metrics != nil {
+			a.metrics.RecordAuthLDAPFallback(username)
+		}
+		if a.auditLogger != nil {
+			a.auditLogger.Log(&AuditEvent{
+				EventType:  AuditEventAuthLDAPFallback,
+				Timestamp:  time.Now(),
+				ActorID:    username,
+				ActorType:  "user",
+				AuthMethod: "ldap",
+				Outcome:    "warning",
+				TargetType: "user",
+				TargetID:   username,
+				Reason:     "ldap_user_not_found_fallback_to_db",
+				SourceIP:   r.RemoteAddr,
+				UserAgent:  r.UserAgent(),
+				Method:     r.Method,
+				Path:       r.URL.Path,
+			})
+		}
+	}
+
+	// Determine the auth method — "ldap_fallback" if we arrived here after
+	// LDAP user-not-found, "basic" for normal DB/htpasswd auth.
+	authMethod := "basic"
+	if ldapFallback {
+		authMethod = "ldap_fallback"
 	}
 
 	// Try database-backed authentication
@@ -185,7 +298,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 				ID:       user.ID,
 				Username: user.Username,
 				Role:     user.Role,
-				Method:   "basic",
+				Method:   authMethod,
 			}, true
 		}
 	}
@@ -196,9 +309,18 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 			return &User{
 				Username: username,
 				Role:     a.config.RBAC.DefaultRole,
-				Method:   "basic",
+				Method:   authMethod,
 			}, true
 		}
+	}
+
+	// Fallback to htpasswd file if configured
+	if a.htpasswdStore != nil && a.htpasswdStore.Verify(username, password) {
+		return &User{
+			Username: username,
+			Role:     a.config.RBAC.DefaultRole,
+			Method:   authMethod,
+		}, true
 	}
 
 	return nil, false
@@ -244,6 +366,17 @@ func (a *Authenticator) authenticateAPIKeyValue(r *http.Request, key string) (*U
 				ID:       apiKey.ID,
 				Username: username,
 				Role:     apiKey.Role,
+				Method:   "api_key",
+			}, true
+		}
+	}
+
+	// Try config-defined API keys (memory storage_type)
+	if a.memoryAPIKeys != nil {
+		if name, role, ok := a.memoryAPIKeys.Validate(key); ok {
+			return &User{
+				Username: name,
+				Role:     role,
 				Method:   "api_key",
 			}, true
 		}
@@ -297,26 +430,6 @@ func (a *Authenticator) authenticateOIDC(r *http.Request) (*User, bool) {
 	}
 
 	return a.oidcProvider.VerifyToken(r.Context(), token)
-}
-
-// authenticateMTLS handles mutual TLS authentication.
-func (a *Authenticator) authenticateMTLS(r *http.Request) (*User, bool) {
-	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return nil, false
-	}
-
-	cert := r.TLS.PeerCertificates[0]
-	username := cert.Subject.CommonName
-
-	if username == "" {
-		return nil, false
-	}
-
-	return &User{
-		Username: username,
-		Role:     a.config.RBAC.DefaultRole,
-		Method:   "mtls",
-	}, true
 }
 
 // unauthorized sends an authentication challenge.
@@ -376,4 +489,56 @@ func HashPassword(password string) (string, error) {
 // ConstantTimeCompare performs a constant-time string comparison.
 func ConstantTimeCompare(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+// principalResponseWriter captures the status code for per-principal metrics.
+type principalResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *principalResponseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Unwrap returns the underlying ResponseWriter so http.ResponseController
+// can access optional interfaces like http.Flusher and http.Hijacker.
+func (rw *principalResponseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
+// normalizePrincipalPath normalizes URL paths to reduce cardinality for per-principal metrics.
+func normalizePrincipalPath(path string) string {
+	// Strip /contexts/{context} prefix
+	if strings.HasPrefix(path, "/contexts/") {
+		rest := path[len("/contexts/"):]
+		idx := strings.IndexByte(rest, '/')
+		if idx >= 0 {
+			path = rest[idx:]
+		} else {
+			return "/contexts"
+		}
+	}
+
+	switch {
+	case strings.HasPrefix(path, "/subjects/") && strings.Contains(path, "/versions"):
+		return "/subjects/*/versions/*"
+	case strings.HasPrefix(path, "/subjects/"):
+		return "/subjects/*"
+	case strings.HasPrefix(path, "/schemas/ids/"):
+		return "/schemas/ids/*"
+	case strings.HasPrefix(path, "/config/"):
+		return "/config/*"
+	case strings.HasPrefix(path, "/mode/"):
+		return "/mode/*"
+	case strings.HasPrefix(path, "/compatibility/"):
+		return "/compatibility/*"
+	case strings.HasPrefix(path, "/dek-registry/"):
+		return "/dek-registry/*"
+	case strings.HasPrefix(path, "/admin/"):
+		return "/admin/*"
+	default:
+		return path
+	}
 }

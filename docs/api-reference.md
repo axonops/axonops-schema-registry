@@ -12,6 +12,7 @@ formats for schema management.
 ## Contents
 
 - [AxonOps Schema Registry](#axonops-schema-registry)
+  - [API Compatibility](#api-compatibility)
   - [Key Concepts](#key-concepts)
   - [Content Types](#content-types)
   - [Error Handling](#error-handling)
@@ -84,9 +85,22 @@ formats for schema management.
   - [Check compatibility against all versions](#check-compatibility-against-all-versions)
   - [[Context-scoped] Check compatibility against a specific version](#context-scoped-check-compatibility-against-a-specific-version)
   - [[Context-scoped] Check compatibility against all versions](#context-scoped-check-compatibility-against-all-versions)
+- [Metadata](#metadata)
+  - [[Context-scoped] Get cluster ID](#context-scoped-get-cluster-id)
+  - [[Context-scoped] Get server version](#context-scoped-get-server-version)
+  - [Get cluster ID](#get-cluster-id)
+  - [Get server version](#get-server-version)
+- [Health](#health)
+  - [Health check (legacy)](#health-check-legacy)
+  - [Liveness check](#liveness-check)
+  - [Readiness check](#readiness-check)
+  - [Startup check](#startup-check)
 - [Import](#import)
   - [Bulk import schemas](#bulk-import-schemas)
   - [[Context-scoped] Bulk import schemas](#context-scoped-bulk-import-schemas)
+- [Contexts](#contexts)
+  - [Get schema registry contexts](#get-schema-registry-contexts)
+  - [[Context-scoped] Get schema registry contexts](#context-scoped-get-schema-registry-contexts)
 - [Exporters](#exporters)
   - [List exporters](#list-exporters)
   - [Create an exporter](#create-an-exporter)
@@ -110,36 +124,6 @@ formats for schema management.
   - [[Context-scoped] Get exporter status](#context-scoped-get-exporter-status)
   - [[Context-scoped] Get exporter config](#context-scoped-get-exporter-config)
   - [[Context-scoped] Update exporter config](#context-scoped-update-exporter-config)
-- [Contexts](#contexts)
-  - [Get schema registry contexts](#get-schema-registry-contexts)
-  - [[Context-scoped] Get schema registry contexts](#context-scoped-get-schema-registry-contexts)
-- [Metadata](#metadata)
-  - [[Context-scoped] Get cluster ID](#context-scoped-get-cluster-id)
-  - [[Context-scoped] Get server version](#context-scoped-get-server-version)
-  - [Get cluster ID](#get-cluster-id)
-  - [Get server version](#get-server-version)
-- [Account](#account)
-  - [Get current user](#get-current-user)
-  - [Change current user password](#change-current-user-password)
-- [Admin](#admin)
-  - [List all users](#list-all-users)
-  - [Create a new user](#create-a-new-user)
-  - [Get a user by ID](#get-a-user-by-id)
-  - [Update a user](#update-a-user)
-  - [Delete a user](#delete-a-user)
-  - [List API keys](#list-api-keys)
-  - [Create a new API key](#create-a-new-api-key)
-  - [Get an API key by ID](#get-an-api-key-by-id)
-  - [Update an API key](#update-an-api-key)
-  - [Delete an API key](#delete-an-api-key)
-  - [Revoke an API key](#revoke-an-api-key)
-  - [Rotate an API key](#rotate-an-api-key)
-  - [List available roles](#list-available-roles)
-- [Health](#health)
-  - [Health check (legacy)](#health-check-legacy)
-  - [Liveness check](#liveness-check)
-  - [Readiness check](#readiness-check)
-  - [Startup check](#startup-check)
 - [DEK Registry](#dek-registry)
   - [List KEK names](#list-kek-names)
   - [Create a KEK](#create-a-kek)
@@ -158,6 +142,76 @@ formats for schema management.
   - [Get a specific DEK version](#get-a-specific-dek-version)
   - [Delete a specific DEK version](#delete-a-specific-dek-version)
   - [Undelete a DEK](#undelete-a-dek)
+- [Analysis](#analysis)
+  - [Validate a schema](#validate-a-schema)
+  - [Normalize a schema](#normalize-a-schema)
+  - [Search schemas by content](#search-schemas-by-content)
+  - [Find schemas by field name](#find-schemas-by-field-name)
+  - [Find schemas by field type](#find-schemas-by-field-type)
+  - [Find similar schemas](#find-similar-schemas)
+  - [Score schema quality](#score-schema-quality)
+  - [Get schema complexity](#get-schema-complexity)
+  - [Validate a subject name](#validate-a-subject-name)
+  - [Match subjects by pattern](#match-subjects-by-pattern)
+  - [Count subjects](#count-subjects)
+  - [Get schema history](#get-schema-history)
+  - [Count versions](#count-versions)
+  - [Get dependency graph](#get-dependency-graph)
+  - [Export a schema version](#export-a-schema-version)
+  - [Export all versions of a subject](#export-all-versions-of-a-subject)
+  - [Diff two schema versions](#diff-two-schema-versions)
+  - [Suggest schema evolution](#suggest-schema-evolution)
+  - [Plan migration path](#plan-migration-path)
+  - [Check compatibility against multiple subjects](#check-compatibility-against-multiple-subjects)
+  - [Suggest compatible changes](#suggest-compatible-changes)
+  - [Explain compatibility failure](#explain-compatibility-failure)
+  - [Compare two subjects](#compare-two-subjects)
+  - [Get registry statistics](#get-registry-statistics)
+  - [Check field consistency](#check-field-consistency)
+  - [Detect schema patterns](#detect-schema-patterns)
+  - [[Context-scoped] Validate a schema](#context-scoped-validate-a-schema)
+  - [[Context-scoped] Normalize a schema](#context-scoped-normalize-a-schema)
+  - [[Context-scoped] Search schemas by content](#context-scoped-search-schemas-by-content)
+  - [[Context-scoped] Find schemas by field name](#context-scoped-find-schemas-by-field-name)
+  - [[Context-scoped] Find schemas by field type](#context-scoped-find-schemas-by-field-type)
+  - [[Context-scoped] Find similar schemas](#context-scoped-find-similar-schemas)
+  - [[Context-scoped] Score schema quality](#context-scoped-score-schema-quality)
+  - [[Context-scoped] Get schema complexity](#context-scoped-get-schema-complexity)
+  - [[Context-scoped] Validate a subject name](#context-scoped-validate-a-subject-name)
+  - [[Context-scoped] Match subjects by pattern](#context-scoped-match-subjects-by-pattern)
+  - [[Context-scoped] Count subjects](#context-scoped-count-subjects)
+  - [[Context-scoped] Get schema history](#context-scoped-get-schema-history)
+  - [[Context-scoped] Count versions](#context-scoped-count-versions)
+  - [[Context-scoped] Get dependency graph](#context-scoped-get-dependency-graph)
+  - [[Context-scoped] Export a schema version](#context-scoped-export-a-schema-version)
+  - [[Context-scoped] Export all versions of a subject](#context-scoped-export-all-versions-of-a-subject)
+  - [[Context-scoped] Diff two schema versions](#context-scoped-diff-two-schema-versions)
+  - [[Context-scoped] Suggest schema evolution](#context-scoped-suggest-schema-evolution)
+  - [[Context-scoped] Plan migration path](#context-scoped-plan-migration-path)
+  - [[Context-scoped] Check compatibility against multiple subjects](#context-scoped-check-compatibility-against-multiple-subjects)
+  - [[Context-scoped] Suggest compatible changes](#context-scoped-suggest-compatible-changes)
+  - [[Context-scoped] Explain compatibility failure](#context-scoped-explain-compatibility-failure)
+  - [[Context-scoped] Compare two subjects](#context-scoped-compare-two-subjects)
+  - [[Context-scoped] Get registry statistics](#context-scoped-get-registry-statistics)
+  - [[Context-scoped] Check field consistency](#context-scoped-check-field-consistency)
+  - [[Context-scoped] Detect schema patterns](#context-scoped-detect-schema-patterns)
+- [Admin](#admin)
+  - [List all users](#list-all-users)
+  - [Create a new user](#create-a-new-user)
+  - [Get a user by ID](#get-a-user-by-id)
+  - [Update a user](#update-a-user)
+  - [Delete a user](#delete-a-user)
+  - [List API keys](#list-api-keys)
+  - [Create a new API key](#create-a-new-api-key)
+  - [Get an API key by ID](#get-an-api-key-by-id)
+  - [Update an API key](#update-an-api-key)
+  - [Delete an API key](#delete-an-api-key)
+  - [Revoke an API key](#revoke-an-api-key)
+  - [Rotate an API key](#rotate-an-api-key)
+  - [List available roles](#list-available-roles)
+- [Account](#account)
+  - [Get current user](#get-current-user)
+  - [Change current user password](#change-current-user-password)
 - [Documentation](#documentation)
   - [Swagger UI](#swagger-ui)
   - [OpenAPI specification](#openapi-specification)
@@ -212,6 +266,19 @@ formats for schema management.
   - [DEKRequest](#dekrequest)
   - [DEKResponse](#dekresponse)
   - [HealthResponse](#healthresponse)
+  - [API Compatibility Reference](#api-compatibility-reference)
+
+## API Compatibility
+
+Each endpoint group is marked with its compatibility tier:
+
+- **Confluent compatible (Community)** — available in the free/open-source
+  Confluent Schema Registry: Schemas, Subjects, Config, Mode, Compatibility,
+  Metadata, Health.
+- **Confluent compatible (Enterprise)** — requires a Confluent Enterprise
+  license, included free in AxonOps: Import, Contexts, Exporters, DEK Registry.
+- **AxonOps extension** — unique to AxonOps Schema Registry: Analysis, Admin,
+  Account, Documentation.
 
 ## Key Concepts
 
@@ -222,10 +289,10 @@ formats for schema management.
 - **Version**: An incrementing integer assigned each time a new schema is registered under
   a subject.
 - **Compatibility**: A policy that controls whether a new schema version is allowed based on
-  its relationship to previous versions. Levels include BACKWARD, FORWARD, FULL, and
-  their TRANSITIVE variants.
+  its relationship to previous versions. Levels include `BACKWARD`, `FORWARD`, `FULL`, and
+  their `TRANSITIVE` variants.
 - **Mode**: Controls whether a subject (or the entire registry) accepts writes. Modes
-  include READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+  include `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 - **Reference**: A pointer from one schema to another, enabling cross-subject schema
   composition (e.g. Avro named types, Protobuf imports, JSON Schema $ref).
 - **Metadata**: Key-value tags and properties attached to a schema for data contract
@@ -303,7 +370,7 @@ This operation does not require authentication
 
 # Schemas
 
-Operations for retrieving schemas by their globally unique ID, listing all schemas, and querying supported schema types. Every schema registered in the registry receives a unique integer ID that persists across subjects.
+**Confluent compatible (Community).** Operations for retrieving schemas by their globally unique ID, listing all schemas, and querying supported schema types. Every schema registered in the registry receives a unique integer ID that persists across subjects.
 
 ## Get supported schema types
 
@@ -319,7 +386,7 @@ curl -X GET http://localhost:8081/schemas/types \
 
 `GET /schemas/types`
 
-Returns the list of schema types supported by this registry. The response is an array of strings. Currently supported types are AVRO, PROTOBUF, and JSON.
+Returns the list of schema types supported by this registry. The response is an array of strings. Currently supported types are `AVRO`, `PROTOBUF`, and `JSON`.
 
 > Example responses
 
@@ -1570,7 +1637,7 @@ basicAuth, apiKey, bearerAuth
 
 # Subjects
 
-Operations for managing subjects and their schema versions. A subject is a named scope (typically corresponding to a Kafka topic) under which one or more schema versions are registered. Subjects support soft-delete and permanent-delete semantics.
+**Confluent compatible (Community).** Operations for managing subjects and their schema versions. A subject is a named scope (typically corresponding to a Kafka topic) under which one or more schema versions are registered. Subjects support soft-delete and permanent-delete semantics.
 
 ## List subjects
 
@@ -3603,7 +3670,7 @@ basicAuth, apiKey, bearerAuth
 
 # Config
 
-Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
+**Confluent compatible (Community).** Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and `FULL_TRANSITIVE`.
 
 ## Get global compatibility configuration
 
@@ -7050,7 +7117,7 @@ basicAuth, apiKey, bearerAuth
 
 # Mode
 
-Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+**Confluent compatible (Community).** Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 
 ## Get global mode
 
@@ -7066,7 +7133,7 @@ curl -X GET http://localhost:8081/mode \
 
 `GET /mode`
 
-Returns the global registry mode. The mode controls whether the registry accepts schema registration (write) operations. Possible modes are READWRITE (default), READONLY, READONLY_OVERRIDE, and IMPORT.
+Returns the global registry mode. The mode controls whether the registry accepts schema registration (write) operations. Possible modes are `READWRITE` (default), `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 
 > Example responses
 
@@ -7114,7 +7181,7 @@ curl -X PUT http://localhost:8081/mode \
 
 `PUT /mode`
 
-Updates the global registry mode. The `mode` field MUST be set to a valid mode string (READWRITE, READONLY, READONLY_OVERRIDE, or IMPORT). The `force` query parameter MAY be set to `true` to bypass validation checks when changing mode.
+Updates the global registry mode. The `mode` field MUST be set to a valid mode string (`READWRITE`, `READONLY`, `READONLY_OVERRIDE`, or `IMPORT`). The `force` query parameter MAY be set to `true` to bypass validation checks when changing mode.
 
 > Body parameter
 
@@ -7786,7 +7853,7 @@ basicAuth, apiKey, bearerAuth
 
 # Compatibility
 
-Operations for testing whether a candidate schema is compatible with existing schema versions under a subject, without actually registering it.
+**Confluent compatible (Community).** Operations for testing whether a candidate schema is compatible with existing schema versions under a subject, without actually registering it.
 
 ## Check compatibility against a specific version
 
@@ -8140,9 +8207,352 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+# Metadata
+
+**Confluent compatible (Community).** Operations for retrieving registry metadata such as the cluster ID and server version.
+
+## [Context-scoped] Get cluster ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/id \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/v1/metadata/id`
+
+Context-scoped version of `/v1/metadata/id`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": "default-cluster"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The cluster ID.|[ServerClusterIDResponse](#schemaserverclusteridresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get server version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/version \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/v1/metadata/version`
+
+Context-scoped version of `/v1/metadata/version`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "version": "1.0.0",
+  "commit": "abc123def",
+  "build_time": "2025-01-15T10:30:00Z"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The server version information.|[ServerVersionResponse](#schemaserverversionresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get cluster ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/v1/metadata/id \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /v1/metadata/id`
+
+Returns the cluster ID of this schema registry instance. The cluster ID is a string identifier configured at server startup.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": "default-cluster"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The cluster ID.|[ServerClusterIDResponse](#schemaserverclusteridresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get server version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/v1/metadata/version \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /v1/metadata/version`
+
+Returns the version, commit hash, and build time of the running schema registry server.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "version": "1.0.0",
+  "commit": "abc123def",
+  "build_time": "2025-01-15T10:30:00Z"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The server version information.|[ServerVersionResponse](#schemaserverversionresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Health
+
+**Confluent compatible (Community).** Kubernetes-style health check endpoints for liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle management. The liveness probe confirms the process is alive, the readiness probe confirms the service can handle traffic (storage backend is reachable), and the startup probe confirms initialization is complete.
+
+## Health check (legacy)
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/ \
+  -H 'Accept: application/json'
+
+```
+
+`GET /`
+
+Returns an empty JSON object to indicate the service is healthy and accepting requests. This endpoint does not require authentication. It is retained for backward compatibility with the Confluent Schema Registry API. For Kubernetes deployments, prefer the dedicated `/health/live`, `/health/ready`, and `/health/startup` endpoints.
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is healthy.|Inline|
+
+### Response Schema
+
+Status Code **200**
+
+*An empty JSON object.*
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Liveness check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/live \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/live`
+
+Returns HTTP 200 unconditionally to confirm the process is alive and not deadlocked. This endpoint SHOULD be used as the Kubernetes `livenessProbe` target. It does not check storage backend connectivity — a liveness probe that depends on external services can cause unnecessary pod restarts during transient database outages.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The process is alive.|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Readiness check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/ready \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/ready`
+
+Returns HTTP 200 when the service is ready to handle traffic, or HTTP 503 when the storage backend is unreachable. This endpoint SHOULD be used as the Kubernetes `readinessProbe` target. When the probe fails, Kubernetes removes the pod from Service endpoints so that traffic is routed only to healthy instances.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+> 503 Response
+
+```json
+{
+  "status": "DOWN",
+  "reason": "storage backend unavailable"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is ready to handle traffic.|[HealthResponse](#schemahealthresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is not ready (storage backend unavailable).|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Startup check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/startup \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/startup`
+
+Returns HTTP 200 when initialization is complete (storage backend connected and migrations applied), or HTTP 503 while the service is still starting up. This endpoint SHOULD be used as the Kubernetes `startupProbe` target. The startup probe prevents liveness and readiness probes from running until the service has finished initializing, avoiding premature pod restarts during slow Cassandra migrations or initial database connections.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+> 503 Response
+
+```json
+{
+  "status": "DOWN",
+  "reason": "storage backend unavailable"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Initialization is complete.|[HealthResponse](#schemahealthresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is still initializing.|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
 # Import
 
-Operations for bulk-importing schemas from another schema registry, preserving original schema IDs. This is used for migration scenarios.
+**Confluent compatible (Enterprise).** Operations for bulk-importing schemas from another schema registry, preserving original schema IDs. This is used for migration scenarios. In Confluent, this feature requires an Enterprise license.
 
 ## Bulk import schemas
 
@@ -8322,9 +8732,107 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+# Contexts
+
+**Confluent compatible (Enterprise).** Operations for managing schema registry contexts. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes. Subjects are qualified with a context prefix using the Confluent-compatible format `:.contextname:subject`. All standard registry routes are also available under `/contexts/{context}/...` for context-scoped access. In Confluent, this feature requires an Enterprise license.
+
+## Get schema registry contexts
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts`
+
+Returns the list of **contexts** defined in the registry. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes.
+
+The default context `"."` is always present, even when no schemas have been registered. Additional contexts are created implicitly when a schema is registered with a context-qualified subject name (e.g. `:.team-a:my-subject`).
+
+**Context-qualified subject format:** `:.contextname:subject` (Confluent-compatible). All standard registry endpoints accept qualified subjects. Alternatively, all registry routes are available under the `/contexts/{context}/...` URL prefix for context-scoped access.
+
+> Context names MUST match `^[a-zA-Z0-9._-]+$` and MUST NOT exceed 255 characters. Names are normalized with a leading dot (e.g. `team-a` becomes `.team-a`). Context names are case-sensitive.
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  ".",
+  ".team-a",
+  ".team-b"
+]
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context). Additional contexts appear as schemas are registered.|Inline|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema registry contexts
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/contexts \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/contexts`
+
+Context-scoped version of `/contexts`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  ".",
+  ".team-a",
+  ".team-b"
+]
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context).|Inline|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Exporters
 
-Operations for managing schema exporters. Exporters enable Schema Linking by replicating schemas from one registry to another. Each exporter has a name, a context, an optional subject filter, and configuration for connecting to the destination registry. Exporters can be paused, resumed, and reset. This API follows the Confluent Schema Linking format.
+**Confluent compatible (Enterprise).** Operations for managing schema exporters. Exporters enable Schema Linking by replicating schemas from one registry to another. Each exporter has a name, a context, an optional subject filter, and configuration for connecting to the destination registry. Exporters can be paused, resumed, and reset. This API follows the Confluent Schema Linking format. In Confluent, this feature requires an Enterprise license.
 
 ## List exporters
 
@@ -8557,7 +9065,7 @@ curl -X PUT http://localhost:8081/exporters/{name} \
 
 `PUT /exporters/{name}`
 
-Updates the configuration of the specified exporter. All fields in the request body are applied as the new configuration. The exporter name cannot be changed.
+Updates the configuration of the specified exporter. All fields in the request body are applied as the new configuration. The exporter name CANNOT be changed.
 
 > Body parameter
 
@@ -9918,1829 +10426,9 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
-# Contexts
-
-Operations for managing schema registry contexts. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes. Subjects are qualified with a context prefix using the Confluent-compatible format `:.contextname:subject`. All standard registry routes are also available under `/contexts/{context}/...` for context-scoped access.
-
-## Get schema registry contexts
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/contexts \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /contexts`
-
-Returns the list of **contexts** defined in the registry. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes.
-
-The default context `"."` is always present, even when no schemas have been registered. Additional contexts are created implicitly when a schema is registered with a context-qualified subject name (e.g. `:.team-a:my-subject`).
-
-**Context-qualified subject format:** `:.contextname:subject` (Confluent-compatible). All standard registry endpoints accept qualified subjects. Alternatively, all registry routes are available under the `/contexts/{context}/...` URL prefix for context-scoped access.
-
-> Context names MUST match `^[a-zA-Z0-9._-]+$` and MUST NOT exceed 255 characters. Names are normalized with a leading dot (e.g. `team-a` becomes `.team-a`). Context names are case-sensitive.
-
-> Example responses
-
-> 200 Response
-
-```json
-[
-  ".",
-  ".team-a",
-  ".team-b"
-]
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context). Additional contexts appear as schemas are registered.|Inline|
-
-### Response Schema
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## [Context-scoped] Get schema registry contexts
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/contexts/{context}/contexts \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /contexts/{context}/contexts`
-
-Context-scoped version of `/contexts`. See the root-level operation for full documentation.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
-
-> Example responses
-
-> 200 Response
-
-```json
-[
-  ".",
-  ".team-a",
-  ".team-b"
-]
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context).|Inline|
-
-### Response Schema
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-# Metadata
-
-Operations for retrieving registry metadata such as the cluster ID and server version.
-
-## [Context-scoped] Get cluster ID
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/id \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /contexts/{context}/v1/metadata/id`
-
-Context-scoped version of `/v1/metadata/id`. See the root-level operation for full documentation.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": "default-cluster"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The cluster ID.|[ServerClusterIDResponse](#schemaserverclusteridresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## [Context-scoped] Get server version
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/version \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /contexts/{context}/v1/metadata/version`
-
-Context-scoped version of `/v1/metadata/version`. See the root-level operation for full documentation.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "version": "1.0.0",
-  "commit": "abc123def",
-  "build_time": "2025-01-15T10:30:00Z"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The server version information.|[ServerVersionResponse](#schemaserverversionresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Get cluster ID
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/v1/metadata/id \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /v1/metadata/id`
-
-Returns the cluster ID of this schema registry instance. The cluster ID is a string identifier configured at server startup.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": "default-cluster"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The cluster ID.|[ServerClusterIDResponse](#schemaserverclusteridresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Get server version
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/v1/metadata/version \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /v1/metadata/version`
-
-Returns the version, commit hash, and build time of the running schema registry server.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "version": "1.0.0",
-  "commit": "abc123def",
-  "build_time": "2025-01-15T10:30:00Z"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The server version information.|[ServerVersionResponse](#schemaserverversionresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-# Account
-
-Self-service account endpoints for authenticated users to view their own profile and change their password.
-
-## Get current user
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/me \
-  -H 'Accept: application/json'
-
-```
-
-`GET /me`
-
-Returns the profile of the currently authenticated user. The caller MUST be authenticated. If the user record is not found in the database, a 404 error is returned.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "username": "johndoe",
-  "email": "johndoe@example.com",
-  "role": "developer",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "updated_at": "2025-01-15T10:30:00Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40404,
-  "message": "User not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The current user's profile.|[UserResponse](#schemauserresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication required.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Change current user password
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X POST http://localhost:8081/me/password \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`POST /me/password`
-
-Changes the password of the currently authenticated user. The request MUST include both the current (old) password for verification and the desired new password. Returns 204 No Content on success.
-
-> Body parameter
-
-```json
-{
-  "old_password": "pa$$word",
-  "new_password": "pa$$word"
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|body|body|[ChangePasswordRequest](#schemachangepasswordrequest)|true|none|
-
-> Example responses
-
-> 400 Response
-
-```json
-{
-  "error_code": 40401,
-  "message": "Subject 'my-topic-value' not found"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Current password is incorrect"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|Password changed successfully.|None|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Current password is incorrect.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-# Admin
-
-Administrative endpoints for managing users, API keys, and roles. These endpoints require admin-level permissions.
-
-## List all users
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/admin/users \
-  -H 'Accept: application/json'
-
-```
-
-`GET /admin/users`
-
-Returns a list of all users in the registry. The caller MUST have admin read permissions.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "users": [
-    {
-      "id": 1,
-      "username": "johndoe",
-      "email": "johndoe@example.com",
-      "role": "developer",
-      "enabled": true,
-      "created_at": "2025-01-15T10:30:00Z",
-      "updated_at": "2025-01-15T10:30:00Z"
-    }
-  ]
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of all users.|[UsersListResponse](#schemauserslistresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Create a new user
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X POST http://localhost:8081/admin/users \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`POST /admin/users`
-
-Creates a new user in the registry. The `username`, `password`, and `role` fields are required. The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`. The caller MUST have admin write permissions.
-
-> Body parameter
-
-```json
-{
-  "username": "johndoe",
-  "email": "johndoe@example.com",
-  "password": "SecureP@ss123",
-  "role": "developer",
-  "enabled": true
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|body|body|[CreateUserRequest](#schemacreateuserrequest)|true|none|
-
-> Example responses
-
-> 201 Response
-
-```json
-{
-  "id": 1,
-  "username": "johndoe",
-  "email": "johndoe@example.com",
-  "role": "developer",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "updated_at": "2025-01-15T10:30:00Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 409 Response
-
-```json
-{
-  "error_code": 40901,
-  "message": "User already exists"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created user.|[UserResponse](#schemauserresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|A user with this username already exists.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Get a user by ID
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/admin/users/{id} \
-  -H 'Accept: application/json'
-
-```
-
-`GET /admin/users/{id}`
-
-Retrieves the user with the specified ID. The caller MUST have admin read permissions.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "username": "johndoe",
-  "email": "johndoe@example.com",
-  "role": "developer",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "updated_at": "2025-01-15T10:30:00Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40404,
-  "message": "User not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The user record.|[UserResponse](#schemauserresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Update a user
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X PUT http://localhost:8081/admin/users/{id} \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`PUT /admin/users/{id}`
-
-Updates one or more fields of the user with the specified ID. Only the fields provided in the request body are modified; omitted fields remain unchanged. The caller MUST have admin write permissions.
-
-> Body parameter
-
-```json
-{
-  "email": "string",
-  "password": "pa$$word",
-  "role": "super_admin",
-  "enabled": true
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-|body|body|[UpdateUserRequest](#schemaupdateuserrequest)|true|none|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "username": "johndoe",
-  "email": "johndoe@example.com",
-  "role": "developer",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "updated_at": "2025-01-15T10:30:00Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40404,
-  "message": "User not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated user record.|[UserResponse](#schemauserresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Delete a user
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X DELETE http://localhost:8081/admin/users/{id} \
-  -H 'Accept: application/json'
-
-```
-
-`DELETE /admin/users/{id}`
-
-Permanently deletes the user with the specified ID. Returns 204 No Content on success. The caller MUST have admin write permissions.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-
-> Example responses
-
-> 400 Response
-
-```json
-{
-  "error_code": 40401,
-  "message": "Subject 'my-topic-value' not found"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40404,
-  "message": "User not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|User deleted successfully.|None|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## List API keys
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/admin/apikeys \
-  -H 'Accept: application/json'
-
-```
-
-`GET /admin/apikeys`
-
-Returns a list of all API keys in the registry. The optional `user_id` query parameter filters results to API keys owned by a specific user. The caller MUST have admin read permissions. The raw key secret is never included in list responses.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|user_id|query|integer(int64)|false|Filter API keys by the owning user's ID. If omitted, all API keys are returned.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "api_keys": [
-    {
-      "id": 1,
-      "key_prefix": "axon_abc",
-      "name": "ci-pipeline-key",
-      "role": "developer",
-      "user_id": 1,
-      "username": "johndoe",
-      "enabled": true,
-      "created_at": "2025-01-15T10:30:00Z",
-      "expires_at": "2025-02-14T10:30:00Z",
-      "last_used": "2019-08-24T14:15:22Z"
-    }
-  ]
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of API keys.|[APIKeysListResponse](#schemaapikeyslistresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Create a new API key
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X POST http://localhost:8081/admin/apikeys \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`POST /admin/apikeys`
-
-Creates a new API key. The `name`, `role`, and `expires_in` fields are required. The `name` MUST be unique per user. The `expires_in` value is a duration in seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`.
-The raw API key secret is returned ONLY in the creation response and cannot be retrieved afterward. Clients SHOULD store the key securely immediately after creation.
-Super admins MAY create API keys for other users by specifying the `for_user_id` field.
-
-> Body parameter
-
-```json
-{
-  "name": "ci-pipeline-key",
-  "role": "developer",
-  "expires_in": 2592000,
-  "for_user_id": 0
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|body|body|[CreateAPIKeyRequest](#schemacreateapikeyrequest)|true|none|
-
-> Example responses
-
-> 201 Response
-
-```json
-{
-  "id": 0,
-  "key": "axon_abcdefghijklmnopqrstuvwxyz1234567890",
-  "key_prefix": "string",
-  "name": "string",
-  "role": "string",
-  "user_id": 0,
-  "username": "string",
-  "enabled": true,
-  "created_at": "2019-08-24T14:15:22Z",
-  "expires_at": "2019-08-24T14:15:22Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 409 Response
-
-```json
-{
-  "error_code": 40902,
-  "message": "API key name already exists for this user"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created API key, including the raw key secret. This is the ONLY time the raw key is returned.|[CreateAPIKeyResponse](#schemacreateapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields, invalid role, or invalid expires_in.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|An API key with this name already exists for the user.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Get an API key by ID
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/admin/apikeys/{id} \
-  -H 'Accept: application/json'
-
-```
-
-`GET /admin/apikeys/{id}`
-
-Retrieves the API key with the specified ID. The raw key secret is NOT included in the response. The caller MUST have admin read permissions.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "key_prefix": "axon_abc",
-  "name": "ci-pipeline-key",
-  "role": "developer",
-  "user_id": 1,
-  "username": "johndoe",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "expires_at": "2025-02-14T10:30:00Z",
-  "last_used": "2019-08-24T14:15:22Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40405,
-  "message": "API key not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The API key record.|[APIKeyResponse](#schemaapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Update an API key
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X PUT http://localhost:8081/admin/apikeys/{id} \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`PUT /admin/apikeys/{id}`
-
-Updates one or more fields of the API key with the specified ID. Only the fields provided in the request body are modified; omitted fields remain unchanged. The caller MUST have admin write permissions.
-
-> Body parameter
-
-```json
-{
-  "name": "string",
-  "role": "super_admin",
-  "enabled": true
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-|body|body|[UpdateAPIKeyRequest](#schemaupdateapikeyrequest)|true|none|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "key_prefix": "axon_abc",
-  "name": "ci-pipeline-key",
-  "role": "developer",
-  "user_id": 1,
-  "username": "johndoe",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "expires_at": "2025-02-14T10:30:00Z",
-  "last_used": "2019-08-24T14:15:22Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40405,
-  "message": "API key not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated API key record.|[APIKeyResponse](#schemaapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Delete an API key
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X DELETE http://localhost:8081/admin/apikeys/{id} \
-  -H 'Accept: application/json'
-
-```
-
-`DELETE /admin/apikeys/{id}`
-
-Permanently deletes the API key with the specified ID. Returns 204 No Content on success. The caller MUST have admin write permissions.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-
-> Example responses
-
-> 400 Response
-
-```json
-{
-  "error_code": 40401,
-  "message": "Subject 'my-topic-value' not found"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40405,
-  "message": "API key not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|API key deleted successfully.|None|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Revoke an API key
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X POST http://localhost:8081/admin/apikeys/{id}/revoke \
-  -H 'Accept: application/json'
-
-```
-
-`POST /admin/apikeys/{id}/revoke`
-
-Revokes the API key with the specified ID by disabling it. The API key remains in the database but can no longer be used for authentication. The caller MUST have admin write permissions.
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "id": 1,
-  "key_prefix": "axon_abc",
-  "name": "ci-pipeline-key",
-  "role": "developer",
-  "user_id": 1,
-  "username": "johndoe",
-  "enabled": true,
-  "created_at": "2025-01-15T10:30:00Z",
-  "expires_at": "2025-02-14T10:30:00Z",
-  "last_used": "2019-08-24T14:15:22Z"
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40405,
-  "message": "API key not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The revoked API key record (with enabled set to false).|[APIKeyResponse](#schemaapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## Rotate an API key
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X POST http://localhost:8081/admin/apikeys/{id}/rotate \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json'
-
-```
-
-`POST /admin/apikeys/{id}/rotate`
-
-Rotates the API key with the specified ID by revoking the existing key and creating a new one with the same name and role but a fresh secret and expiry. The `expires_in` field in the request body specifies the duration in seconds for the new key. The raw secret for the new key is returned ONLY in this response.
-The caller MUST have admin write permissions.
-
-> Body parameter
-
-```json
-{
-  "expires_in": 2592000
-}
-```
-
-### Parameters
-
-|Name|In|Type|Required|Description|
-|---|---|---|---|---|
-|id|path|integer(int64)|true|The unique integer ID of the resource.|
-|body|body|[RotateAPIKeyRequest](#schemarotateapikeyrequest)|true|none|
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "new_key": {
-    "id": 0,
-    "key": "axon_abcdefghijklmnopqrstuvwxyz1234567890",
-    "key_prefix": "string",
-    "name": "string",
-    "role": "string",
-    "user_id": 0,
-    "username": "string",
-    "enabled": true,
-    "created_at": "2019-08-24T14:15:22Z",
-    "expires_at": "2019-08-24T14:15:22Z"
-  },
-  "revoked_id": 1
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 404 Response
-
-```json
-{
-  "error_code": 40405,
-  "message": "API key not found"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The rotation result containing the new API key (with its raw secret) and the ID of the revoked key.|[RotateAPIKeyResponse](#schemarotateapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid expires_in.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-## List available roles
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/admin/roles \
-  -H 'Accept: application/json'
-
-```
-
-`GET /admin/roles`
-
-Returns the list of roles available in the registry along with their descriptions and associated permissions. The caller MUST have admin read permissions.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "roles": [
-    {
-      "name": "developer",
-      "description": "Can register and read schemas",
-      "permissions": [
-        "schema:read",
-        "schema:write",
-        "subject:read"
-      ]
-    }
-  ]
-}
-```
-
-> 401 Response
-
-```json
-{
-  "error_code": 40101,
-  "message": "Authentication required"
-}
-```
-
-> 403 Response
-
-```json
-{
-  "error_code": 40301,
-  "message": "Admin write permission required"
-}
-```
-
-> 500 Response
-
-```json
-{
-  "error_code": 50001,
-  "message": "Internal server error"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of available roles with their permissions.|[RolesListResponse](#schemaroleslistresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
-|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
-|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
-
-> **Warning:** 
-To perform this operation, you must be authenticated by means of one of the following methods:
-basicAuth, apiKey, bearerAuth
-
-
-# Health
-
-Kubernetes-style health check endpoints for liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle management. The liveness probe confirms the process is alive, the readiness probe confirms the service can handle traffic (storage backend is reachable), and the startup probe confirms initialization is complete.
-
-## Health check (legacy)
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/ \
-  -H 'Accept: application/json'
-
-```
-
-`GET /`
-
-Returns an empty JSON object to indicate the service is healthy and accepting requests. This endpoint does not require authentication. It is retained for backward compatibility with the Confluent Schema Registry API. For Kubernetes deployments, prefer the dedicated `/health/live`, `/health/ready`, and `/health/startup` endpoints.
-
-> Example responses
-
-> 200 Response
-
-```json
-{}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is healthy.|Inline|
-
-### Response Schema
-
-Status Code **200**
-
-*An empty JSON object.*
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-
-> **Success:** 
-This operation does not require authentication
-
-
-## Liveness check
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/health/live \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /health/live`
-
-Returns HTTP 200 unconditionally to confirm the process is alive and not deadlocked. This endpoint SHOULD be used as the Kubernetes `livenessProbe` target. It does not check storage backend connectivity — a liveness probe that depends on external services can cause unnecessary pod restarts during transient database outages.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "status": "UP"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The process is alive.|[HealthResponse](#schemahealthresponse)|
-
-> **Success:** 
-This operation does not require authentication
-
-
-## Readiness check
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/health/ready \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /health/ready`
-
-Returns HTTP 200 when the service is ready to handle traffic, or HTTP 503 when the storage backend is unreachable. This endpoint SHOULD be used as the Kubernetes `readinessProbe` target. When the probe fails, Kubernetes removes the pod from Service endpoints so that traffic is routed only to healthy instances.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "status": "UP"
-}
-```
-
-> 503 Response
-
-```json
-{
-  "status": "DOWN",
-  "reason": "storage backend unavailable"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is ready to handle traffic.|[HealthResponse](#schemahealthresponse)|
-|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is not ready (storage backend unavailable).|[HealthResponse](#schemahealthresponse)|
-
-> **Success:** 
-This operation does not require authentication
-
-
-## Startup check
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/health/startup \
-  -H 'Accept: application/vnd.schemaregistry.v1+json'
-
-```
-
-`GET /health/startup`
-
-Returns HTTP 200 when initialization is complete (storage backend connected and migrations applied), or HTTP 503 while the service is still starting up. This endpoint SHOULD be used as the Kubernetes `startupProbe` target. The startup probe prevents liveness and readiness probes from running until the service has finished initializing, avoiding premature pod restarts during slow Cassandra migrations or initial database connections.
-
-> Example responses
-
-> 200 Response
-
-```json
-{
-  "status": "UP"
-}
-```
-
-> 503 Response
-
-```json
-{
-  "status": "DOWN",
-  "reason": "storage backend unavailable"
-}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Initialization is complete.|[HealthResponse](#schemahealthresponse)|
-|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is still initializing.|[HealthResponse](#schemahealthresponse)|
-
-> **Success:** 
-This operation does not require authentication
-
-
 # DEK Registry
 
-Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by name, associated with a KMS provider. DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix.
+**Confluent compatible (Enterprise).** Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by name, associated with a KMS provider. DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix. In Confluent, this feature requires an Enterprise license.
 
 ## List KEK names
 
@@ -12123,7 +10811,7 @@ Deletes the specified Key Encryption Key (KEK). By default this performs a soft-
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The KEK was deleted successfully.|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|KEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|KEK MUST be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -12585,7 +11273,7 @@ Deletes the Data Encryption Key (DEK) for the specified subject under the given 
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The DEK was deleted successfully.|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK was not found.|[ErrorResponse](#schemaerrorresponse)|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|DEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|DEK MUST be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -13098,9 +11786,5083 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+# Analysis
+
+**AxonOps extension.** Schema analysis endpoints for validation, normalization, quality scoring, field search, similarity detection, compatibility suggestions, and registry-wide statistics. These endpoints are designed primarily to support AI-assisted schema management workflows via the MCP server, and are also available as a REST API for programmatic access, CI/CD pipelines, and custom tooling. All analysis operations are read-only and do not modify registry state.
+
+## Validate a schema
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/validate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/validate`
+
+Parses and validates a schema string without registering it. Returns whether the schema is syntactically and structurally valid for the given `schemaType`. Use this endpoint to pre-validate schemas before registration.
+
+**Validation rules by schema type:**
+- **Avro**: Parses the JSON string using the [Avro specification](https://avro.apache.org/docs/current/specification/). Validates record structure, field types, enum symbols (MUST be non-empty), fixed sizes (MUST be > 0), default values (MUST match the field type), union syntax, and named type references. Uses the `github.com/hamba/avro/v2` library.
+- **Protobuf**: Compiles the `.proto` source using `github.com/bufbuild/protocompile`. Validates message definitions, field numbering (MUST be unique), import resolution, service definitions, and proto2/proto3 syntax rules.
+- **JSON Schema**: Parses against JSON Schema Draft-07 using `github.com/santhosh-tekuri/jsonschema/v5`. Validates `$ref` resolution, `type` keywords, `properties`, `required` arrays, and boolean root schemas (`true`/`false`).
+
+When the schema is valid, `is_valid` is `true` and `error` is empty. When invalid, `is_valid` is `false` and `error` contains the parse error message from the underlying library. The response always includes the detected `schema_type`.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» schema|body|string|true|The raw schema string to validate.|
+|» schemaType|body|string|false|The schema type. Defaults to `AVRO` if omitted.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "is_valid": true,
+  "schema_type": "string",
+  "error": "string"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validation result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request body.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» is_valid|boolean|false|none|none|
+|» schema_type|string|false|none|none|
+|» error|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Normalize a schema
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/normalize \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/normalize`
+
+Parses a schema and returns its canonical (normalized) form along with a SHA-256 content fingerprint. The canonical form removes formatting differences and produces a deterministic representation suitable for deduplication.
+
+**Normalization by schema type:**
+- **Avro**: Applies the [Avro Parsing Canonical Form (PCF)](https://avro.apache.org/docs/current/specification/#parsing-canonical-form-for-schemas), which strips `doc`, `aliases`, `order`, and `default` fields. Named types are replaced with their fully-qualified names on second reference. JSON keys are sorted deterministically.
+- **Protobuf**: Compiles and re-serializes the `.proto` source, normalizing whitespace, comment removal, and import ordering.
+- **JSON Schema**: Parses the JSON and re-serializes with deterministic key ordering (per [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-4), JSON objects are unordered, so `{"type":"object","properties":...}` and `{"properties":...,"type":"object"}` normalize to the same canonical form).
+
+The `fingerprint` is a SHA-256 hash of the canonical form, hex-encoded. Two schemas with the same fingerprint are semantically identical and will share a single global ID in the registry.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» schema|body|string|true|The raw schema string to normalize.|
+|» schemaType|body|string|false|The schema type.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "schema_type": "string",
+  "canonical": "string",
+  "fingerprint": "string"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Normalized schema with fingerprint.|Inline|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Schema could not be parsed.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» schema_type|string|false|none|none|
+|» canonical|string|false|none|none|
+|» fingerprint|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Search schemas by content
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/search \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/search`
+
+Searches across all subjects for schemas whose content matches a query string or regular expression. Returns matching subject-version pairs. Useful for finding schemas that reference a particular type or contain specific field definitions.
+
+> Body parameter
+
+```json
+{
+  "query": "string",
+  "regex": false,
+  "limit": 50
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» query|body|string|true|The search query (plain text or regex pattern).|
+|» regex|body|boolean|false|If `true`, treat `query` as a regular expression.|
+|» limit|body|integer|false|Maximum number of results to return.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "query": "string",
+  "count": 0,
+  "matches": [
+    {
+      "subject": "string",
+      "version": 0,
+      "schema_type": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request or regex pattern.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» query|string|false|none|none|
+|» count|integer|false|none|none|
+|» matches|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» version|integer|false|none|none|
+|»» schema_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Find schemas by field name
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/search/field \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/search/field`
+
+Searches across all subjects for schemas containing a specific field. Fields are extracted by parsing each schema: Avro records are walked recursively (including nested records, arrays, maps, and unions), JSON Schema `properties` are extracted (including nested objects), and Protobuf messages are parsed for field declarations. Nested fields use dot-notation paths (e.g., `address.street`).
+
+**Matching modes:**
+- **`exact`** (default): Generates naming convention variants of the query (`snake_case`, `camelCase`, `PascalCase`, `kebab-case`) and matches any variant case-insensitively. For example, searching for `userName` also matches `user_name`, `UserName`, and `user-name`. Matched fields return a score of `1.0`.
+- **`fuzzy`**: Computes a similarity score using [Levenshtein edit distance](https://en.wikipedia.org/wiki/Levenshtein_distance), normalized to a 0.0–1.0 range (`1.0 - editDistance / maxLength`). Only fields with a score at or above `threshold` (default `0.6`) are returned. Comparison is case-insensitive.
+- **`regex`**: Compiles the query as a Go regular expression and matches against each field name. Returns a `400` error if the regex is invalid.
+
+> Body parameter
+
+```json
+{
+  "field": "string",
+  "mode": "exact",
+  "threshold": 0.6,
+  "limit": 50
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» field|body|string|true|The field name to search for.|
+|» mode|body|string|false|The matching mode.|
+|» threshold|body|number|false|Minimum similarity score for fuzzy matching (0.0 to 1.0).|
+|» limit|body|integer|false|Maximum number of results.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» mode|exact|
+|» mode|fuzzy|
+|» mode|regex|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "field": "string",
+  "mode": "string",
+  "count": 0,
+  "matches": [
+    {
+      "subject": "string",
+      "field_name": "string",
+      "field_type": "string",
+      "field_path": "string",
+      "score": 0,
+      "schema_type": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request or regex pattern.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» field|string|false|none|none|
+|» mode|string|false|none|none|
+|» count|integer|false|none|none|
+|» matches|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» field_name|string|false|none|none|
+|»» field_type|string|false|none|none|
+|»» field_path|string|false|none|none|
+|»» score|number|false|none|none|
+|»» schema_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Find schemas by field type
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/search/type \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/search/type`
+
+Searches across all subjects for schemas containing fields of a given type. Useful for finding all schemas that use a specific custom type, logical type, or primitive type across the registry.
+
+Field types are extracted from parsed schemas: Avro field types include primitives (`string`, `int`, `long`, `boolean`, etc.), named types (e.g., `com.example.Address`), logical types, and union representations. JSON Schema types come from the `type` keyword. Protobuf types include scalar types (`int32`, `string`, etc.) and message type references.
+
+When `regex` is `false` (default), the type name is matched exactly (case-insensitive). When `regex` is `true`, the pattern is compiled as a Go regular expression and matched against each field's type string, allowing patterns like `^int(32|64)$` or `.*Timestamp.*`.
+
+> Body parameter
+
+```json
+{
+  "type_pattern": "string",
+  "regex": false,
+  "limit": 50
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» type_pattern|body|string|true|The type name or pattern to search for.|
+|» regex|body|boolean|false|If `true`, treat `type_pattern` as a regular expression.|
+|» limit|body|integer|false|Maximum number of results.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "type_pattern": "string",
+  "count": 0,
+  "matches": [
+    {
+      "subject": "string",
+      "field_name": "string",
+      "field_type": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Type search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid regex pattern.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» type_pattern|string|false|none|none|
+|» count|integer|false|none|none|
+|» matches|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» field_name|string|false|none|none|
+|»» field_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Find similar schemas
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/similar \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/similar`
+
+Finds schemas that are structurally similar to a given subject's latest schema by comparing field name sets. Useful for detecting duplicate or near-duplicate schemas across subjects, identifying candidates for schema consolidation, or finding schemas that model related domain entities.
+
+Similarity is computed using the [Jaccard similarity coefficient](https://en.wikipedia.org/wiki/Jaccard_index): `|intersection| / |union|` of the two schemas' field name sets. Field names are normalized to `snake_case` before comparison so that `userName` and `user_name` are treated as the same field. A score of `1.0` means identical field sets; `0.0` means no fields in common. The response includes the list of `shared_fields` for each match.
+
+The default `threshold` of `0.3` returns schemas sharing at least 30% of their field names. Increase to `0.8`+ to find near-duplicates only.
+
+> Body parameter
+
+```json
+{
+  "subject": "string",
+  "threshold": 0.3,
+  "limit": 10
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» subject|body|string|true|The source subject to compare against.|
+|» threshold|body|number|false|Minimum Jaccard similarity score (0.0 to 1.0).|
+|» limit|body|integer|false|Maximum number of results.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "count": 0,
+  "similar": [
+    {
+      "subject": "string",
+      "similarity": 0,
+      "shared_fields": [
+        "string"
+      ]
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Similar schemas found.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Source subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» count|integer|false|none|none|
+|» similar|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» similarity|number|false|none|none|
+|»» shared_fields|[string]|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Score schema quality
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/quality \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/quality`
+
+Scores a schema's quality across four weighted categories, producing an overall score from 0 to 100 with a letter grade. Provide either a raw schema string or a subject name to score the latest version.
+
+**Scoring categories (25 points each, 100 total):**
+
+1. **Naming (25 pts)** — Checks whether field names follow `snake_case` convention. Fields containing uppercase letters, hyphens, or spaces are flagged. Score is proportional to the fraction of well-named fields: `25 × (good / total)`. This convention aligns with the [Avro specification's recommendation](https://avro.apache.org/docs/current/specification/#names) and is the most common field naming convention across Avro, Protobuf, and JSON Schema.
+
+2. **Documentation (25 pts)** — Counts the fraction of fields that have a `doc` string (Avro), comment (Protobuf), or `description` (JSON Schema). Score is `25 × (documented / total)`. Undocumented schemas are harder to understand and maintain.
+
+3. **Type Safety (25 pts)** — Penalizes fields that use overly generic types: `string`, `bytes`, `any`, or `object`. These types provide no semantic meaning and bypass serialization validation. Score is `25 × (specific / total)`. Fields using domain-specific types (e.g., `com.example.EmailAddress`), enums, or logical types score higher.
+
+4. **Evolution Readiness (25 pts)** — Evaluates whether the schema is prepared for safe evolution: +10 pts if any field has a default value (enables adding fields without breaking consumers), +8 pts if a `namespace` (Avro) or `package` (Protobuf) is declared (prevents naming conflicts), +7 pts if schema-level documentation exists.
+
+**Grades:** A (≥90), B (≥80), C (≥70), D (≥60), F (<60).
+
+The `quick_wins` array contains actionable suggestions (e.g., "Rename field `userName` to `user_name`", "Add documentation to fields").
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "subject": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» schema|body|string|false|The raw schema string to score. Either `schema` or `subject` MUST be provided.|
+|» schemaType|body|string|false|The schema type.|
+|» subject|body|string|false|Score the latest schema version of this subject.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "overall_score": 0,
+  "max_score": 0,
+  "grade": "string",
+  "categories": [
+    {
+      "name": "string",
+      "score": 0,
+      "max_score": 0,
+      "issues": [
+        "string"
+      ]
+    }
+  ],
+  "quick_wins": [
+    "string"
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Quality score result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Neither schema nor subject provided.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» overall_score|integer|false|none|none|
+|» max_score|integer|false|none|none|
+|» grade|string|false|none|none|
+|» categories|[object]|false|none|none|
+|»» name|string|false|none|none|
+|»» score|integer|false|none|none|
+|»» max_score|integer|false|none|none|
+|»» issues|[string]|false|none|none|
+|» quick_wins|[string]|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get schema complexity
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/schemas/complexity \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /schemas/complexity`
+
+Computes structural complexity metrics for a schema and assigns a complexity grade from A (simple) to D (very complex). Provide either a raw schema string or a subject name to analyze the latest version.
+
+**Metrics computed:**
+- `field_count` — Total number of fields across all nested records/objects.
+- `max_depth` — Maximum nesting level. A flat record has depth 1; a record with a nested record field has depth 2, etc. Computed from the dot-notation field paths (e.g., `address.street.number` has depth 3).
+
+**Complexity grades:**
+- **A** — ≤15 fields AND ≤3 nesting depth. Simple, easy to understand and maintain.
+- **B** — ≤30 fields AND ≤4 nesting depth. Moderate complexity, typical for most domain objects.
+- **C** — ≤50 fields AND ≤5 nesting depth. Complex schema that may benefit from decomposition into referenced sub-schemas.
+- **D** — >50 fields OR >5 nesting depth. Very complex; strongly consider breaking into smaller, referenced schemas for maintainability and reuse.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "subject": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» schema|body|string|false|The raw schema string. Either `schema` or `subject` MUST be provided.|
+|» schemaType|body|string|false|none|
+|» subject|body|string|false|Analyze the latest schema version of this subject.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "schema_type": "string",
+  "field_count": 0,
+  "max_depth": 0,
+  "grade": "string"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Complexity analysis result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Neither schema nor subject provided.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» schema_type|string|false|none|none|
+|» field_count|integer|false|none|none|
+|» max_depth|integer|false|none|none|
+|» grade|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Validate a subject name
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/subjects/validate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /subjects/validate`
+
+Checks whether a subject name follows the conventions of a given naming strategy. Returns validation issues and a suggested corrected name. These strategies correspond to the Confluent Schema Registry [subject name strategies](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy) used by Kafka serializers.
+
+**Naming strategies:**
+- **`topic_name`** (default) — Subject MUST end with `-key` or `-value` (e.g., `orders-value`, `users-key`). This is the default Confluent `TopicNameStrategy` where the subject is `{topic}-{key|value}`.
+- **`record_name`** — Subject MUST be a valid qualified name using dot-separated identifiers (e.g., `com.example.User`). Each identifier MUST start with a letter or underscore, followed by letters, digits, or underscores. This matches the Confluent `RecordNameStrategy` where the subject is the fully-qualified schema name.
+- **`topic_record_name`** — Subject MUST contain a hyphen separating the topic and record portions (e.g., `orders-com.example.Order`). This matches the Confluent `TopicRecordNameStrategy` where the subject is `{topic}-{record_name}`.
+
+> Body parameter
+
+```json
+{
+  "subject": "string",
+  "strategy": "topic_name"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» subject|body|string|true|The subject name to validate.|
+|» strategy|body|string|false|The naming strategy to validate against.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» strategy|topic_name|
+|» strategy|record_name|
+|» strategy|topic_record_name|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "strategy": "string",
+  "valid": true,
+  "issues": [
+    "string"
+  ],
+  "suggestion": "string"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validation result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `subject` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» strategy|string|false|none|none|
+|» valid|boolean|false|none|none|
+|» issues|[string]|false|none|none|
+|» suggestion|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Match subjects by pattern
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/subjects/match \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /subjects/match`
+
+Finds subjects matching a pattern. Useful for discovering subjects when the exact name is not known, or for filtering subjects by naming convention.
+
+**Matching modes:**
+- **`regex`** (default) — Compiles the pattern as a Go regular expression and tests each subject name. Returns a `400` error for invalid regex.
+- **`glob`** — Matches using wildcard patterns where `*` matches any sequence of characters. Comparison is case-insensitive. For example, `orders-*` matches `orders-value`, `orders-key`, and `orders-avro-value`.
+- **`fuzzy`** — Computes Levenshtein-based similarity (0.0–1.0) between the pattern and each subject name. Only subjects with a score at or above `threshold` (default `0.6`) are returned. Useful for finding subjects with typos or slight naming variations.
+
+> Body parameter
+
+```json
+{
+  "pattern": "string",
+  "mode": "regex",
+  "threshold": 0.6
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» pattern|body|string|true|The pattern to match subject names against.|
+|» mode|body|string|false|The matching mode.|
+|» threshold|body|number|false|Minimum similarity score for fuzzy matching (0.0 to 1.0).|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» mode|regex|
+|» mode|glob|
+|» mode|fuzzy|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "pattern": "string",
+  "mode": "string",
+  "count": 0,
+  "matches": [
+    "string"
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Matching subjects.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid pattern or regex.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» pattern|string|false|none|none|
+|» mode|string|false|none|none|
+|» count|integer|false|none|none|
+|» matches|[string]|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Count subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/count \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/count`
+
+Returns the total number of active (non-deleted) subjects in the registry.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "count": 0
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Subject count.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» count|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get schema history
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/{subject}/history \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/{subject}/history`
+
+Returns the full version history of a subject, listing each version with its schema ID and type. Useful for understanding schema evolution over time.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "count": 0,
+  "history": [
+    {
+      "version": 0,
+      "schema_id": 0,
+      "schema_type": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Version history.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» count|integer|false|none|none|
+|» history|[object]|false|none|none|
+|»» version|integer|false|none|none|
+|»» schema_id|integer(int64)|false|none|none|
+|»» schema_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Count versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/{subject}/versions/count \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/{subject}/versions/count`
+
+Returns the number of schema versions registered under a subject.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "count": 0
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Version count.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» count|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get dependency graph
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/{subject}/versions/{version}/dependencies \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/{subject}/versions/{version}/dependencies`
+
+Returns the dependency graph for a specific schema version, showing which other schemas reference this schema via cross-subject references.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|version|path|integer|true|The schema version number.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "version": 0,
+  "schema_id": 0,
+  "referenced_by": [
+    {
+      "subject": "string",
+      "version": 0
+    }
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Dependency graph.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid version number.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» version|integer|false|none|none|
+|» schema_id|integer(int64)|false|none|none|
+|» referenced_by|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» version|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Export a schema version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/{subject}/versions/{version}/export \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/{subject}/versions/{version}/export`
+
+Exports a single schema version with its full metadata including the schema body, type, compatibility level, and version information. Useful for backup and migration.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|version|path|integer|true|The schema version number.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "version": 0,
+  "id": 0,
+  "schema": "string",
+  "schema_type": "string",
+  "compatibility_level": "string"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Exported schema version.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid version number.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» version|integer|false|none|none|
+|» id|integer(int64)|false|none|none|
+|» schema|string|false|none|none|
+|» schema_type|string|false|none|none|
+|» compatibility_level|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Export all versions of a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/subjects/{subject}/export \
+  -H 'Accept: application/json'
+
+```
+
+`GET /subjects/{subject}/export`
+
+Exports all schema versions registered under a subject. Returns each version with its schema body, ID, and type. Useful for backup and migration.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "count": 0,
+  "versions": [
+    {
+      "subject": "string",
+      "version": 0,
+      "id": 0,
+      "schema": "string",
+      "schema_type": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|All exported versions.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» count|integer|false|none|none|
+|» versions|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» version|integer|false|none|none|
+|»» id|integer(int64)|false|none|none|
+|»» schema|string|false|none|none|
+|»» schema_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Diff two schema versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/subjects/{subject}/diff \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /subjects/{subject}/diff`
+
+Compares two versions of a subject's schema and returns the structural differences at the field level. If `version2` is omitted, compares against the latest version.
+
+The diff extracts fields from both schema versions and computes:
+- **`added`** — Fields present in version2 but not in version1 (new fields).
+- **`removed`** — Fields present in version1 but not in version2 (deleted fields).
+- **`changed`** — Fields present in both versions but with a different type (e.g., a field changed from `string` to `int`), showing both `old_type` and `new_type`.
+
+Field matching uses normalized `snake_case` names, so `userName` in version1 and `user_name` in version2 are treated as the same field. This endpoint is read-only and does not perform compatibility checking — use `POST /compatibility/subjects/{subject}/versions/{version}` for that.
+
+> Body parameter
+
+```json
+{
+  "version1": 1,
+  "version2": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» version1|body|integer|false|The first version to compare.|
+|» version2|body|integer|false|The second version to compare. Defaults to latest.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "version1": 0,
+  "version2": 0,
+  "added": [
+    {
+      "field": "string",
+      "type": "string"
+    }
+  ],
+  "removed": [
+    {
+      "field": "string",
+      "type": "string"
+    }
+  ],
+  "changed": [
+    {
+      "field": "string",
+      "old_type": "string",
+      "new_type": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Schema diff result.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» version1|integer|false|none|none|
+|» version2|integer|false|none|none|
+|» added|[object]|false|none|none|
+|»» field|string|false|none|none|
+|»» type|string|false|none|none|
+|» removed|[object]|false|none|none|
+|»» field|string|false|none|none|
+|»» type|string|false|none|none|
+|» changed|[object]|false|none|none|
+|»» field|string|false|none|none|
+|»» old_type|string|false|none|none|
+|»» new_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Suggest schema evolution
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/subjects/{subject}/evolve \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /subjects/{subject}/evolve`
+
+Given a subject and a set of proposed changes, provides guidance on how to evolve the schema while maintaining compatibility with the subject's configured compatibility level. Returns the subject's current version, its compatibility level, and a message describing whether the proposed changes are safe.
+
+Each change in the `changes` array describes an `action` (`add`, `remove`, or `modify`), the `field` name, and optionally a `type`. The endpoint evaluates these against the compatibility rules — for example, under `BACKWARD` compatibility, adding a field with a default is safe, but removing a field is not.
+
+> Body parameter
+
+```json
+{
+  "changes": [
+    {
+      "action": "string",
+      "field": "string",
+      "type": "string"
+    }
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» changes|body|[object]|false|none|
+|»» action|body|string|false|none|
+|»» field|body|string|false|none|
+|»» type|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "current_version": 0,
+  "compatibility_level": "string",
+  "changes_requested": 0,
+  "message": "string"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Evolution suggestions.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» current_version|integer|false|none|none|
+|» compatibility_level|string|false|none|none|
+|» changes_requested|integer|false|none|none|
+|» message|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Plan migration path
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/subjects/{subject}/migrate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /subjects/{subject}/migrate`
+
+Given a subject and a target schema, computes a step-by-step migration plan to evolve from the subject's current latest schema to the target. Each step in the plan is an individually compatible schema change that can be registered as a new version.
+
+The planner diffs the current and target schemas (using the same field extraction as the diff endpoint), then decomposes the changes into the minimum number of safe steps based on the subject's compatibility level. For example, under `BACKWARD` compatibility, a migration that adds two fields and removes one might be decomposed into: (1) add field A with default, (2) add field B with default, (3) deprecate and remove field C in a separate step.
+
+The `steps` array contains human-readable descriptions of each migration step. `step_count` is the total number of steps required.
+
+> Body parameter
+
+```json
+{
+  "target_schema": "string",
+  "schema_type": "AVRO"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» target_schema|body|string|true|The target schema to migrate to.|
+|» schema_type|body|string|false|The schema type of the target schema.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schema_type|AVRO|
+|» schema_type|PROTOBUF|
+|» schema_type|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "current_version": 0,
+  "compatibility_level": "string",
+  "steps": [
+    "string"
+  ],
+  "step_count": 0
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Migration plan.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `target_schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» current_version|integer|false|none|none|
+|» compatibility_level|string|false|none|none|
+|» steps|[string]|false|none|none|
+|» step_count|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Check compatibility against multiple subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/compatibility/check \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /compatibility/check`
+
+Tests whether a schema is compatible with the latest version of multiple subjects simultaneously. Returns per-subject compatibility results. Useful for validating a shared schema across multiple topics.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "subjects": [
+    "string"
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» schema|body|string|true|The candidate schema to test.|
+|» schemaType|body|string|false|none|
+|» subjects|body|[string]|true|The list of subjects to check compatibility against.|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "results": [
+    {
+      "subject": "string",
+      "is_compatible": true,
+      "error": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Per-subject compatibility results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» results|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» is_compatible|boolean|false|none|none|
+|»» error|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Suggest compatible changes
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/compatibility/subjects/{subject}/suggest \
+  -H 'Accept: application/json'
+
+```
+
+`POST /compatibility/subjects/{subject}/suggest`
+
+Returns rule-based suggestions for what kinds of schema changes are safe under the subject's current compatibility level. Helps developers understand the constraints before attempting schema evolution.
+
+**Suggestions by compatibility level:**
+- **BACKWARD / BACKWARD_TRANSITIVE** — "Add new fields with default values", "Do NOT remove existing fields", "Do NOT change field types". New consumers can read data written by old producers.
+- **FORWARD / FORWARD_TRANSITIVE** — "Remove fields (new consumers will ignore them)", "Do NOT add required fields without defaults". Old consumers can read data written by new producers.
+- **FULL / FULL_TRANSITIVE** — "Only add optional fields with defaults", "Do NOT remove or rename fields". Both old and new consumers can read each other's data.
+- **NONE** — "Any change is allowed (no compatibility checks)".
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "compatibility_level": "string",
+  "suggestions": [
+    "string"
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility suggestions.|Inline|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» compatibility_level|string|false|none|none|
+|» suggestions|[string]|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Explain compatibility failure
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/compatibility/subjects/{subject}/explain \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /compatibility/subjects/{subject}/explain`
+
+Tests a schema against a subject's latest version and explains why the schema is or is not compatible. Returns the compatibility level, result, and a human-readable explanation of any failure.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» schema|body|string|true|The candidate schema to test.|
+|» schemaType|body|string|false|none|
+
+#### Enumerated Values
+
+|Parameter|Value|
+|---|---|
+|» schemaType|AVRO|
+|» schemaType|PROTOBUF|
+|» schemaType|JSON|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "compatibility_level": "string",
+  "is_compatible": true,
+  "error": "string",
+  "explanation": "string"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility explanation.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject|string|false|none|none|
+|» compatibility_level|string|false|none|none|
+|» is_compatible|boolean|false|none|none|
+|» error|string|false|none|none|
+|» explanation|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Compare two subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/compatibility/compare \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /compatibility/compare`
+
+Compares the field structures of two subjects' latest schemas. Returns fields that are shared between both, unique to the first subject, or unique to the second subject. Useful for identifying field overlap and potential schema consolidation opportunities.
+
+> Body parameter
+
+```json
+{
+  "subject1": "string",
+  "subject2": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|object|true|none|
+|» subject1|body|string|true|The first subject name.|
+|» subject2|body|string|true|The second subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject1": "string",
+  "subject2": "string",
+  "shared": [
+    "string"
+  ],
+  "only_in_sub1": [
+    "string"
+  ],
+  "only_in_sub2": [
+    "string"
+  ]
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Comparison result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both `subject1` and `subject2` fields are REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|One or both subjects not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject1|string|false|none|none|
+|» subject2|string|false|none|none|
+|» shared|[string]|false|none|none|
+|» only_in_sub1|[string]|false|none|none|
+|» only_in_sub2|[string]|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get registry statistics
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/statistics \
+  -H 'Accept: application/json'
+
+```
+
+`GET /statistics`
+
+Returns aggregate statistics about the registry including the total number of subjects, total number of schema versions, and a breakdown of schema types (AVRO, PROTOBUF, JSON).
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject_count": 0,
+  "version_count": 0,
+  "type_counts": {
+    "property1": 0,
+    "property2": 0
+  }
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Registry statistics.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject_count|integer|false|none|none|
+|» version_count|integer|false|none|none|
+|» type_counts|object|false|none|none|
+|»» **additionalProperties**|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Check field consistency
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/statistics/fields/{field} \
+  -H 'Accept: application/json'
+
+```
+
+`GET /statistics/fields/{field}`
+
+Checks how a specific field name is used across all schemas in the registry and reports whether its type is consistent. This is a data governance tool for detecting type drift — for example, `user_id` being `long` in one schema and `string` in another.
+
+The search generates naming convention variants of the field name (`snake_case`, `camelCase`, `PascalCase`, `kebab-case`) and matches any variant against every schema's extracted fields. The response includes:
+- `consistent` — `true` if all usages of this field have the same type (i.e., `type_counts` has only one entry), `false` otherwise.
+- `type_counts` — A map of type name to usage count (e.g., `{"long": 5, "string": 2}` indicates an inconsistency).
+- `usages` — Each individual occurrence with its subject, matched field name, and field type.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|field|path|string|true|The field name to check.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "field": "string",
+  "consistent": true,
+  "type_counts": {
+    "property1": 0,
+    "property2": 0
+  },
+  "usages": [
+    {
+      "subject": "string",
+      "field_name": "string",
+      "field_type": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field consistency report.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `field` parameter is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» field|string|false|none|none|
+|» consistent|boolean|false|none|none|
+|» type_counts|object|false|none|none|
+|»» **additionalProperties**|integer|false|none|none|
+|» usages|[object]|false|none|none|
+|»» subject|string|false|none|none|
+|»» field_name|string|false|none|none|
+|»» field_type|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Detect schema patterns
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/statistics/patterns \
+  -H 'Accept: application/json'
+
+```
+
+`GET /statistics/patterns`
+
+Analyzes all schemas in the registry and identifies common field patterns — fields that appear in two or more subjects. Useful for discovering shared data models and candidates for schema consolidation.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject_count": 0,
+  "common_fields": [
+    {
+      "field": "string",
+      "count": 0
+    }
+  ],
+  "pattern_count": 0
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Pattern detection results.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» subject_count|integer|false|none|none|
+|» common_fields|[object]|false|none|none|
+|»» field|string|false|none|none|
+|»» count|integer|false|none|none|
+|» pattern_count|integer|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Validate a schema
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/validate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/validate`
+
+Context-scoped version of `/schemas/validate`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» schema|body|string|true|none|
+|» schemaType|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validation result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Normalize a schema
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/normalize \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/normalize`
+
+Context-scoped version of `/schemas/normalize`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» schema|body|string|true|none|
+|» schemaType|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Normalized schema.|Inline|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Schema could not be parsed.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Search schemas by content
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/search \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/search`
+
+Context-scoped version of `/schemas/search`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "query": "string",
+  "regex": true,
+  "limit": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» query|body|string|true|none|
+|» regex|body|boolean|false|none|
+|» limit|body|integer|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Find schemas by field name
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/search/field \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/search/field`
+
+Context-scoped version of `/schemas/search/field`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "field": "string",
+  "mode": "string",
+  "threshold": 0,
+  "limit": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» field|body|string|true|none|
+|» mode|body|string|false|none|
+|» threshold|body|number|false|none|
+|» limit|body|integer|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Find schemas by field type
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/search/type \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/search/type`
+
+Context-scoped version of `/schemas/search/type`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "type_pattern": "string",
+  "regex": true,
+  "limit": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» type_pattern|body|string|true|none|
+|» regex|body|boolean|false|none|
+|» limit|body|integer|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Type search results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Find similar schemas
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/similar \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/similar`
+
+Context-scoped version of `/schemas/similar`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "subject": "string",
+  "threshold": 0,
+  "limit": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» subject|body|string|true|none|
+|» threshold|body|number|false|none|
+|» limit|body|integer|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Similar schemas.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Score schema quality
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/quality \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/quality`
+
+Context-scoped version of `/schemas/quality`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string",
+  "subject": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» schema|body|string|false|none|
+|» schemaType|body|string|false|none|
+|» subject|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Quality score.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema complexity
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/schemas/complexity \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/schemas/complexity`
+
+Context-scoped version of `/schemas/complexity`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string",
+  "subject": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» schema|body|string|false|none|
+|» schemaType|body|string|false|none|
+|» subject|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Complexity analysis.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Validate a subject name
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/validate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/subjects/validate`
+
+Context-scoped version of `/subjects/validate`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "subject": "string",
+  "strategy": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» subject|body|string|true|none|
+|» strategy|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validation result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Match subjects by pattern
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/match \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/subjects/match`
+
+Context-scoped version of `/subjects/match`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "pattern": "string",
+  "mode": "string",
+  "threshold": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» pattern|body|string|true|none|
+|» mode|body|string|false|none|
+|» threshold|body|number|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Matching subjects.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Count subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/count \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/count`
+
+Context-scoped version of `/subjects/count`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Subject count.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema history
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/history \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/history`
+
+Context-scoped version of `/subjects/{subject}/history`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Version history.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Count versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/count \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/count`
+
+Context-scoped version of `/subjects/{subject}/versions/count`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Version count.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get dependency graph
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version}/dependencies \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/{version}/dependencies`
+
+Context-scoped version of `/subjects/{subject}/versions/{version}/dependencies`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|version|path|integer|true|The schema version number.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Dependency graph.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid version.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Export a schema version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version}/export \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/{version}/export`
+
+Context-scoped version of `/subjects/{subject}/versions/{version}/export`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|version|path|integer|true|The schema version number.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Exported schema version.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid version.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Export all versions of a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/export \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/export`
+
+Context-scoped version of `/subjects/{subject}/export`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Exported versions.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Diff two schema versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/{subject}/diff \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/subjects/{subject}/diff`
+
+Context-scoped version of `/subjects/{subject}/diff`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "version1": 0,
+  "version2": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» version1|body|integer|false|none|
+|» version2|body|integer|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Schema diff.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Suggest schema evolution
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/{subject}/evolve \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/subjects/{subject}/evolve`
+
+Context-scoped version of `/subjects/{subject}/evolve`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "changes": [
+    {}
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» changes|body|[object]|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Evolution suggestions.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Plan migration path
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/{subject}/migrate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/subjects/{subject}/migrate`
+
+Context-scoped version of `/subjects/{subject}/migrate`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "target_schema": "string",
+  "schema_type": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» target_schema|body|string|true|none|
+|» schema_type|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Migration plan.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `target_schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Check compatibility against multiple subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/check \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/compatibility/check`
+
+Context-scoped version of `/compatibility/check`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string",
+  "subjects": [
+    "string"
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» schema|body|string|true|none|
+|» schemaType|body|string|false|none|
+|» subjects|body|[string]|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility results.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Suggest compatible changes
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/subjects/{subject}/suggest \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/compatibility/subjects/{subject}/suggest`
+
+Context-scoped version of `/compatibility/subjects/{subject}/suggest`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility suggestions.|Inline|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Explain compatibility failure
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/subjects/{subject}/explain \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/compatibility/subjects/{subject}/explain`
+
+Context-scoped version of `/compatibility/subjects/{subject}/explain`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The subject name.|
+|body|body|object|true|none|
+|» schema|body|string|true|none|
+|» schemaType|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility explanation.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Compare two subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/compare \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /contexts/{context}/compatibility/compare`
+
+Context-scoped version of `/compatibility/compare`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "subject1": "string",
+  "subject2": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|object|true|none|
+|» subject1|body|string|true|none|
+|» subject2|body|string|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Comparison result.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both `subject1` and `subject2` fields are REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get registry statistics
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/statistics \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/statistics`
+
+Context-scoped version of `/statistics`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Registry statistics.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Check field consistency
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/statistics/fields/{field} \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/statistics/fields/{field}`
+
+Context-scoped version of `/statistics/fields/{field}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|field|path|string|true|The field name.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field consistency report.|Inline|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `field` parameter is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Detect schema patterns
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/statistics/patterns \
+  -H 'Accept: application/json'
+
+```
+
+`GET /contexts/{context}/statistics/patterns`
+
+Context-scoped version of `/statistics/patterns`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Pattern detection results.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Admin
+
+**AxonOps extension.** Administrative endpoints for managing users, API keys, and roles. These endpoints require admin-level permissions and are part of the AxonOps built-in RBAC system.
+
+## List all users
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/admin/users \
+  -H 'Accept: application/json'
+
+```
+
+`GET /admin/users`
+
+Returns a list of all users in the registry. The caller MUST have admin read permissions.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "johndoe",
+      "email": "johndoe@example.com",
+      "role": "developer",
+      "enabled": true,
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of all users.|[UsersListResponse](#schemauserslistresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Create a new user
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/admin/users \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /admin/users`
+
+Creates a new user in the registry. The `username`, `password`, and `role` fields are REQUIRED. The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`. The caller MUST have admin write permissions.
+
+> Body parameter
+
+```json
+{
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "password": "SecureP@ss123",
+  "role": "developer",
+  "enabled": true
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|[CreateUserRequest](#schemacreateuserrequest)|true|none|
+
+> Example responses
+
+> 201 Response
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "role": "developer",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40901,
+  "message": "User already exists"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created user.|[UserResponse](#schemauserresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields or invalid role.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|A user with this username already exists.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get a user by ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/admin/users/{id} \
+  -H 'Accept: application/json'
+
+```
+
+`GET /admin/users/{id}`
+
+Retrieves the user with the specified ID. The caller MUST have admin read permissions.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "role": "developer",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40404,
+  "message": "User not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The user record.|[UserResponse](#schemauserresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Update a user
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/admin/users/{id} \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`PUT /admin/users/{id}`
+
+Updates one or more fields of the user with the specified ID. Only the fields provided in the request body are modified; omitted fields remain unchanged. The caller MUST have admin write permissions.
+
+> Body parameter
+
+```json
+{
+  "email": "string",
+  "password": "pa$$word",
+  "role": "super_admin",
+  "enabled": true
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+|body|body|[UpdateUserRequest](#schemaupdateuserrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "role": "developer",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40404,
+  "message": "User not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated user record.|[UserResponse](#schemauserresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Delete a user
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/admin/users/{id} \
+  -H 'Accept: application/json'
+
+```
+
+`DELETE /admin/users/{id}`
+
+Permanently deletes the user with the specified ID. Returns 204 No Content on success. The caller MUST have admin write permissions.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+
+> Example responses
+
+> 400 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Subject 'my-topic-value' not found"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40404,
+  "message": "User not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|User deleted successfully.|None|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## List API keys
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/admin/apikeys \
+  -H 'Accept: application/json'
+
+```
+
+`GET /admin/apikeys`
+
+Returns a list of all API keys in the registry. The optional `user_id` query parameter filters results to API keys owned by a specific user. The caller MUST have admin read permissions. The raw key secret is never included in list responses.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|user_id|query|integer(int64)|false|Filter API keys by the owning user's ID. If omitted, all API keys are returned.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "api_keys": [
+    {
+      "id": 1,
+      "key_prefix": "axon_abc",
+      "name": "ci-pipeline-key",
+      "role": "developer",
+      "user_id": 1,
+      "username": "johndoe",
+      "enabled": true,
+      "created_at": "2025-01-15T10:30:00Z",
+      "expires_at": "2025-02-14T10:30:00Z",
+      "last_used": "2019-08-24T14:15:22Z"
+    }
+  ]
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of API keys.|[APIKeysListResponse](#schemaapikeyslistresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Create a new API key
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/admin/apikeys \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /admin/apikeys`
+
+Creates a new API key. The `name`, `role`, and `expires_in` fields are required. The `name` MUST be unique per user. The `expires_in` value is a duration in seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`.
+The raw API key secret is returned ONLY in the creation response and CANNOT be retrieved afterward. Clients SHOULD store the key securely immediately after creation.
+Super admins MAY create API keys for other users by specifying the `for_user_id` field.
+
+> Body parameter
+
+```json
+{
+  "name": "ci-pipeline-key",
+  "role": "developer",
+  "expires_in": 2592000,
+  "for_user_id": 0
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|[CreateAPIKeyRequest](#schemacreateapikeyrequest)|true|none|
+
+> Example responses
+
+> 201 Response
+
+```json
+{
+  "id": 0,
+  "key": "axon_abcdefghijklmnopqrstuvwxyz1234567890",
+  "key_prefix": "string",
+  "name": "string",
+  "role": "string",
+  "user_id": 0,
+  "username": "string",
+  "enabled": true,
+  "created_at": "2019-08-24T14:15:22Z",
+  "expires_at": "2019-08-24T14:15:22Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40902,
+  "message": "API key name already exists for this user"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created API key, including the raw key secret. This is the ONLY time the raw key is returned.|[CreateAPIKeyResponse](#schemacreateapikeyresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields, invalid role, or invalid `expires_in`.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|An API key with this name already exists for the user.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get an API key by ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/admin/apikeys/{id} \
+  -H 'Accept: application/json'
+
+```
+
+`GET /admin/apikeys/{id}`
+
+Retrieves the API key with the specified ID. The raw key secret is NOT included in the response. The caller MUST have admin read permissions.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "key_prefix": "axon_abc",
+  "name": "ci-pipeline-key",
+  "role": "developer",
+  "user_id": 1,
+  "username": "johndoe",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "expires_at": "2025-02-14T10:30:00Z",
+  "last_used": "2019-08-24T14:15:22Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40405,
+  "message": "API key not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The API key record.|[APIKeyResponse](#schemaapikeyresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Update an API key
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/admin/apikeys/{id} \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`PUT /admin/apikeys/{id}`
+
+Updates one or more fields of the API key with the specified ID. Only the fields provided in the request body are modified; omitted fields remain unchanged. The caller MUST have admin write permissions.
+
+> Body parameter
+
+```json
+{
+  "name": "string",
+  "role": "super_admin",
+  "enabled": true
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+|body|body|[UpdateAPIKeyRequest](#schemaupdateapikeyrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "key_prefix": "axon_abc",
+  "name": "ci-pipeline-key",
+  "role": "developer",
+  "user_id": 1,
+  "username": "johndoe",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "expires_at": "2025-02-14T10:30:00Z",
+  "last_used": "2019-08-24T14:15:22Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40405,
+  "message": "API key not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated API key record.|[APIKeyResponse](#schemaapikeyresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Delete an API key
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/admin/apikeys/{id} \
+  -H 'Accept: application/json'
+
+```
+
+`DELETE /admin/apikeys/{id}`
+
+Permanently deletes the API key with the specified ID. Returns 204 No Content on success. The caller MUST have admin write permissions.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+
+> Example responses
+
+> 400 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Subject 'my-topic-value' not found"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40405,
+  "message": "API key not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|API key deleted successfully.|None|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Revoke an API key
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/admin/apikeys/{id}/revoke \
+  -H 'Accept: application/json'
+
+```
+
+`POST /admin/apikeys/{id}/revoke`
+
+Revokes the API key with the specified ID by disabling it. The API key remains in the database but can no longer be used for authentication. The caller MUST have admin write permissions.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "key_prefix": "axon_abc",
+  "name": "ci-pipeline-key",
+  "role": "developer",
+  "user_id": 1,
+  "username": "johndoe",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "expires_at": "2025-02-14T10:30:00Z",
+  "last_used": "2019-08-24T14:15:22Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40405,
+  "message": "API key not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The revoked API key record (with enabled set to false).|[APIKeyResponse](#schemaapikeyresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Rotate an API key
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/admin/apikeys/{id}/rotate \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /admin/apikeys/{id}/rotate`
+
+Rotates the API key with the specified ID by revoking the existing key and creating a new one with the same name and role but a fresh secret and expiry. The `expires_in` field in the request body specifies the duration in seconds for the new key. The raw secret for the new key is returned ONLY in this response.
+The caller MUST have admin write permissions.
+
+> Body parameter
+
+```json
+{
+  "expires_in": 2592000
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|id|path|integer(int64)|true|The unique integer ID of the resource.|
+|body|body|[RotateAPIKeyRequest](#schemarotateapikeyrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "new_key": {
+    "id": 0,
+    "key": "axon_abcdefghijklmnopqrstuvwxyz1234567890",
+    "key_prefix": "string",
+    "name": "string",
+    "role": "string",
+    "user_id": 0,
+    "username": "string",
+    "enabled": true,
+    "created_at": "2019-08-24T14:15:22Z",
+    "expires_at": "2019-08-24T14:15:22Z"
+  },
+  "revoked_id": 1
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40405,
+  "message": "API key not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The rotation result containing the new API key (with its raw secret) and the ID of the revoked key.|[RotateAPIKeyResponse](#schemarotateapikeyresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid expires_in.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## List available roles
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/admin/roles \
+  -H 'Accept: application/json'
+
+```
+
+`GET /admin/roles`
+
+Returns the list of roles available in the registry along with their descriptions and associated permissions. The caller MUST have admin read permissions.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "roles": [
+    {
+      "name": "developer",
+      "description": "Can register and read schemas",
+      "permissions": [
+        "schema:read",
+        "schema:write",
+        "subject:read"
+      ]
+    }
+  ]
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Admin write permission required"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of available roles with their permissions.|[RolesListResponse](#schemaroleslistresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Account
+
+**AxonOps extension.** Self-service account endpoints for authenticated users to view their own profile and change their password.
+
+## Get current user
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/me \
+  -H 'Accept: application/json'
+
+```
+
+`GET /me`
+
+Returns the profile of the currently authenticated user. The caller MUST be authenticated. If the user record is not found in the database, a 404 error is returned.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "role": "developer",
+  "enabled": true,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40404,
+  "message": "User not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The current user's profile.|[UserResponse](#schemauserresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Change current user password
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/me/password \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+
+```
+
+`POST /me/password`
+
+Changes the password of the currently authenticated user. The request MUST include both the current (old) password for verification and the desired new password. Returns 204 No Content on success.
+
+> Body parameter
+
+```json
+{
+  "old_password": "pa$$word",
+  "new_password": "pa$$word"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|[ChangePasswordRequest](#schemachangepasswordrequest)|true|none|
+
+> Example responses
+
+> 400 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Subject 'my-topic-value' not found"
+}
+```
+
+> 401 Response
+
+```json
+{
+  "error_code": 40101,
+  "message": "Authentication required"
+}
+```
+
+> 403 Response
+
+```json
+{
+  "error_code": 40301,
+  "message": "Current password is incorrect"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|Password changed successfully.|None|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
+|403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Current password is incorrect.|[ErrorResponse](#schemaerrorresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Documentation
 
-Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with docs_enabled.
+**AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with `docs_enabled: true`.
 
 ## Swagger UI
 
@@ -15225,7 +18987,7 @@ The response returned when creating a new API key. This is the ONLY time the raw
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |id|integer(int64)|true|none|The unique API key ID.|
-|key|string|true|none|The raw API key secret. This value is shown ONLY once at creation time and cannot be retrieved later.|
+|key|string|true|none|The raw API key secret. This value is shown ONLY once at creation time and CANNOT be retrieved later.|
 |key_prefix|string|true|none|The first 8 characters of the API key for identification.|
 |name|string|true|none|The name of the API key.|
 |role|string|true|none|The role assigned to this API key.|
@@ -15557,3 +19319,378 @@ Health check response indicating the service status. The `status` field is alway
 |---|---|
 |status|UP|
 |status|DOWN|
+
+
+---
+
+## API Compatibility Reference
+
+AxonOps Schema Registry implements the full Confluent Schema Registry API and
+extends it with additional capabilities. Each endpoint group below indicates
+its compatibility tier.
+
+| Tier | Description |
+|------|-------------|
+| **Confluent Compatible (Community)** | Available in the free/open-source Confluent Schema Registry |
+| **Confluent Compatible (Enterprise)** | Requires a Confluent Enterprise license — included free in AxonOps |
+| **AxonOps Extension** | Unique to AxonOps Schema Registry |
+
+### Confluent Compatible (Community)
+
+#### Compatibility
+
+Operations for testing whether a candidate schema is compatible with existing schema versions under a subject, without actually registering it.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/compatibility/subjects/{subject}/versions` | Check compatibility against all versions |
+| `POST` | `/compatibility/subjects/{subject}/versions/{version}` | Check compatibility against a specific version |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/versions` | [Context-scoped] Check compatibility against all versions |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/versions/{version}` | [Context-scoped] Check compatibility against a specific version |
+
+#### Config
+
+Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and `FULL_TRANSITIVE`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `DELETE` | `/config` | Delete global compatibility configuration |
+| `GET` | `/config` | Get global compatibility configuration |
+| `PUT` | `/config` | Set global compatibility configuration |
+| `DELETE` | `/config/{subject}` | Delete subject-level compatibility configuration |
+| `GET` | `/config/{subject}` | Get subject-level compatibility configuration |
+| `PUT` | `/config/{subject}` | Set subject-level compatibility configuration |
+| `DELETE` | `/contexts/{context}/config` | [Context-scoped] Delete global compatibility configuration |
+| `GET` | `/contexts/{context}/config` | [Context-scoped] Get global compatibility configuration |
+| `PUT` | `/contexts/{context}/config` | [Context-scoped] Set global compatibility configuration |
+| `DELETE` | `/contexts/{context}/config/{subject}` | [Context-scoped] Delete subject-level compatibility configuration |
+| `GET` | `/contexts/{context}/config/{subject}` | [Context-scoped] Get subject-level compatibility configuration |
+| `PUT` | `/contexts/{context}/config/{subject}` | [Context-scoped] Set subject-level compatibility configuration |
+
+#### Health
+
+Kubernetes-style health check endpoints for liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle management. The liveness probe confirms the process is alive, the readiness probe confirms the service can handle traffic (storage backend is reachable), and the startup probe confirms initialization is complete.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Health check (legacy) |
+| `GET` | `/health/live` | Liveness check |
+| `GET` | `/health/ready` | Readiness check |
+| `GET` | `/health/startup` | Startup check |
+
+#### Metadata
+
+Operations for retrieving registry metadata such as the cluster ID and server version.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/contexts/{context}/v1/metadata/id` | [Context-scoped] Get cluster ID |
+| `GET` | `/contexts/{context}/v1/metadata/version` | [Context-scoped] Get server version |
+| `GET` | `/v1/metadata/id` | Get cluster ID |
+| `GET` | `/v1/metadata/version` | Get server version |
+
+#### Mode
+
+Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `DELETE` | `/contexts/{context}/mode` | [Context-scoped] Delete global mode |
+| `GET` | `/contexts/{context}/mode` | [Context-scoped] Get global mode |
+| `PUT` | `/contexts/{context}/mode` | [Context-scoped] Set global mode |
+| `DELETE` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Delete subject-level mode |
+| `GET` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Get subject-level mode |
+| `PUT` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Set subject-level mode |
+| `DELETE` | `/mode` | Delete global mode |
+| `GET` | `/mode` | Get global mode |
+| `PUT` | `/mode` | Set global mode |
+| `DELETE` | `/mode/{subject}` | Delete subject-level mode |
+| `GET` | `/mode/{subject}` | Get subject-level mode |
+| `PUT` | `/mode/{subject}` | Set subject-level mode |
+
+#### Schemas
+
+Operations for retrieving schemas by their globally unique ID, listing all schemas, and querying supported schema types. Every schema registered in the registry receives a unique integer ID that persists across subjects.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/contexts/{context}/schemas` | [Context-scoped] List schemas |
+| `GET` | `/contexts/{context}/schemas/ids/{id}` | [Context-scoped] Get schema by global ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/schema` | [Context-scoped] Get raw schema string by global ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/subjects` | [Context-scoped] Get subjects associated with a schema ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/versions` | [Context-scoped] Get subject-version pairs for a schema ID |
+| `GET` | `/contexts/{context}/schemas/types` | [Context-scoped] Get supported schema types |
+| `GET` | `/schemas` | List schemas |
+| `GET` | `/schemas/ids/{id}` | Get schema by global ID |
+| `GET` | `/schemas/ids/{id}/schema` | Get raw schema string by global ID |
+| `GET` | `/schemas/ids/{id}/subjects` | Get subjects associated with a schema ID |
+| `GET` | `/schemas/ids/{id}/versions` | Get subject-version pairs for a schema ID |
+| `GET` | `/schemas/types` | Get supported schema types |
+
+#### Subjects
+
+Operations for managing subjects and their schema versions. A subject is a named scope (typically corresponding to a Kafka topic) under which one or more schema versions are registered. Subjects support soft-delete and permanent-delete semantics.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/contexts/{context}/subjects` | [Context-scoped] List subjects |
+| `DELETE` | `/contexts/{context}/subjects/{subject}` | [Context-scoped] Delete a subject |
+| `POST` | `/contexts/{context}/subjects/{subject}` | [Context-scoped] Look up schema under a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/metadata` | [Context-scoped] Get subject metadata |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions` | [Context-scoped] List versions under a subject |
+| `POST` | `/contexts/{context}/subjects/{subject}/versions` | [Context-scoped] Register a new schema under a subject |
+| `DELETE` | `/contexts/{context}/subjects/{subject}/versions/{version}` | [Context-scoped] Delete a specific version of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}` | [Context-scoped] Get a specific version of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/referencedby` | [Context-scoped] Get schema IDs that reference this version |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/schema` | [Context-scoped] Get raw schema string by subject version |
+| `GET` | `/subjects` | List subjects |
+| `DELETE` | `/subjects/{subject}` | Delete a subject |
+| `POST` | `/subjects/{subject}` | Look up schema under a subject |
+| `GET` | `/subjects/{subject}/metadata` | Get subject metadata |
+| `GET` | `/subjects/{subject}/versions` | List versions under a subject |
+| `POST` | `/subjects/{subject}/versions` | Register a new schema under a subject |
+| `DELETE` | `/subjects/{subject}/versions/{version}` | Delete a specific version of a subject |
+| `GET` | `/subjects/{subject}/versions/{version}` | Get a specific version of a subject |
+| `GET` | `/subjects/{subject}/versions/{version}/referencedby` | Get schema IDs that reference this version |
+| `GET` | `/subjects/{subject}/versions/{version}/schema` | Get raw schema string by subject version |
+
+### Confluent Compatible (Enterprise)
+
+#### Contexts
+
+Operations for managing schema registry contexts. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes. Subjects are qualified with a context prefix using the Confluent-compatible format `:.contextname:subject`. All standard registry routes are also available under `/contexts/{context}/...` for context-scoped access. In Confluent, this feature requires an Enterprise license.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/contexts` | Get schema registry contexts |
+| `POST` | `/contexts/{context}/compatibility/check` | [Context-scoped] Check compatibility against multiple subjects |
+| `POST` | `/contexts/{context}/compatibility/compare` | [Context-scoped] Compare two subjects |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/explain` | [Context-scoped] Explain compatibility failure |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/suggest` | [Context-scoped] Suggest compatible changes |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/versions` | [Context-scoped] Check compatibility against all versions |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/versions/{version}` | [Context-scoped] Check compatibility against a specific version |
+| `DELETE` | `/contexts/{context}/config` | [Context-scoped] Delete global compatibility configuration |
+| `GET` | `/contexts/{context}/config` | [Context-scoped] Get global compatibility configuration |
+| `PUT` | `/contexts/{context}/config` | [Context-scoped] Set global compatibility configuration |
+| `DELETE` | `/contexts/{context}/config/{subject}` | [Context-scoped] Delete subject-level compatibility configuration |
+| `GET` | `/contexts/{context}/config/{subject}` | [Context-scoped] Get subject-level compatibility configuration |
+| `PUT` | `/contexts/{context}/config/{subject}` | [Context-scoped] Set subject-level compatibility configuration |
+| `GET` | `/contexts/{context}/contexts` | [Context-scoped] Get schema registry contexts |
+| `GET` | `/contexts/{context}/exporters` | [Context-scoped] List exporters |
+| `POST` | `/contexts/{context}/exporters` | [Context-scoped] Create an exporter |
+| `DELETE` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Delete an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Get exporter info |
+| `PUT` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Update an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}/config` | [Context-scoped] Get exporter config |
+| `PUT` | `/contexts/{context}/exporters/{name}/config` | [Context-scoped] Update exporter config |
+| `PUT` | `/contexts/{context}/exporters/{name}/pause` | [Context-scoped] Pause an exporter |
+| `PUT` | `/contexts/{context}/exporters/{name}/reset` | [Context-scoped] Reset an exporter |
+| `PUT` | `/contexts/{context}/exporters/{name}/resume` | [Context-scoped] Resume an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}/status` | [Context-scoped] Get exporter status |
+| `POST` | `/contexts/{context}/import/schemas` | [Context-scoped] Bulk import schemas |
+| `DELETE` | `/contexts/{context}/mode` | [Context-scoped] Delete global mode |
+| `GET` | `/contexts/{context}/mode` | [Context-scoped] Get global mode |
+| `PUT` | `/contexts/{context}/mode` | [Context-scoped] Set global mode |
+| `DELETE` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Delete subject-level mode |
+| `GET` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Get subject-level mode |
+| `PUT` | `/contexts/{context}/mode/{subject}` | [Context-scoped] Set subject-level mode |
+| `GET` | `/contexts/{context}/schemas` | [Context-scoped] List schemas |
+| `POST` | `/contexts/{context}/schemas/complexity` | [Context-scoped] Get schema complexity |
+| `GET` | `/contexts/{context}/schemas/ids/{id}` | [Context-scoped] Get schema by global ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/schema` | [Context-scoped] Get raw schema string by global ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/subjects` | [Context-scoped] Get subjects associated with a schema ID |
+| `GET` | `/contexts/{context}/schemas/ids/{id}/versions` | [Context-scoped] Get subject-version pairs for a schema ID |
+| `POST` | `/contexts/{context}/schemas/normalize` | [Context-scoped] Normalize a schema |
+| `POST` | `/contexts/{context}/schemas/quality` | [Context-scoped] Score schema quality |
+| `POST` | `/contexts/{context}/schemas/search` | [Context-scoped] Search schemas by content |
+| `POST` | `/contexts/{context}/schemas/search/field` | [Context-scoped] Find schemas by field name |
+| `POST` | `/contexts/{context}/schemas/search/type` | [Context-scoped] Find schemas by field type |
+| `POST` | `/contexts/{context}/schemas/similar` | [Context-scoped] Find similar schemas |
+| `GET` | `/contexts/{context}/schemas/types` | [Context-scoped] Get supported schema types |
+| `POST` | `/contexts/{context}/schemas/validate` | [Context-scoped] Validate a schema |
+| `GET` | `/contexts/{context}/statistics` | [Context-scoped] Get registry statistics |
+| `GET` | `/contexts/{context}/statistics/fields/{field}` | [Context-scoped] Check field consistency |
+| `GET` | `/contexts/{context}/statistics/patterns` | [Context-scoped] Detect schema patterns |
+| `GET` | `/contexts/{context}/subjects` | [Context-scoped] List subjects |
+| `GET` | `/contexts/{context}/subjects/count` | [Context-scoped] Count subjects |
+| `POST` | `/contexts/{context}/subjects/match` | [Context-scoped] Match subjects by pattern |
+| `POST` | `/contexts/{context}/subjects/validate` | [Context-scoped] Validate a subject name |
+| `DELETE` | `/contexts/{context}/subjects/{subject}` | [Context-scoped] Delete a subject |
+| `POST` | `/contexts/{context}/subjects/{subject}` | [Context-scoped] Look up schema under a subject |
+| `POST` | `/contexts/{context}/subjects/{subject}/diff` | [Context-scoped] Diff two schema versions |
+| `POST` | `/contexts/{context}/subjects/{subject}/evolve` | [Context-scoped] Suggest schema evolution |
+| `GET` | `/contexts/{context}/subjects/{subject}/export` | [Context-scoped] Export all versions of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/history` | [Context-scoped] Get schema history |
+| `POST` | `/contexts/{context}/subjects/{subject}/migrate` | [Context-scoped] Plan migration path |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions` | [Context-scoped] List versions under a subject |
+| `POST` | `/contexts/{context}/subjects/{subject}/versions` | [Context-scoped] Register a new schema under a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/count` | [Context-scoped] Count versions |
+| `DELETE` | `/contexts/{context}/subjects/{subject}/versions/{version}` | [Context-scoped] Delete a specific version of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}` | [Context-scoped] Get a specific version of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/dependencies` | [Context-scoped] Get dependency graph |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/export` | [Context-scoped] Export a schema version |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/referencedby` | [Context-scoped] Get schema IDs that reference this version |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/schema` | [Context-scoped] Get raw schema string by subject version |
+| `GET` | `/contexts/{context}/v1/metadata/id` | [Context-scoped] Get cluster ID |
+| `GET` | `/contexts/{context}/v1/metadata/version` | [Context-scoped] Get server version |
+
+#### DEK Registry
+
+Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by name, associated with a KMS provider. DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix. In Confluent, this feature requires an Enterprise license.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/dek-registry/v1/keks` | List KEK names |
+| `POST` | `/dek-registry/v1/keks` | Create a KEK |
+| `DELETE` | `/dek-registry/v1/keks/{name}` | Delete a KEK |
+| `GET` | `/dek-registry/v1/keks/{name}` | Get a KEK |
+| `PUT` | `/dek-registry/v1/keks/{name}` | Update a KEK |
+| `GET` | `/dek-registry/v1/keks/{name}/deks` | List DEK subjects |
+| `POST` | `/dek-registry/v1/keks/{name}/deks` | Create a DEK |
+| `DELETE` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Delete a DEK |
+| `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Get latest DEK for a subject |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Create a DEK with subject in path |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}/undelete` | Undelete a DEK |
+| `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions` | List DEK versions |
+| `DELETE` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}` | Delete a specific DEK version |
+| `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}` | Get a specific DEK version |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete` | Undelete a specific DEK version |
+| `POST` | `/dek-registry/v1/keks/{name}/test` | Test KEK connectivity |
+| `POST` | `/dek-registry/v1/keks/{name}/undelete` | Undelete a KEK |
+
+#### Exporters
+
+Operations for managing schema exporters. Exporters enable Schema Linking by replicating schemas from one registry to another. Each exporter has a name, a context, an optional subject filter, and configuration for connecting to the destination registry. Exporters can be paused, resumed, and reset. This API follows the Confluent Schema Linking format. In Confluent, this feature requires an Enterprise license.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/contexts/{context}/exporters` | [Context-scoped] List exporters |
+| `POST` | `/contexts/{context}/exporters` | [Context-scoped] Create an exporter |
+| `DELETE` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Delete an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Get exporter info |
+| `PUT` | `/contexts/{context}/exporters/{name}` | [Context-scoped] Update an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}/config` | [Context-scoped] Get exporter config |
+| `PUT` | `/contexts/{context}/exporters/{name}/config` | [Context-scoped] Update exporter config |
+| `PUT` | `/contexts/{context}/exporters/{name}/pause` | [Context-scoped] Pause an exporter |
+| `PUT` | `/contexts/{context}/exporters/{name}/reset` | [Context-scoped] Reset an exporter |
+| `PUT` | `/contexts/{context}/exporters/{name}/resume` | [Context-scoped] Resume an exporter |
+| `GET` | `/contexts/{context}/exporters/{name}/status` | [Context-scoped] Get exporter status |
+| `GET` | `/exporters` | List exporters |
+| `POST` | `/exporters` | Create an exporter |
+| `DELETE` | `/exporters/{name}` | Delete an exporter |
+| `GET` | `/exporters/{name}` | Get exporter info |
+| `PUT` | `/exporters/{name}` | Update an exporter |
+| `GET` | `/exporters/{name}/config` | Get exporter config |
+| `PUT` | `/exporters/{name}/config` | Update exporter config |
+| `PUT` | `/exporters/{name}/pause` | Pause an exporter |
+| `PUT` | `/exporters/{name}/reset` | Reset an exporter |
+| `PUT` | `/exporters/{name}/resume` | Resume an exporter |
+| `GET` | `/exporters/{name}/status` | Get exporter status |
+
+#### Import
+
+Operations for bulk-importing schemas from another schema registry, preserving original schema IDs. This is used for migration scenarios. In Confluent, this feature requires an Enterprise license.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/contexts/{context}/import/schemas` | [Context-scoped] Bulk import schemas |
+| `POST` | `/import/schemas` | Bulk import schemas |
+
+### AxonOps Extensions
+
+#### Account
+
+Self-service account endpoints for authenticated users to view their own profile and change their password.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/me` | Get current user |
+| `POST` | `/me/password` | Change current user password |
+
+#### Admin
+
+Administrative endpoints for managing users, API keys, and roles. These endpoints require admin-level permissions and are part of the AxonOps built-in RBAC system.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/admin/apikeys` | List API keys |
+| `POST` | `/admin/apikeys` | Create a new API key |
+| `DELETE` | `/admin/apikeys/{id}` | Delete an API key |
+| `GET` | `/admin/apikeys/{id}` | Get an API key by ID |
+| `PUT` | `/admin/apikeys/{id}` | Update an API key |
+| `POST` | `/admin/apikeys/{id}/revoke` | Revoke an API key |
+| `POST` | `/admin/apikeys/{id}/rotate` | Rotate an API key |
+| `GET` | `/admin/roles` | List available roles |
+| `GET` | `/admin/users` | List all users |
+| `POST` | `/admin/users` | Create a new user |
+| `DELETE` | `/admin/users/{id}` | Delete a user |
+| `GET` | `/admin/users/{id}` | Get a user by ID |
+| `PUT` | `/admin/users/{id}` | Update a user |
+
+#### Analysis
+
+Schema analysis endpoints for validation, normalization, quality scoring, field search, similarity detection, compatibility suggestions, and registry-wide statistics. These endpoints are designed primarily to support AI-assisted schema management workflows via the MCP server, and are also available as a REST API for programmatic access, CI/CD pipelines, and custom tooling. All analysis operations are read-only and do not modify registry state.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/compatibility/check` | Check compatibility against multiple subjects |
+| `POST` | `/compatibility/compare` | Compare two subjects |
+| `POST` | `/compatibility/subjects/{subject}/explain` | Explain compatibility failure |
+| `POST` | `/compatibility/subjects/{subject}/suggest` | Suggest compatible changes |
+| `POST` | `/contexts/{context}/compatibility/check` | [Context-scoped] Check compatibility against multiple subjects |
+| `POST` | `/contexts/{context}/compatibility/compare` | [Context-scoped] Compare two subjects |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/explain` | [Context-scoped] Explain compatibility failure |
+| `POST` | `/contexts/{context}/compatibility/subjects/{subject}/suggest` | [Context-scoped] Suggest compatible changes |
+| `POST` | `/contexts/{context}/schemas/complexity` | [Context-scoped] Get schema complexity |
+| `POST` | `/contexts/{context}/schemas/normalize` | [Context-scoped] Normalize a schema |
+| `POST` | `/contexts/{context}/schemas/quality` | [Context-scoped] Score schema quality |
+| `POST` | `/contexts/{context}/schemas/search` | [Context-scoped] Search schemas by content |
+| `POST` | `/contexts/{context}/schemas/search/field` | [Context-scoped] Find schemas by field name |
+| `POST` | `/contexts/{context}/schemas/search/type` | [Context-scoped] Find schemas by field type |
+| `POST` | `/contexts/{context}/schemas/similar` | [Context-scoped] Find similar schemas |
+| `POST` | `/contexts/{context}/schemas/validate` | [Context-scoped] Validate a schema |
+| `GET` | `/contexts/{context}/statistics` | [Context-scoped] Get registry statistics |
+| `GET` | `/contexts/{context}/statistics/fields/{field}` | [Context-scoped] Check field consistency |
+| `GET` | `/contexts/{context}/statistics/patterns` | [Context-scoped] Detect schema patterns |
+| `GET` | `/contexts/{context}/subjects/count` | [Context-scoped] Count subjects |
+| `POST` | `/contexts/{context}/subjects/match` | [Context-scoped] Match subjects by pattern |
+| `POST` | `/contexts/{context}/subjects/validate` | [Context-scoped] Validate a subject name |
+| `POST` | `/contexts/{context}/subjects/{subject}/diff` | [Context-scoped] Diff two schema versions |
+| `POST` | `/contexts/{context}/subjects/{subject}/evolve` | [Context-scoped] Suggest schema evolution |
+| `GET` | `/contexts/{context}/subjects/{subject}/export` | [Context-scoped] Export all versions of a subject |
+| `GET` | `/contexts/{context}/subjects/{subject}/history` | [Context-scoped] Get schema history |
+| `POST` | `/contexts/{context}/subjects/{subject}/migrate` | [Context-scoped] Plan migration path |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/count` | [Context-scoped] Count versions |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/dependencies` | [Context-scoped] Get dependency graph |
+| `GET` | `/contexts/{context}/subjects/{subject}/versions/{version}/export` | [Context-scoped] Export a schema version |
+| `POST` | `/schemas/complexity` | Get schema complexity |
+| `POST` | `/schemas/normalize` | Normalize a schema |
+| `POST` | `/schemas/quality` | Score schema quality |
+| `POST` | `/schemas/search` | Search schemas by content |
+| `POST` | `/schemas/search/field` | Find schemas by field name |
+| `POST` | `/schemas/search/type` | Find schemas by field type |
+| `POST` | `/schemas/similar` | Find similar schemas |
+| `POST` | `/schemas/validate` | Validate a schema |
+| `GET` | `/statistics` | Get registry statistics |
+| `GET` | `/statistics/fields/{field}` | Check field consistency |
+| `GET` | `/statistics/patterns` | Detect schema patterns |
+| `GET` | `/subjects/count` | Count subjects |
+| `POST` | `/subjects/match` | Match subjects by pattern |
+| `POST` | `/subjects/validate` | Validate a subject name |
+| `POST` | `/subjects/{subject}/diff` | Diff two schema versions |
+| `POST` | `/subjects/{subject}/evolve` | Suggest schema evolution |
+| `GET` | `/subjects/{subject}/export` | Export all versions of a subject |
+| `GET` | `/subjects/{subject}/history` | Get schema history |
+| `POST` | `/subjects/{subject}/migrate` | Plan migration path |
+| `GET` | `/subjects/{subject}/versions/count` | Count versions |
+| `GET` | `/subjects/{subject}/versions/{version}/dependencies` | Get dependency graph |
+| `GET` | `/subjects/{subject}/versions/{version}/export` | Export a schema version |
+
+#### Documentation
+
+Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with `docs_enabled: true`.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/docs` | Swagger UI |
+| `GET` | `/openapi.yaml` | OpenAPI specification |

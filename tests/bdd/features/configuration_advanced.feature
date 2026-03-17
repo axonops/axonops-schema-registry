@@ -16,6 +16,34 @@ Feature: Configuration and Mode Management Advanced
     When I get the config for subject "subj-b"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain an event:
+      | event_type           | config_update                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            | subj-b                        |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | *                             |
+      | after_hash           | sha256:*                      |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /config/subj-b                |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Subject config overrides global during registration ---
 
@@ -31,6 +59,34 @@ Feature: Configuration and Mode Management Advanced
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | override-test                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | method               | POST                                  |
+      | path                 | /subjects/override-test/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
 
   # --- Delete subject config falls back to global ---
 
@@ -46,6 +102,34 @@ Feature: Configuration and Mode Management Advanced
     When I GET "/config/fallback-cfg?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain an event:
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            | fallback-cfg                  |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config/fallback-cfg          |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Delete global config reverts to BACKWARD default ---
 
@@ -58,6 +142,34 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain an event:
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Delete non-existent subject config returns 404 ---
 
@@ -65,6 +177,34 @@ Feature: Configuration and Mode Management Advanced
     When I delete the config for subject "never-configured-subject"
     Then the response status should be 404
     And the response should have error code 40401
+    And the audit log should contain an event:
+      | event_type           | config_delete                         |
+      | outcome              | failure                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | config                                |
+      | target_id            | never-configured-subject              |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                      |
+      | transport_security   | tls                                   |
+      | method               | DELETE                                |
+      | path                 | /config/never-configured-subject      |
+      | status_code          | 404                                   |
+      | reason               | not_found                             |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
 
   # --- Invalid compatibility level returns 422 ---
 
@@ -73,6 +213,34 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 422
     And the response should have error code 42203
     And the response should have field "message"
+    And the audit log should contain an event:
+      | event_type           | config_update                 |
+      | outcome              | failure                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          |                               |
+      | after_hash           |                               |
+      | context              | .                              |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /config                       |
+      | status_code          | 422                           |
+      | reason               | invalid_schema                |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Case insensitivity for compatibility levels ---
 
@@ -89,6 +257,34 @@ Feature: Configuration and Mode Management Advanced
       """
     Then the response status should be 200
     And the response field "compatibility" should be "FORWARD_TRANSITIVE"
+    And the audit log should contain an event:
+      | event_type           | config_update                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | *                             |
+      | after_hash           | sha256:*                      |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Set and get all 3 valid mode values ---
 
@@ -105,6 +301,34 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "IMPORT"
+    And the audit log should contain an event:
+      | event_type           | mode_update                   |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | mode                          |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | *                             |
+      | after_hash           | sha256:*                      |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /mode                         |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Invalid mode value returns 422 ---
 
@@ -116,6 +340,34 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 422
     And the response should have error code 42204
     And the response should have field "message"
+    And the audit log should contain an event:
+      | event_type           | mode_update                   |
+      | outcome              | failure                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | mode                          |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          |                               |
+      | after_hash           |                               |
+      | context              | .                              |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /mode                         |
+      | status_code          | 422                           |
+      | reason               | invalid_schema                |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Delete non-existent subject mode returns 404 ---
 
@@ -123,6 +375,34 @@ Feature: Configuration and Mode Management Advanced
     When I delete the mode for subject "never-moded-subject"
     Then the response status should be 404
     And the response should have error code 40401
+    And the audit log should contain an event:
+      | event_type           | mode_delete                           |
+      | outcome              | failure                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | mode                                  |
+      | target_id            | never-moded-subject                   |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                      |
+      | transport_security   | tls                                   |
+      | method               | DELETE                                |
+      | path                 | /mode/never-moded-subject             |
+      | status_code          | 404                                   |
+      | reason               | not_found                             |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
 
   # --- Mode fallback to global ---
 
@@ -131,6 +411,34 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the mode for subject "no-mode-set-subject"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | mode_update                   |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | mode                          |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | *                             |
+      | after_hash           | sha256:*                      |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /mode                         |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   Scenario: Subject mode not set falls back to global with defaultToGlobal
     When I set the global mode to "READONLY"
@@ -138,6 +446,34 @@ Feature: Configuration and Mode Management Advanced
     When I GET "/mode/no-mode-set-subject2?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain an event:
+      | event_type           | mode_update                   |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | mode                          |
+      | target_id            | _global                       |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | *                             |
+      | after_hash           | sha256:*                      |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | PUT                           |
+      | path                 | /mode                         |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   # --- Per-subject mode set and retrieved independently from global ---
 
@@ -154,3 +490,31 @@ Feature: Configuration and Mode Management Advanced
     Then the response field "mode" should be "READONLY"
     When I get the mode for subject "independent-mode-b"
     Then the response field "mode" should be "IMPORT"
+    And the audit log should contain an event:
+      | event_type           | mode_update                           |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | mode                                  |
+      | target_id            | independent-mode-b                    |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          | *                                     |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | method               | PUT                                   |
+      | path                 | /mode/independent-mode-b              |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |

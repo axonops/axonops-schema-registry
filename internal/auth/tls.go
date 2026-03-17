@@ -13,10 +13,11 @@ import (
 
 // TLSManager manages TLS configuration with optional certificate reloading.
 type TLSManager struct {
-	config    config.TLSConfig
-	mu        sync.RWMutex
-	cert      *tls.Certificate
-	clientCAs *x509.CertPool
+	config              config.TLSConfig
+	mu                  sync.RWMutex
+	cert                *tls.Certificate
+	clientCAs           *x509.CertPool
+	insecureCipherNames []string // populated during BuildTLSConfig(), read by caller for logging/audit
 }
 
 // NewTLSManager creates a new TLS manager.
@@ -72,12 +73,45 @@ func (tm *TLSManager) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, er
 	return tm.cert, nil
 }
 
-// TLSConfig returns the TLS configuration.
-func (tm *TLSManager) TLSConfig() *tls.Config {
-	// #nosec G402 -- MinVersion is configurable, defaults to TLS 1.2
+// InsecureCipherNames returns the names of insecure ciphers that were explicitly allowed.
+// Empty if no insecure ciphers are configured. Populated after BuildTLSConfig() is called.
+func (tm *TLSManager) InsecureCipherNames() []string {
+	return tm.insecureCipherNames
+}
+
+// BuildTLSConfig builds and validates the TLS configuration.
+// Returns an error if the configuration is invalid (unsupported TLS version,
+// insecure ciphers without allow_insecure_ciphers, unknown cipher names).
+func (tm *TLSManager) BuildTLSConfig() (*tls.Config, error) {
+	minVersion, err := parseMinVersion(tm.config.MinVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	// #nosec G402 -- MinVersion is validated above, minimum TLS 1.2
 	tlsConfig := &tls.Config{
 		GetCertificate: tm.GetCertificate,
-		MinVersion:     tm.getMinVersion(),
+		MinVersion:     minVersion,
+	}
+
+	// Cipher suites only matter for TLS 1.2 connections.
+	// TLS 1.3 cipher suites are not configurable in Go — the runtime
+	// always uses only AEAD suites (AES-GCM, ChaCha20-Poly1305).
+	if minVersion <= tls.VersionTLS12 {
+		if len(tm.config.CipherSuites) > 0 {
+			ids, insecureNames, resolveErr := resolveCipherSuites(tm.config.CipherSuites)
+			if resolveErr != nil {
+				return nil, fmt.Errorf("invalid cipher_suites configuration: %w", resolveErr)
+			}
+			if len(insecureNames) > 0 && !tm.config.AllowInsecureCiphers {
+				return nil, fmt.Errorf("refusing to start: cipher_suites contains insecure ciphers %v — set security.tls.allow_insecure_ciphers: true to override", insecureNames)
+			}
+			tm.insecureCipherNames = insecureNames
+			tlsConfig.CipherSuites = ids
+		} else {
+			// Default: use Go's safe cipher suites (tls.CipherSuites())
+			tlsConfig.CipherSuites = defaultSecureCipherSuites()
+		}
 	}
 
 	// Configure client authentication
@@ -95,37 +129,83 @@ func (tm *TLSManager) TLSConfig() *tls.Config {
 		tm.mu.RUnlock()
 	}
 
-	return tlsConfig
+	return tlsConfig, nil
 }
 
-// getMinVersion returns the minimum TLS version.
-func (tm *TLSManager) getMinVersion() uint16 {
-	switch tm.config.MinVersion {
-	case "TLS1.0", "1.0":
-		return tls.VersionTLS10
-	case "TLS1.1", "1.1":
-		return tls.VersionTLS11
+// parseMinVersion validates and returns the minimum TLS version.
+// Returns an error for TLS versions below 1.2 or unrecognized values.
+func parseMinVersion(v string) (uint16, error) {
+	switch v {
 	case "TLS1.2", "1.2":
-		return tls.VersionTLS12
-	case "TLS1.3", "1.3":
-		return tls.VersionTLS13
+		return tls.VersionTLS12, nil
+	case "TLS1.3", "1.3", "":
+		return tls.VersionTLS13, nil // Default: TLS 1.3
+	case "TLS1.0", "1.0", "TLS1.1", "1.1":
+		return 0, fmt.Errorf("TLS versions below 1.2 are not supported (configured: %q)", v)
 	default:
-		return tls.VersionTLS12 // Default to TLS 1.2
+		return 0, fmt.Errorf("unrecognized min_version: %q (supported values: TLS1.2, TLS1.3)", v)
 	}
 }
 
+// defaultSecureCipherSuites returns the IDs of all cipher suites that Go
+// considers secure (i.e. tls.CipherSuites(), excluding tls.InsecureCipherSuites()).
+func defaultSecureCipherSuites() []uint16 {
+	suites := tls.CipherSuites()
+	ids := make([]uint16, len(suites))
+	for i, cs := range suites {
+		ids[i] = cs.ID
+	}
+	return ids
+}
+
+// resolveCipherSuites resolves configured cipher suite names to IDs and
+// identifies any that appear in tls.InsecureCipherSuites().
+func resolveCipherSuites(names []string) ([]uint16, []string, error) {
+	// Build lookup from both secure and insecure suites.
+	lookup := make(map[string]uint16)
+	for _, cs := range tls.CipherSuites() {
+		lookup[cs.Name] = cs.ID
+	}
+	insecureSet := make(map[uint16]string)
+	for _, cs := range tls.InsecureCipherSuites() {
+		lookup[cs.Name] = cs.ID
+		insecureSet[cs.ID] = cs.Name
+	}
+
+	var ids []uint16
+	var insecureNames []string
+	for _, name := range names {
+		id, ok := lookup[name]
+		if !ok {
+			return nil, nil, fmt.Errorf("unknown cipher suite: %q", name)
+		}
+		ids = append(ids, id)
+		if insecureName, isInsecure := insecureSet[id]; isInsecure {
+			insecureNames = append(insecureNames, insecureName)
+		}
+	}
+	return ids, insecureNames, nil
+}
+
 // CreateServerTLSConfig creates a TLS config for an HTTPS server.
-func CreateServerTLSConfig(cfg config.TLSConfig) (*tls.Config, error) {
+// It returns both the tls.Config and the TLSManager so the caller can
+// trigger certificate reloads (e.g., on SIGHUP).
+func CreateServerTLSConfig(cfg config.TLSConfig) (*tls.Config, *TLSManager, error) {
 	if !cfg.Enabled {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	tm, err := NewTLSManager(cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return tm.TLSConfig(), nil
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return tlsCfg, tm, nil
 }
 
 // CreateClientTLSConfig creates a TLS config for client connections.

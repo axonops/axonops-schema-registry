@@ -49,6 +49,34 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should equal stored "consumer_v1_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | success                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | avro-refevo-consumer-dup                           |
+      | schema_id            | *                                                  |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           | sha256:*                                           |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/avro-refevo-consumer-dup/versions        |
+      | status_code          | 200                                                |
+      | reason               |                                                    |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES TO REFERENCE V2
@@ -94,6 +122,34 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "consumer_ref1_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                      |
+      | outcome              | success                                              |
+      | actor_id             |                                                      |
+      | actor_type           | anonymous                                            |
+      | auth_method          |                                                      |
+      | role                 |                                                      |
+      | target_type          | subject                                              |
+      | target_id            | avro-refevo2-consumer-v2                             |
+      | schema_id            | *                                                    |
+      | version              | *                                                    |
+      | schema_type          | AVRO                                                 |
+      | before_hash          |                                                      |
+      | after_hash           | sha256:*                                             |
+      | context              | .                                                    |
+      | transport_security   | tls                                                  |
+      | source_ip            | *                                                    |
+      | user_agent           | *                                                    |
+      | method               | POST                                                 |
+      | path                 | /subjects/avro-refevo2-consumer-v2/versions          |
+      | status_code          | 200                                                  |
+      | reason               |                                                      |
+      | error                |                                                      |
+      | request_body         |                                                      |
+      | metadata             |                                                      |
+      | timestamp            | *                                                    |
+      | duration_ms          | *                                                    |
+      | request_id           | *                                                    |
 
   # ==========================================================================
   # 3. MULTIPLE REFERENCES — ONE EVOLVES
@@ -120,6 +176,34 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "multi_v1_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-multiref-consumer                           |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-multiref-consumer/versions        |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 4. SAME SCHEMA BODY WITH DIFFERENT REFERENCES — DIFFERENT IDS
@@ -158,6 +242,34 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "diffref_v1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-diffref-c2                              |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-diffref-c2/versions           |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5-6. REFERENCEDBY TRACKING
@@ -190,6 +302,34 @@ Feature: Avro Reference Evolution
     Then the response status should be 200
     When I get the referenced by for subject "avro-refby-base" version 1
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | avro-refby-consumer2                           |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/avro-refby-consumer2/versions        |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 7. COMPATIBILITY CHECK API WITH REFERENCES
@@ -243,6 +383,34 @@ Feature: Avro Reference Evolution
     And I store the response field "id" as "consumer_id"
     When I get version 1 of subject "avro-refdel-consumer"
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | avro-refdel-consumer                             |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/avro-refdel-consumer/versions          |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 9. LOOKUP SCHEMA WITH REFERENCES
@@ -264,6 +432,34 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "lookup_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | success                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | avro-reflookup-consumer                            |
+      | schema_id            | *                                                  |
+      | version              | *                                                  |
+      | schema_type          | AVRO                                               |
+      | before_hash          |                                                    |
+      | after_hash           | sha256:*                                           |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/avro-reflookup-consumer/versions         |
+      | status_code          | 200                                                |
+      | reason               |                                                    |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   # ==========================================================================
   # 10. SAME CONTENT AT DIFFERENT REFERENCE VERSIONS
@@ -302,3 +498,31 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "refver_v1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | avro-refver-c2                               |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/avro-refver-c2/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

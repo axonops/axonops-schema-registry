@@ -4,6 +4,7 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,12 +39,47 @@ type Metrics struct {
 	CacheSize   *prometheus.GaugeVec
 
 	// Auth metrics
-	AuthAttempts *prometheus.CounterVec
-	AuthFailures *prometheus.CounterVec
-	AuthLatency  *prometheus.HistogramVec
+	AuthAttempts      *prometheus.CounterVec
+	AuthFailures      *prometheus.CounterVec
+	AuthLatency       *prometheus.HistogramVec
+	AuthLDAPFallbacks *prometheus.CounterVec
 
 	// Rate limit metrics
 	RateLimitHits *prometheus.CounterVec
+
+	// MCP metrics
+	MCPToolCallsTotal        *prometheus.CounterVec
+	MCPToolCallDuration      *prometheus.HistogramVec
+	MCPToolCallErrors        *prometheus.CounterVec
+	MCPToolCallsActive       prometheus.Gauge
+	MCPConfirmationsTotal    *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
+	MCPPolicyDenialsTotal    *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
+	MCPPermissionDeniedTotal *prometheus.CounterVec // labels: tool, scope
+
+	// Audit output metrics
+	AuditEventsTotal          *prometheus.CounterVec // labels: output, status
+	AuditOutputErrorsTotal    *prometheus.CounterVec // labels: output
+	AuditBufferDroppedTotal   prometheus.Counter
+	AuditWebhookDroppedTotal  prometheus.Counter
+	AuditWebhookBatchSize     prometheus.Histogram
+	AuditWebhookFlushDuration prometheus.Histogram
+
+	// Per-principal metrics (optional, may be nil if disabled)
+	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
+	PrincipalMCPCallsTotal *prometheus.CounterVec // labels: principal, tool, status
+
+	// Confluent-compatible metrics (kafka_schema_registry_* prefix for dashboard compatibility)
+	ConfluentRegisteredCount  prometheus.Counter       // kafka_schema_registry_registered_count
+	ConfluentDeletedCount     prometheus.Counter       // kafka_schema_registry_deleted_count
+	ConfluentAPISuccessCount  prometheus.Counter       // kafka_schema_registry_api_success_count
+	ConfluentAPIFailureCount  prometheus.Counter       // kafka_schema_registry_api_failure_count
+	ConfluentSchemasCreated   *prometheus.CounterVec   // kafka_schema_registry_schemas_created{schema_type}
+	ConfluentSchemasDeleted   *prometheus.CounterVec   // kafka_schema_registry_schemas_deleted{schema_type}
+	ConfluentMasterSlaveRole  prometheus.Gauge         // kafka_schema_registry_master_slave_role (always 1.0 for standalone)
+	ConfluentNodeCount        prometheus.Gauge         // kafka_schema_registry_node_count (always 1 for standalone)
+	ConfluentEndpointRequests *prometheus.CounterVec   // kafka_schema_registry_jersey_metrics_request_total{endpoint}
+	ConfluentEndpointLatency  *prometheus.HistogramVec // kafka_schema_registry_jersey_metrics_request_latency_seconds{endpoint}
+	ConfluentEndpointErrors   *prometheus.CounterVec   // kafka_schema_registry_jersey_metrics_request_error_total{endpoint}
 
 	registry *prometheus.Registry
 }
@@ -205,6 +241,14 @@ func New() *Metrics {
 		[]string{"method"},
 	)
 
+	m.AuthLDAPFallbacks = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_auth_ldap_fallbacks_total",
+			Help: "Total number of LDAP authentication failures that fell back to database/htpasswd auth",
+		},
+		[]string{"username"},
+	)
+
 	// Rate limit metrics
 	m.RateLimitHits = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -212,6 +256,199 @@ func New() *Metrics {
 			Help: "Total number of rate limit hits",
 		},
 		[]string{"client"},
+	)
+
+	// MCP metrics
+	m.MCPToolCallsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_tool_calls_total",
+			Help: "Total number of MCP tool invocations",
+		},
+		[]string{"tool", "status"},
+	)
+
+	m.MCPToolCallDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_mcp_tool_call_duration_seconds",
+			Help:    "MCP tool call latency in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"tool"},
+	)
+
+	m.MCPToolCallErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_tool_call_errors_total",
+			Help: "Total number of MCP tool calls that returned errors",
+		},
+		[]string{"tool"},
+	)
+
+	m.MCPToolCallsActive = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "schema_registry_mcp_tool_calls_active",
+			Help: "Number of MCP tool calls currently being processed",
+		},
+	)
+
+	m.MCPConfirmationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_confirmations_total",
+			Help: "Total number of MCP two-phase confirmation events",
+		},
+		[]string{"outcome"},
+	)
+
+	m.MCPPolicyDenialsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_policy_denials_total",
+			Help: "Total number of MCP policy denial events",
+		},
+		[]string{"reason"},
+	)
+
+	m.MCPPermissionDeniedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_permission_denied_total",
+			Help: "Total number of MCP tool calls blocked by permission scopes",
+		},
+		[]string{"tool", "scope"},
+	)
+
+	// Audit output metrics
+	m.AuditEventsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_events_total",
+			Help: "Total number of audit events written per output and status",
+		},
+		[]string{"output", "status"},
+	)
+
+	m.AuditOutputErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_output_errors_total",
+			Help: "Total number of audit output write errors per output",
+		},
+		[]string{"output"},
+	)
+
+	m.AuditBufferDroppedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_buffer_dropped_total",
+			Help: "Total number of audit events dropped due to async buffer overflow",
+		},
+	)
+
+	m.AuditWebhookDroppedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_webhook_dropped_total",
+			Help: "Total number of audit events dropped due to webhook buffer overflow",
+		},
+	)
+
+	m.AuditWebhookBatchSize = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_audit_webhook_batch_size",
+			Help:    "Distribution of webhook batch sizes (number of events per flush)",
+			Buckets: []float64{1, 5, 10, 25, 50, 100, 250, 500, 1000},
+		},
+	)
+
+	m.AuditWebhookFlushDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_audit_webhook_flush_duration_seconds",
+			Help:    "Time taken to flush webhook batches to the HTTP endpoint",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	// Confluent-compatible metrics (kafka_schema_registry_* prefix)
+	// These mirror Confluent Schema Registry JMX metrics so that existing
+	// Grafana dashboards and Prometheus alerts continue to work.
+	m.ConfluentRegisteredCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_registered_count",
+			Help: "Total number of schemas registered (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentDeletedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_deleted_count",
+			Help: "Total number of schemas deleted (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentAPISuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_api_success_count",
+			Help: "Total number of successful API calls (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentAPIFailureCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_api_failure_count",
+			Help: "Total number of failed API calls (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentSchemasCreated = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_schemas_created",
+			Help: "Total number of schemas created by type (Confluent-compatible)",
+		},
+		[]string{"schema_type"},
+	)
+
+	m.ConfluentSchemasDeleted = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_schemas_deleted",
+			Help: "Total number of schemas deleted by type (Confluent-compatible)",
+		},
+		[]string{"schema_type"},
+	)
+
+	m.ConfluentMasterSlaveRole = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "kafka_schema_registry_master_slave_role",
+			Help: "1.0 if this node is the active leader, 0.0 if follower (Confluent-compatible). Always 1.0 for standalone deployments.",
+		},
+	)
+	m.ConfluentMasterSlaveRole.Set(1.0)
+
+	m.ConfluentNodeCount = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "kafka_schema_registry_node_count",
+			Help: "Number of schema registry nodes in the cluster (Confluent-compatible). Always 1 for standalone deployments.",
+		},
+	)
+	m.ConfluentNodeCount.Set(1)
+
+	// Per-endpoint Confluent-compatible metrics (jersey_metrics_*)
+	m.ConfluentEndpointRequests = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_jersey_metrics_request_total",
+			Help: "Total number of requests per endpoint (Confluent-compatible)",
+		},
+		[]string{"endpoint"},
+	)
+
+	m.ConfluentEndpointLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kafka_schema_registry_jersey_metrics_request_latency_seconds",
+			Help:    "Request latency per endpoint in seconds (Confluent-compatible)",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"endpoint"},
+	)
+
+	m.ConfluentEndpointErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_jersey_metrics_request_error_total",
+			Help: "Total number of request errors per endpoint (Confluent-compatible)",
+		},
+		[]string{"endpoint"},
 	)
 
 	// Register all collectors
@@ -234,7 +471,32 @@ func New() *Metrics {
 		m.AuthAttempts,
 		m.AuthFailures,
 		m.AuthLatency,
+		m.AuthLDAPFallbacks,
 		m.RateLimitHits,
+		m.MCPToolCallsTotal,
+		m.MCPToolCallDuration,
+		m.MCPToolCallErrors,
+		m.MCPToolCallsActive,
+		m.MCPConfirmationsTotal,
+		m.MCPPolicyDenialsTotal,
+		m.MCPPermissionDeniedTotal,
+		m.AuditEventsTotal,
+		m.AuditOutputErrorsTotal,
+		m.AuditBufferDroppedTotal,
+		m.AuditWebhookDroppedTotal,
+		m.AuditWebhookBatchSize,
+		m.AuditWebhookFlushDuration,
+		m.ConfluentRegisteredCount,
+		m.ConfluentDeletedCount,
+		m.ConfluentAPISuccessCount,
+		m.ConfluentAPIFailureCount,
+		m.ConfluentSchemasCreated,
+		m.ConfluentSchemasDeleted,
+		m.ConfluentMasterSlaveRole,
+		m.ConfluentNodeCount,
+		m.ConfluentEndpointRequests,
+		m.ConfluentEndpointLatency,
+		m.ConfluentEndpointErrors,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -274,8 +536,25 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 		// Normalize path for metrics (avoid high cardinality)
 		path := normalizePath(r.URL.Path)
 
-		m.RequestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(wrapped.statusCode)).Inc()
+		statusStr := strconv.Itoa(wrapped.statusCode)
+		m.RequestsTotal.WithLabelValues(r.Method, path, statusStr).Inc()
 		m.RequestDuration.WithLabelValues(r.Method, path).Observe(duration)
+
+		// Confluent-compatible API call counters
+		if wrapped.statusCode >= 200 && wrapped.statusCode < 400 {
+			m.ConfluentAPISuccessCount.Inc()
+		} else {
+			m.ConfluentAPIFailureCount.Inc()
+		}
+
+		// Per-endpoint Confluent-compatible metrics
+		if endpoint := confluentEndpoint(r.Method, path); endpoint != "" {
+			m.ConfluentEndpointRequests.WithLabelValues(endpoint).Inc()
+			m.ConfluentEndpointLatency.WithLabelValues(endpoint).Observe(duration)
+			if wrapped.statusCode >= 400 {
+				m.ConfluentEndpointErrors.WithLabelValues(endpoint).Inc()
+			}
+		}
 	})
 }
 
@@ -352,6 +631,84 @@ func contains(s, substr string) bool {
 	return false
 }
 
+// confluentEndpoint maps a normalized HTTP method+path to Confluent's @PerformanceMetric
+// endpoint names. Returns "" for paths that have no Confluent equivalent.
+func confluentEndpoint(method, path string) string {
+	// Strip context prefix if present
+	if startsWith(path, "/contexts/{context}") {
+		path = path[len("/contexts/{context}"):]
+	}
+
+	switch {
+	// Schema operations
+	case method == "GET" && path == "/schemas":
+		return "schemas.get-schemas"
+	case method == "GET" && path == "/schemas/types":
+		return "schemas.get-types"
+	case method == "GET" && path == "/schemas/ids/{id}" && !contains(path, "/subjects") && !contains(path, "/versions"):
+		return "schemas.ids.get-schema"
+	case method == "GET" && startsWith(path, "/schemas/ids/{id}"):
+		return "schemas.ids.get-schema"
+
+	// Subject operations
+	case method == "GET" && path == "/subjects":
+		return "subjects.list"
+	case method == "POST" && path == "/subjects/{subject}" && !contains(path, "/versions"):
+		return "subjects.get-schema"
+	case method == "DELETE" && path == "/subjects/{subject}" && !contains(path, "/versions"):
+		return "subjects.delete-subject"
+
+	// Subject version operations
+	case method == "POST" && path == "/subjects/{subject}/versions":
+		return "subjects.versions.register"
+	case method == "GET" && path == "/subjects/{subject}/versions" && !contains(path, "{version}"):
+		return "subjects.versions.list"
+	case method == "GET" && path == "/subjects/{subject}/versions/{version}":
+		return "subjects.versions.get-schema"
+	case method == "DELETE" && path == "/subjects/{subject}/versions/{version}":
+		return "subjects.versions.deleteSchemaVersion-schema"
+
+	// Compatibility
+	case method == "POST" && startsWith(path, "/compatibility/"):
+		return "compatibility.subjects.versions.verify"
+
+	// Config
+	case method == "GET" && path == "/config":
+		return "config.get-global"
+	case method == "PUT" && path == "/config":
+		return "config.update-global"
+	case method == "DELETE" && path == "/config":
+		return "config.delete-global"
+	case method == "GET" && path == "/config/{subject}":
+		return "config.get-subject"
+	case method == "PUT" && path == "/config/{subject}":
+		return "config.update-subject"
+	case method == "DELETE" && path == "/config/{subject}":
+		return "config.delete-subject"
+
+	// Mode
+	case method == "GET" && path == "/mode":
+		return "mode.get-global"
+	case method == "PUT" && path == "/mode":
+		return "mode.update-global"
+	case method == "DELETE" && path == "/mode":
+		return "mode.delete-global"
+	case method == "GET" && path == "/mode/{subject}":
+		return "mode.get-subject"
+	case method == "PUT" && path == "/mode/{subject}":
+		return "mode.update-subject"
+	case method == "DELETE" && path == "/mode/{subject}":
+		return "mode.delete-subject"
+
+	// Contexts
+	case method == "GET" && path == "/contexts":
+		return "contexts.list"
+
+	default:
+		return ""
+	}
+}
+
 // RecordSchemaRegistration records a schema registration attempt.
 func (m *Metrics) RecordSchemaRegistration(schemaType string, success bool) {
 	status := "success"
@@ -359,6 +716,32 @@ func (m *Metrics) RecordSchemaRegistration(schemaType string, success bool) {
 		status = "failure"
 	}
 	m.RegistrationsTotal.WithLabelValues(schemaType, status).Inc()
+
+	// Confluent-compatible counters
+	if success {
+		m.ConfluentRegisteredCount.Inc()
+		m.ConfluentSchemasCreated.WithLabelValues(confluentSchemaType(schemaType)).Inc()
+	}
+}
+
+// RecordSchemaDeletion records a schema or subject deletion.
+func (m *Metrics) RecordSchemaDeletion(schemaType string) {
+	m.ConfluentDeletedCount.Inc()
+	m.ConfluentSchemasDeleted.WithLabelValues(confluentSchemaType(schemaType)).Inc()
+}
+
+// confluentSchemaType converts our schema type strings to Confluent's lowercase format.
+func confluentSchemaType(schemaType string) string {
+	switch schemaType {
+	case "AVRO":
+		return "avro"
+	case "JSON":
+		return "json"
+	case "PROTOBUF":
+		return "protobuf"
+	default:
+		return strings.ToLower(schemaType)
+	}
 }
 
 // RecordCompatibilityCheck records a compatibility check result.
@@ -368,6 +751,12 @@ func (m *Metrics) RecordCompatibilityCheck(schemaType, level string, compatible 
 		result = "incompatible"
 	}
 	m.CompatibilityChecks.WithLabelValues(schemaType, level, result).Inc()
+}
+
+// RecordCompatibilityError records an internal error during a compatibility check.
+// This is distinct from an "incompatible" result — it means the check itself failed.
+func (m *Metrics) RecordCompatibilityError(schemaType, level string) {
+	m.CompatibilityErrors.WithLabelValues(schemaType, level).Inc()
 }
 
 // RecordStorageOperation records a storage operation.
@@ -397,6 +786,12 @@ func (m *Metrics) RecordAuthAttempt(method string, success bool, reason string, 
 	}
 }
 
+// RecordAuthLDAPFallback records an LDAP authentication failure that fell back
+// to database/htpasswd authentication.
+func (m *Metrics) RecordAuthLDAPFallback(username string) {
+	m.AuthLDAPFallbacks.WithLabelValues(username).Inc()
+}
+
 // RecordRateLimitHit records a rate limit hit.
 func (m *Metrics) RecordRateLimitHit(client string) {
 	m.RateLimitHits.WithLabelValues(client).Inc()
@@ -415,4 +810,133 @@ func (m *Metrics) UpdateSubjectCount(count float64) {
 // UpdateCacheSize updates the cache size.
 func (m *Metrics) UpdateCacheSize(cache string, size float64) {
 	m.CacheSize.WithLabelValues(cache).Set(size)
+}
+
+// EnablePrincipalMetrics registers per-principal metric collectors.
+// Call this when per_principal_metrics is enabled in config.
+func (m *Metrics) EnablePrincipalMetrics() {
+	m.PrincipalRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_principal_requests_total",
+			Help: "Total HTTP requests per authenticated principal",
+		},
+		[]string{"principal", "method", "path", "status"},
+	)
+
+	m.PrincipalMCPCallsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_principal_mcp_calls_total",
+			Help: "Total MCP tool calls per authenticated principal",
+		},
+		[]string{"principal", "tool", "status"},
+	)
+
+	m.registry.MustRegister(m.PrincipalRequestsTotal, m.PrincipalMCPCallsTotal)
+}
+
+// RecordPrincipalRequest records an HTTP request for a specific principal.
+func (m *Metrics) RecordPrincipalRequest(principal, method, path, status string) {
+	if m.PrincipalRequestsTotal != nil {
+		m.PrincipalRequestsTotal.WithLabelValues(principal, method, path, status).Inc()
+	}
+}
+
+// RecordPrincipalMCPCall records an MCP tool call for a specific principal.
+func (m *Metrics) RecordPrincipalMCPCall(principal, tool, status string) {
+	if m.PrincipalMCPCallsTotal != nil {
+		m.PrincipalMCPCallsTotal.WithLabelValues(principal, tool, status).Inc()
+	}
+}
+
+// RecordMCPConfirmation records an MCP two-phase confirmation event.
+// Outcome values: "token_issued", "confirmed", "token_rejected".
+func (m *Metrics) RecordMCPConfirmation(outcome string) {
+	m.MCPConfirmationsTotal.WithLabelValues(outcome).Inc()
+}
+
+// RecordMCPPolicyDenial records an MCP policy denial event.
+// Reason values: "origin_rejected", "confirmation_required".
+func (m *Metrics) RecordMCPPolicyDenial(reason string) {
+	m.MCPPolicyDenialsTotal.WithLabelValues(reason).Inc()
+}
+
+// RecordMCPPermissionDenied records a tool blocked by permission scopes.
+func (m *Metrics) RecordMCPPermissionDenied(tool, scope string) {
+	m.MCPPermissionDeniedTotal.WithLabelValues(tool, scope).Inc()
+}
+
+// RecordMCPToolCall records an MCP tool call.
+func (m *Metrics) RecordMCPToolCall(tool, status string, duration time.Duration) {
+	m.MCPToolCallsTotal.WithLabelValues(tool, status).Inc()
+	m.MCPToolCallDuration.WithLabelValues(tool).Observe(duration.Seconds())
+	if status == "error" {
+		m.MCPToolCallErrors.WithLabelValues(tool).Inc()
+	}
+}
+
+// RecordAuditEvent records an audit event write for a given output.
+func (m *Metrics) RecordAuditEvent(output, status string) {
+	m.AuditEventsTotal.WithLabelValues(output, status).Inc()
+}
+
+// RecordAuditOutputError records a write error for a given audit output.
+func (m *Metrics) RecordAuditOutputError(output string) {
+	m.AuditOutputErrorsTotal.WithLabelValues(output).Inc()
+}
+
+// RecordAuditBufferDrop records an event dropped due to async audit buffer overflow.
+func (m *Metrics) RecordAuditBufferDrop() {
+	m.AuditBufferDroppedTotal.Inc()
+}
+
+// RecordAuditWebhookDrop records an event dropped due to webhook buffer overflow.
+func (m *Metrics) RecordAuditWebhookDrop() {
+	m.AuditWebhookDroppedTotal.Inc()
+}
+
+// RecordAuditWebhookFlush records a webhook batch flush.
+func (m *Metrics) RecordAuditWebhookFlush(batchSize int, duration time.Duration) {
+	m.AuditWebhookBatchSize.Observe(float64(batchSize))
+	m.AuditWebhookFlushDuration.Observe(duration.Seconds())
+}
+
+// GaugeSource provides the data needed to periodically refresh gauge metrics.
+// This avoids importing the registry or storage packages from the metrics package.
+type GaugeSource interface {
+	// SubjectCount returns the number of active subjects.
+	SubjectCount() (int, error)
+	// SchemaCountsByType returns schema counts keyed by type (e.g. "AVRO", "JSON", "PROTOBUF").
+	SchemaCountsByType() (map[string]int, error)
+}
+
+// StartGaugeRefresh starts a background goroutine that periodically refreshes
+// the schemas_total and subjects_total gauge metrics by querying the source.
+// The goroutine stops when the stop channel is closed.
+func (m *Metrics) StartGaugeRefresh(source GaugeSource, interval time.Duration, stop <-chan struct{}) {
+	// Do an immediate refresh before starting the ticker
+	m.refreshGauges(source)
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				m.refreshGauges(source)
+			case <-stop:
+				return
+			}
+		}
+	}()
+}
+
+func (m *Metrics) refreshGauges(source GaugeSource) {
+	if count, err := source.SubjectCount(); err == nil {
+		m.SubjectsTotal.Set(float64(count))
+	}
+	if counts, err := source.SchemaCountsByType(); err == nil {
+		for _, st := range []string{"AVRO", "PROTOBUF", "JSON"} {
+			m.SchemasTotal.WithLabelValues(st).Set(float64(counts[st]))
+		}
+	}
 }

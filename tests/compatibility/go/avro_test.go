@@ -56,6 +56,33 @@ func getSchemaRegistryURL() string {
 	return url
 }
 
+// newSchemaRegistryClient creates a srclient with optional Basic Auth credentials.
+// Set SCHEMA_REGISTRY_USERNAME and SCHEMA_REGISTRY_PASSWORD env vars to enable auth.
+func newSchemaRegistryClient() *srclient.SchemaRegistryClient {
+	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	if u := os.Getenv("SCHEMA_REGISTRY_USERNAME"); u != "" {
+		client.SetCredentials(u, os.Getenv("SCHEMA_REGISTRY_PASSWORD"))
+	}
+	return client
+}
+
+// doRequest executes an HTTP request, adding Basic Auth credentials if configured.
+func doRequest(req *http.Request) (*http.Response, error) {
+	if u := os.Getenv("SCHEMA_REGISTRY_USERNAME"); u != "" {
+		req.SetBasicAuth(u, os.Getenv("SCHEMA_REGISTRY_PASSWORD"))
+	}
+	return http.DefaultClient.Do(req)
+}
+
+// authGet performs an HTTP GET with optional Basic Auth credentials.
+func authGet(url string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return doRequest(req)
+}
+
 // validCompatibilityLevels are the known Confluent compatibility levels
 var validCompatibilityLevels = map[string]bool{
 	"NONE":                true,
@@ -68,7 +95,7 @@ var validCompatibilityLevels = map[string]bool{
 }
 
 func TestAvroSchemaRegistration(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("RegisterUserSchema", func(t *testing.T) {
 		subject := "go-avro-user-value"
@@ -106,7 +133,7 @@ func TestAvroSchemaRegistration(t *testing.T) {
 }
 
 func TestAvroSerialization(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("WireFormatStructure", func(t *testing.T) {
 		subject := "go-avro-wire-value"
@@ -217,7 +244,7 @@ func TestAvroSerialization(t *testing.T) {
 }
 
 func TestAvroGlobalSchemaID(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("SameSchemaAcrossSubjects", func(t *testing.T) {
 		subject1 := "go-avro-global1-value"
@@ -248,7 +275,7 @@ func TestAvroGlobalSchemaID(t *testing.T) {
 }
 
 func TestAvroSchemaEvolution(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("BackwardCompatibleSchema", func(t *testing.T) {
 		v1Schema := `{
@@ -290,7 +317,7 @@ func TestAvroSchemaEvolution(t *testing.T) {
 }
 
 func TestAvroPaymentSchema(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("PaymentSerialization", func(t *testing.T) {
 		subject := "go-avro-payment-value"
@@ -348,7 +375,7 @@ func TestAvroConcurrentRegistration(t *testing.T) {
 			defer wg.Done()
 
 			// Each goroutine gets its own client
-			client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+			client := newSchemaRegistryClient()
 
 			// Wait for start signal
 			<-readyChan
@@ -389,7 +416,7 @@ func TestAvroConcurrentRegistration(t *testing.T) {
 		"All concurrent registrations should return the same schema ID, got %d different IDs", len(schemaIDs))
 
 	// Verify only one version was created
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	versions, err := client.GetSchemaVersions(subject)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(versions),
@@ -401,7 +428,7 @@ func TestAvroConcurrentRegistration(t *testing.T) {
 func TestAvroConfigEndpoints(t *testing.T) {
 	t.Run("GetGlobalCompatibility", func(t *testing.T) {
 		// Use HTTP client directly since srclient may not expose config APIs
-		resp, err := http.Get(getSchemaRegistryURL() + "/config")
+		resp, err := authGet(getSchemaRegistryURL() + "/config")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -424,7 +451,7 @@ func TestAvroIncompatibleSchemaEvolution(t *testing.T) {
 	subject := fmt.Sprintf("go-avro-incompat-%d-value", time.Now().UnixNano())
 
 	// First, register v1 schema
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	_, err := client.CreateSchema(subject, userAvroSchema, srclient.Avro)
 	require.NoError(t, err)
 
@@ -434,12 +461,12 @@ func TestAvroIncompatibleSchemaEvolution(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	resp.Body.Close()
 
 	// Verify compatibility was set
-	resp, err = http.Get(getSchemaRegistryURL() + "/config/" + subject)
+	resp, err = authGet(getSchemaRegistryURL() + "/config/" + subject)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -483,12 +510,12 @@ func TestAvroCacheBehavior(t *testing.T) {
 	subject := fmt.Sprintf("go-avro-cache-%d-value", time.Now().UnixNano())
 
 	// Register schema with first client
-	client1 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client1 := newSchemaRegistryClient()
 	schema, err := client1.CreateSchema(subject, userAvroSchema, srclient.Avro)
 	require.NoError(t, err)
 
 	// Create a completely new client (empty cache)
-	client2 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client2 := newSchemaRegistryClient()
 
 	// Fetch schema with fresh client (cache miss, must hit registry)
 	fetchedSchema, err := client2.GetSchema(schema.ID())
@@ -525,7 +552,7 @@ func TestAvroSchemaCanonicalisation(t *testing.T) {
 	subject1 := fmt.Sprintf("go-avro-canon1-%d-value", time.Now().UnixNano())
 	subject2 := fmt.Sprintf("go-avro-canon2-%d-value", time.Now().UnixNano())
 
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	// Register compact schema
 	schema1, err := client.CreateSchema(subject1, compactSchema, srclient.Avro)

@@ -22,6 +22,34 @@ Feature: Avro Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "AllPrimitives"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-primitives                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-primitives/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Optional/nullable fields (union with null)
     When I register a schema under subject "avro-nullable":
@@ -38,6 +66,34 @@ Feature: Avro Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "optional_email"
+    And the audit log should contain an event:
+      | event_type           | schema_register                     |
+      | outcome              | success                             |
+      | actor_id             |                                     |
+      | actor_type           | anonymous                           |
+      | auth_method          |                                     |
+      | role                 |                                     |
+      | target_type          | subject                             |
+      | target_id            | avro-nullable                       |
+      | schema_id            | *                                   |
+      | version              | *                                   |
+      | schema_type          | AVRO                                |
+      | before_hash          |                                     |
+      | after_hash           | sha256:*                            |
+      | context              | .                                   |
+      | transport_security   | tls                                 |
+      | source_ip            | *                                   |
+      | user_agent           | *                                   |
+      | method               | POST                                |
+      | path                 | /subjects/avro-nullable/versions    |
+      | status_code          | 200                                 |
+      | reason               |                                     |
+      | error                |                                     |
+      | request_body         |                                     |
+      | metadata             |                                     |
+      | timestamp            | *                                   |
+      | duration_ms          | *                                   |
+      | request_id           | *                                   |
 
   Scenario: Nested records (2 levels)
     When I register a schema under subject "avro-nested-2":
@@ -55,6 +111,34 @@ Feature: Avro Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Customer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                     |
+      | outcome              | success                             |
+      | actor_id             |                                     |
+      | actor_type           | anonymous                           |
+      | auth_method          |                                     |
+      | role                 |                                     |
+      | target_type          | subject                             |
+      | target_id            | avro-nested-2                       |
+      | schema_id            | *                                   |
+      | version              | *                                   |
+      | schema_type          | AVRO                                |
+      | before_hash          |                                     |
+      | after_hash           | sha256:*                            |
+      | context              | .                                   |
+      | transport_security   | tls                                 |
+      | source_ip            | *                                   |
+      | user_agent           | *                                   |
+      | method               | POST                                |
+      | path                 | /subjects/avro-nested-2/versions    |
+      | status_code          | 200                                 |
+      | reason               |                                     |
+      | error                |                                     |
+      | request_body         |                                     |
+      | metadata             |                                     |
+      | timestamp            | *                                   |
+      | duration_ms          | *                                   |
+      | request_id           | *                                   |
 
   Scenario: Deeply nested records (3+ levels)
     When I register a schema under subject "avro-nested-3":
@@ -74,6 +158,34 @@ Feature: Avro Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "L4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                     |
+      | outcome              | success                             |
+      | actor_id             |                                     |
+      | actor_type           | anonymous                           |
+      | auth_method          |                                     |
+      | role                 |                                     |
+      | target_type          | subject                             |
+      | target_id            | avro-nested-3                       |
+      | schema_id            | *                                   |
+      | version              | *                                   |
+      | schema_type          | AVRO                                |
+      | before_hash          |                                     |
+      | after_hash           | sha256:*                            |
+      | context              | .                                   |
+      | transport_security   | tls                                 |
+      | source_ip            | *                                   |
+      | user_agent           | *                                   |
+      | method               | POST                                |
+      | path                 | /subjects/avro-nested-3/versions    |
+      | status_code          | 200                                 |
+      | reason               |                                     |
+      | error                |                                     |
+      | request_body         |                                     |
+      | metadata             |                                     |
+      | timestamp            | *                                   |
+      | duration_ms          | *                                   |
+      | request_id           | *                                   |
 
   Scenario: Arrays and maps
     When I register a schema under subject "avro-collections":
@@ -88,6 +200,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "tags"
+    And the audit log should contain an event:
+      | event_type           | schema_register                        |
+      | outcome              | success                                |
+      | actor_id             |                                        |
+      | actor_type           | anonymous                              |
+      | auth_method          |                                        |
+      | role                 |                                        |
+      | target_type          | subject                                |
+      | target_id            | avro-collections                       |
+      | schema_id            | *                                      |
+      | version              | *                                      |
+      | schema_type          | AVRO                                   |
+      | before_hash          |                                        |
+      | after_hash           | sha256:*                               |
+      | context              | .                                      |
+      | transport_security   | tls                                    |
+      | source_ip            | *                                      |
+      | user_agent           | *                                      |
+      | method               | POST                                   |
+      | path                 | /subjects/avro-collections/versions    |
+      | status_code          | 200                                    |
+      | reason               |                                        |
+      | error                |                                        |
+      | request_body         |                                        |
+      | metadata             |                                        |
+      | timestamp            | *                                      |
+      | duration_ms          | *                                      |
+      | request_id           | *                                      |
 
   Scenario: Complex nested collections (map of arrays, array of maps)
     When I register a schema under subject "avro-complex-collections":
@@ -103,6 +243,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "ComplexCollections"
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | avro-complex-collections                      |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/avro-complex-collections/versions   |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Enum type
     When I register a schema under subject "avro-enum":
@@ -116,6 +284,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "ACTIVE"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-enum                        |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-enum/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Fixed type
     When I register a schema under subject "avro-fixed":
@@ -129,6 +325,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "UUID"
+    And the audit log should contain an event:
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | avro-fixed                        |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | AVRO                              |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/avro-fixed/versions     |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   Scenario: Logical types (date, timestamp-millis, decimal)
     When I register a schema under subject "avro-logical":
@@ -146,6 +370,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "timestamp-millis"
+    And the audit log should contain an event:
+      | event_type           | schema_register                     |
+      | outcome              | success                             |
+      | actor_id             |                                     |
+      | actor_type           | anonymous                           |
+      | auth_method          |                                     |
+      | role                 |                                     |
+      | target_type          | subject                             |
+      | target_id            | avro-logical                        |
+      | schema_id            | *                                   |
+      | version              | *                                   |
+      | schema_type          | AVRO                                |
+      | before_hash          |                                     |
+      | after_hash           | sha256:*                            |
+      | context              | .                                   |
+      | transport_security   | tls                                 |
+      | source_ip            | *                                   |
+      | user_agent           | *                                   |
+      | method               | POST                                |
+      | path                 | /subjects/avro-logical/versions     |
+      | status_code          | 200                                 |
+      | reason               |                                     |
+      | error                |                                     |
+      | request_body         |                                     |
+      | metadata             |                                     |
+      | timestamp            | *                                   |
+      | duration_ms          | *                                   |
+      | request_id           | *                                   |
 
   Scenario: Complex unions
     When I register a schema under subject "avro-unions":
@@ -159,6 +411,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "WithUnions"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-unions                        |
+      | schema_id            | *                                  |
+      | version              | *                                  |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-unions/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Self-referencing/recursive types
     When I register a schema under subject "avro-recursive":
@@ -172,6 +452,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "TreeNode"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-recursive                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-recursive/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Records with default values
     When I register a schema under subject "avro-defaults":
@@ -188,6 +496,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "WithDefaults"
+    And the audit log should contain an event:
+      | event_type           | schema_register                      |
+      | outcome              | success                              |
+      | actor_id             |                                      |
+      | actor_type           | anonymous                            |
+      | auth_method          |                                      |
+      | role                 |                                      |
+      | target_type          | subject                              |
+      | target_id            | avro-defaults                        |
+      | schema_id            | *                                    |
+      | version              | *                                    |
+      | schema_type          | AVRO                                 |
+      | before_hash          |                                      |
+      | after_hash           | sha256:*                             |
+      | context              | .                                    |
+      | transport_security   | tls                                  |
+      | source_ip            | *                                    |
+      | user_agent           | *                                    |
+      | method               | POST                                 |
+      | path                 | /subjects/avro-defaults/versions     |
+      | status_code          | 200                                  |
+      | reason               |                                      |
+      | error                |                                      |
+      | request_body         |                                      |
+      | metadata             |                                      |
+      | timestamp            | *                                    |
+      | duration_ms          | *                                    |
+      | request_id           | *                                    |
 
   Scenario: Namespaced records
     When I register a schema under subject "avro-namespaced":
@@ -205,6 +541,34 @@ Feature: Avro Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "com.example.events"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-namespaced                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-namespaced/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Complex real-world PaymentEvent schema
     When I register a schema under subject "avro-payment-event":
@@ -250,6 +614,34 @@ Feature: Avro Schema Types
     When I get version 1 of subject "avro-payment-event"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | avro-payment-event                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/avro-payment-event/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Retrieve schema round-trip by subject/version
     Given subject "avro-roundtrip" has schema:

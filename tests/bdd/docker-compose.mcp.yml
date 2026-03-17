@@ -1,0 +1,24 @@
+# MCP overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable the MCP server
+# with full permissions and auth enabled (for admin tools).
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.mcp.yml up -d --build --wait
+#
+# Optional env vars to customise MCP behaviour per test:
+#   SCHEMA_REGISTRY_MCP_PERMISSION_PRESET    - readonly|developer|operator|admin|full
+#   SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES    - comma-separated scopes
+#   SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS - true|false
+#   SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL     - seconds (default 300)
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-mcp.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-mcp.yaml
+      SCHEMA_REGISTRY_MCP_PERMISSION_PRESET: "${SCHEMA_REGISTRY_MCP_PERMISSION_PRESET:-full}"
+      SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES: "${SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES:-}"
+      SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS: "${SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS:-false}"
+      SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL: "${SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL:-300}"
+    ports:
+      - "${MCP_PORT:-19081}:9081"

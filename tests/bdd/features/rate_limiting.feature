@@ -1,4 +1,4 @@
-@auth @rate-limiting @pending-impl
+@auth @rate-limiting
 Feature: Rate limiting
   The schema registry supports configurable rate limiting to protect
   against excessive request volume.
@@ -15,5 +15,5 @@ Feature: Rate limiting
     Then the response status should be 200
 
   Scenario: Rate limit exceeded returns 429
-    When I send 50 rapid requests to "/subjects"
+    When I send 20 rapid requests to "/subjects"
     Then at least one response should have status 429

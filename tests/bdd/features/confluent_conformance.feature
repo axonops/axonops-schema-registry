@@ -75,6 +75,34 @@ Feature: Confluent Conformance
     And the response should contain "3"
     And the response body should not contain "1"
     And the response body should not contain "2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-ver-cont                                |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/conf-ver-cont/versions             |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Version numbers reset after permanent delete
     Given subject "conf-ver-reset" has schema:
@@ -93,6 +121,34 @@ Feature: Confluent Conformance
     When I GET "/subjects/conf-ver-reset/versions"
     Then the response status should be 200
     And the response should contain "1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-ver-reset                               |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/conf-ver-reset/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # SCHEMA TYPE MIXING WHEN COMPATIBILITY=NONE
@@ -123,6 +179,34 @@ Feature: Confluent Conformance
     And the response should contain "1"
     And the response should contain "2"
     And the response should contain "3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-type-mix                                |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/conf-type-mix/versions             |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
     When I set the global compatibility level to "BACKWARD"
 
   # ==========================================================================
@@ -152,6 +236,34 @@ Feature: Confluent Conformance
       {"type":"record","name":"CompatDel","fields":[{"name":"a","type":"string"},{"name":"c","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-compat-del                              |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/conf-compat-del/versions           |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # CONFIG ON NON-EXISTENT SUBJECT
@@ -169,6 +281,34 @@ Feature: Confluent Conformance
     When I GET "/config/conf-config-nosub?defaultToGlobal=false"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain an event:
+      | event_type           | config_update                                |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | config                                       |
+      | target_id            | conf-config-nosub                            |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          |                                              |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | PUT                                          |
+      | path                 | /config/conf-config-nosub                    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # CANONICAL STRING IDEMPOTENCE
@@ -190,6 +330,34 @@ Feature: Confluent Conformance
     Then the response status should be 200
     And I store the response field "id" as "canonical_id2"
     # Both should get the same ID (idempotent registration)
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-canonical                               |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/conf-canonical/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # GET VERSIONS AFTER ALL SOFT-DELETED
@@ -211,6 +379,34 @@ Feature: Confluent Conformance
     When I GET "/subjects/conf-all-del/versions?deleted=true"
     Then the response status should be 200
     And the response should contain "1"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                          |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-all-del                                 |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/conf-all-del                       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # REGISTER WITH VERSION -1 IN REQUEST BODY
@@ -258,3 +454,31 @@ Feature: Confluent Conformance
     Then the response status should be 200
     And the response should contain "1"
     And the response should contain "2"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                     |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | conf-perm-list                               |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/conf-perm-list                     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

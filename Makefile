@@ -49,7 +49,7 @@ TIMEOUT_UNIT           := 5m
 TIMEOUT_BDD_MEMORY     := 10m
 TIMEOUT_BDD_POSTGRES   := 15m
 TIMEOUT_BDD_MYSQL      := 15m
-TIMEOUT_BDD_CASSANDRA  := 20m
+TIMEOUT_BDD_CASSANDRA  := 40m
 TIMEOUT_BDD_CONFLUENT  := 25m
 TIMEOUT_INT_DEFAULT    := 10m
 TIMEOUT_INT_CASSANDRA  := 15m
@@ -69,11 +69,12 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-integration test-concurrency test-conformance \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-ldap test-bdd-oidc test-bdd-jwt test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-audit-outputs test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
+        test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
         deps lint fmt run dev clean \
-        docker-build docker-run docs-api help
+        docker-build docker-run docs-api docs-mcp help
 
 # =====================================================================
 # Default target
@@ -112,10 +113,10 @@ test: test-unit test-bdd test-integration test-conformance test-concurrency test
 # Unit tests (no Docker, no build tags)
 # =====================================================================
 
-## Run unit tests (internal packages, no Docker needed)
+## Run unit tests (no Docker needed) [COVERPROFILE= for coverage output]
 test-unit:
 	@echo "=== Unit Tests ==="
-	$(GOTEST) -race -v -timeout $(TIMEOUT_UNIT) ./internal/...
+	$(GOTEST) -race -v -timeout $(TIMEOUT_UNIT) $(if $(COVERPROFILE),-coverprofile=$(COVERPROFILE) -covermode=atomic,) ./...
 
 # =====================================================================
 # BDD tests — Docker managed by Go test code (bdd_test.go)
@@ -147,12 +148,206 @@ _test-bdd-single:
 		*)         echo "Unknown BDD backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	if [ "$(BACKEND)" = "memory" ]; then \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...; \
-	else \
-		BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
-			$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...; \
-	fi
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestFeatures ./tests/bdd/...
+
+# =====================================================================
+# BDD functional tests — Docker-deployed binary with memory backend
+# =====================================================================
+
+## Run BDD functional tests (Docker, memory backend — runs only TestFeatures)
+test-bdd-functional:
+	@echo "=== BDD Functional Tests (Docker, memory) ==="
+	CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout 30m -run TestFeatures ./tests/bdd/...
+
+# =====================================================================
+# BDD tests with database backend — Docker binary with DB overlay
+# =====================================================================
+
+## Run BDD tests with DB backend [BACKEND=postgres|mysql|cassandra|all]
+test-bdd-db:
+ifeq ($(BACKEND),all)
+	@for b in postgres mysql cassandra; do \
+		echo ""; \
+		echo "==================================================="; \
+		echo "=== BDD DB Tests: $$b backend"; \
+		echo "==================================================="; \
+		$(MAKE) --no-print-directory _test-bdd-db-single BACKEND=$$b || exit 1; \
+	done
+else ifeq ($(BACKEND),memory)
+	@echo "SKIP: BDD DB tests require a database backend (postgres, mysql, cassandra)."
+	@echo "      Use 'make test-bdd-functional' for memory or 'make test-bdd-db BACKEND=postgres|mysql|cassandra|all'"
+else
+	@$(MAKE) --no-print-directory _test-bdd-db-single BACKEND=$(BACKEND)
+endif
+
+.PHONY: _test-bdd-db-single
+_test-bdd-db-single:
+	@TIMEOUT=""; \
+	case "$(BACKEND)" in \
+		postgres)  TIMEOUT=$(TIMEOUT_BDD_POSTGRES) ;; \
+		mysql)     TIMEOUT=$(TIMEOUT_BDD_MYSQL) ;; \
+		cassandra) TIMEOUT=$(TIMEOUT_BDD_CASSANDRA) ;; \
+		*)         echo "Unknown BDD DB backend: $(BACKEND)"; exit 1 ;; \
+	esac; \
+	echo "=== BDD DB Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestFeatures ./tests/bdd/...
+
+# =====================================================================
+# BDD auth tests with database backend — Docker binary with DB overlay
+# =====================================================================
+
+## Run BDD auth tests with DB backend [BACKEND=postgres|mysql|cassandra|all]
+test-bdd-auth:
+ifeq ($(BACKEND),all)
+	@for b in memory postgres mysql cassandra; do \
+		echo ""; \
+		echo "==================================================="; \
+		echo "=== BDD Auth Tests: $$b backend"; \
+		echo "==================================================="; \
+		$(MAKE) --no-print-directory _test-bdd-auth-single BACKEND=$$b || exit 1; \
+	done
+else
+	@$(MAKE) --no-print-directory _test-bdd-auth-single BACKEND=$(BACKEND)
+endif
+
+.PHONY: _test-bdd-auth-single
+_test-bdd-auth-single:
+	@TIMEOUT=""; \
+	case "$(BACKEND)" in \
+		memory)    TIMEOUT=$(TIMEOUT_BDD_MEMORY) ;; \
+		postgres)  TIMEOUT=$(TIMEOUT_BDD_POSTGRES) ;; \
+		mysql)     TIMEOUT=$(TIMEOUT_BDD_MYSQL) ;; \
+		cassandra) TIMEOUT=$(TIMEOUT_BDD_CASSANDRA) ;; \
+		*)         echo "Unknown BDD auth backend: $(BACKEND)"; exit 1 ;; \
+	esac; \
+	echo "=== BDD Auth Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestAuthFeatures ./tests/bdd/...
+
+# =====================================================================
+# BDD MCP tests — Docker binary with MCP server enabled
+# =====================================================================
+
+## Run BDD MCP core tests (Docker, memory backend — TestMCPFeatures only)
+test-bdd-mcp:
+	@echo "=== BDD MCP Core Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPFeatures ./tests/bdd/...
+
+## Run BDD MCP metrics tests (Docker, memory backend)
+test-bdd-mcp-metrics:
+	@echo "=== BDD MCP Metrics Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPMetricsFeatures ./tests/bdd/...
+
+## Run BDD MCP audit tests (Docker, memory backend)
+test-bdd-mcp-audit:
+	@echo "=== BDD MCP Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPAuditFeatures ./tests/bdd/...
+
+## Run BDD REST audit tests (Docker, memory backend)
+test-bdd-rest-audit:
+	@echo "=== BDD REST Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestRESTAuditFeatures ./tests/bdd/...
+
+## Run BDD audit outputs tests (Docker, file + syslog + webhook)
+test-bdd-audit-outputs:
+	@echo "=== BDD Audit Outputs Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestAuditOutputsFeatures ./tests/bdd/...
+
+## Run BDD LDAP auth tests (Docker, memory backend with OpenLDAP)
+test-bdd-ldap:
+	@echo "=== BDD LDAP Tests (Docker, memory + OpenLDAP, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestLDAPFeatures ./tests/bdd/...
+
+## Run BDD OIDC tests (Docker, memory + Keycloak)
+test-bdd-oidc:
+	@echo "=== BDD OIDC Tests (Docker, memory + Keycloak, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestOIDCFeatures ./tests/bdd/...
+
+## Run BDD JWT auth tests (Docker, memory + RSA key pair)
+test-bdd-jwt:
+	@echo "=== BDD JWT Tests (Docker, memory + RSA key pair, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestJWTFeatures ./tests/bdd/...
+
+## Run BDD mTLS transport tests (Docker, client cert verification)
+test-bdd-mtls:
+	@echo "=== BDD mTLS Transport Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMTLSFeatures ./tests/bdd/...
+
+## Run BDD mTLS + Basic auth tests (Docker, client cert + auth + RBAC)
+test-bdd-mtls-auth:
+	@echo "=== BDD mTLS + Auth Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMTLSAuthFeatures ./tests/bdd/...
+
+## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
+test-bdd-mcp-confirmations:
+	@echo "=== BDD MCP Confirmation Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPConfirmationFeatures ./tests/bdd/...
+
+## Run BDD MCP permissions tests (Docker, one stack per preset)
+test-bdd-mcp-permissions:
+	@echo "=== BDD MCP Permissions Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPPermissionsFeatures ./tests/bdd/...
+
+## Run BDD REST KMS tests (Docker with Vault + OpenBao, no MCP)
+test-bdd-kms-docker:
+	@echo "=== BDD REST KMS Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestKMSFeatures ./tests/bdd/...
+
+## Run BDD MCP + KMS tests (Docker with Vault + OpenBao)
+test-bdd-mcp-kms:
+	@echo "=== BDD MCP+KMS Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	KMS_VAULT_ADDR=http://localhost:18202 KMS_VAULT_TOKEN=test-root-token \
+		KMS_BAO_ADDR=http://localhost:18203 KMS_BAO_TOKEN=test-bao-token \
+		BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPKMSFeatures ./tests/bdd/...
+
+# =====================================================================
+# BDD KMS tests — Docker binary with KMS overlay (Vault + OpenBao)
+# =====================================================================
+
+## Run BDD KMS tests [BACKEND=memory|postgres|mysql|cassandra|all]
+test-bdd-kms:
+ifeq ($(BACKEND),all)
+	@for b in memory postgres mysql cassandra; do \
+		echo ""; \
+		echo "==================================================="; \
+		echo "=== BDD KMS Tests: $$b backend"; \
+		echo "==================================================="; \
+		$(MAKE) --no-print-directory _test-bdd-kms-single BACKEND=$$b || exit 1; \
+	done
+else
+	@$(MAKE) --no-print-directory _test-bdd-kms-single BACKEND=$(BACKEND)
+endif
+
+.PHONY: _test-bdd-kms-single
+_test-bdd-kms-single:
+	@TIMEOUT=""; \
+	case "$(BACKEND)" in \
+		memory)    TIMEOUT=$(TIMEOUT_BDD_MEMORY) ;; \
+		postgres)  TIMEOUT=$(TIMEOUT_BDD_POSTGRES) ;; \
+		mysql)     TIMEOUT=$(TIMEOUT_BDD_MYSQL) ;; \
+		cassandra) TIMEOUT=$(TIMEOUT_BDD_CASSANDRA) ;; \
+		*)         echo "Unknown BDD KMS backend: $(BACKEND)"; exit 1 ;; \
+	esac; \
+	echo "=== BDD KMS Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run 'TestKMSFeatures|TestMCPKMSFeatures' ./tests/bdd/...
 
 # =====================================================================
 # Integration tests — Makefile manages DB containers
@@ -180,14 +375,18 @@ _test-integration-single:
 	@echo "=== Integration Tests ($(BACKEND)) ==="; \
 	TIMEOUT=$(TIMEOUT_INT_DEFAULT); \
 	if [ "$(BACKEND)" = "cassandra" ]; then TIMEOUT=$(TIMEOUT_INT_CASSANDRA); fi; \
-	DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-		DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
+			DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
+			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	fi; \
 	rc=0; \
 	STORAGE_TYPE=$(BACKEND) \
 		$(call db_env,$(BACKEND)) \
 		$(GOTEST) -tags integration -race -v -timeout $$TIMEOUT ./tests/integration/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	fi; \
 	exit $$rc
 
 # =====================================================================
@@ -216,14 +415,18 @@ _test-concurrency-single:
 	@echo "=== Concurrency Tests ($(BACKEND)) ==="; \
 	TIMEOUT=$(TIMEOUT_CONC_DEFAULT); \
 	if [ "$(BACKEND)" = "cassandra" ]; then TIMEOUT=$(TIMEOUT_CONC_CASSANDRA); fi; \
-	DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-		DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
+			DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
+			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	fi; \
 	rc=0; \
 	STORAGE_TYPE=$(BACKEND) \
 		$(call db_env,$(BACKEND)) \
 		$(GOTEST) -tags concurrency -race -v -timeout $$TIMEOUT ./tests/concurrency/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	fi; \
 	exit $$rc
 
 # =====================================================================
@@ -260,13 +463,17 @@ else
 		cassandra) TEST_RUN=TestCassandraBackend ;; \
 		*)         echo "Unknown conformance backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
-	DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-		DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
+			DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
+			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
+	fi; \
 	rc=0; \
 	$(call db_env,$(BACKEND)) \
 		$(GOTEST) -tags conformance -race -v -timeout $$TIMEOUT -run $$TEST_RUN ./tests/storage/conformance/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
+	fi; \
 	exit $$rc
 endif
 
@@ -294,28 +501,32 @@ test-migration: build
 test-api: build
 	@echo "=== API Endpoint Tests ==="; \
 	API_PORT=28082; \
-	echo "Starting schema-registry on port $$API_PORT..."; \
-	echo "server:" > /tmp/sr-api-test.yaml; \
-	echo "  host: 127.0.0.1" >> /tmp/sr-api-test.yaml; \
-	echo "  port: $$API_PORT" >> /tmp/sr-api-test.yaml; \
-	echo "storage:" >> /tmp/sr-api-test.yaml; \
-	echo "  type: memory" >> /tmp/sr-api-test.yaml; \
-	$(BUILD_DIR)/$(BINARY_NAME) -config /tmp/sr-api-test.yaml > /tmp/sr-api-test.log 2>&1 & \
-	SR_PID=$$!; \
-	echo "Waiting for schema-registry (PID $$SR_PID) to start..."; \
-	for i in $$(seq 1 30); do \
-		if curl -sf http://localhost:$$API_PORT/ > /dev/null 2>&1; then \
-			echo "Schema registry is ready"; \
-			break; \
-		fi; \
-		sleep 1; \
-	done; \
+	if [ -z "$(CI)" ]; then \
+		echo "Starting schema-registry on port $$API_PORT..."; \
+		echo "server:" > /tmp/sr-api-test.yaml; \
+		echo "  host: 127.0.0.1" >> /tmp/sr-api-test.yaml; \
+		echo "  port: $$API_PORT" >> /tmp/sr-api-test.yaml; \
+		echo "storage:" >> /tmp/sr-api-test.yaml; \
+		echo "  type: memory" >> /tmp/sr-api-test.yaml; \
+		$(BUILD_DIR)/$(BINARY_NAME) -config /tmp/sr-api-test.yaml > /tmp/sr-api-test.log 2>&1 & \
+		SR_PID=$$!; \
+		echo "Waiting for schema-registry (PID $$SR_PID) to start..."; \
+		for i in $$(seq 1 30); do \
+			if curl -sf http://localhost:$$API_PORT/ > /dev/null 2>&1; then \
+				echo "Schema registry is ready"; \
+				break; \
+			fi; \
+			sleep 1; \
+		done; \
+	fi; \
 	rc=0; \
 	SCHEMA_REGISTRY_URL=http://localhost:$$API_PORT \
 		$(GOTEST) -tags api -v -timeout $(TIMEOUT_API) ./tests/api/... || rc=$$?; \
-	kill $$SR_PID 2>/dev/null || true; \
-	wait $$SR_PID 2>/dev/null || true; \
-	rm -f /tmp/sr-api-test.yaml /tmp/sr-api-test.log; \
+	if [ -z "$(CI)" ]; then \
+		kill $$SR_PID 2>/dev/null || true; \
+		wait $$SR_PID 2>/dev/null || true; \
+		rm -f /tmp/sr-api-test.yaml /tmp/sr-api-test.log; \
+	fi; \
 	exit $$rc
 
 # =====================================================================
@@ -329,33 +540,45 @@ test-auth: test-ldap test-vault test-oidc
 test-ldap:
 	@echo "=== LDAP Auth Tests ==="; \
 	LDAP_PORT=20389; \
-	CONTAINER_CMD=$(CONTAINER_CMD) LDAP_PORT=$$LDAP_PORT $(SCRIPTS_DIR)/setup-ldap.sh start; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) LDAP_PORT=$$LDAP_PORT $(SCRIPTS_DIR)/setup-ldap.sh start; \
+	fi; \
 	rc=0; \
 	LDAP_URL=ldap://localhost:$$LDAP_PORT \
 		$(GOTEST) -tags ldap -race -v -timeout $(TIMEOUT_LDAP) ./tests/integration/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-ldap.sh stop; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-ldap.sh stop; \
+	fi; \
 	exit $$rc
 
 ## Run Vault authentication tests (starts HashiCorp Vault container)
 test-vault:
 	@echo "=== Vault Auth Tests ==="; \
 	VAULT_PORT=28200; \
-	CONTAINER_CMD=$(CONTAINER_CMD) VAULT_PORT=$$VAULT_PORT $(SCRIPTS_DIR)/setup-vault.sh start; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) VAULT_PORT=$$VAULT_PORT $(SCRIPTS_DIR)/setup-vault.sh start; \
+	fi; \
 	rc=0; \
 	VAULT_ADDR=http://localhost:$$VAULT_PORT VAULT_TOKEN=root \
 		$(GOTEST) -tags vault -race -v -timeout $(TIMEOUT_VAULT) ./tests/integration/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-vault.sh stop; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-vault.sh stop; \
+	fi; \
 	exit $$rc
 
 ## Run OIDC authentication tests (starts Keycloak container)
 test-oidc:
 	@echo "=== OIDC Auth Tests ==="; \
 	KC_PORT=28080; \
-	CONTAINER_CMD=$(CONTAINER_CMD) KC_PORT=$$KC_PORT $(SCRIPTS_DIR)/setup-oidc.sh start; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) KC_PORT=$$KC_PORT $(SCRIPTS_DIR)/setup-oidc.sh start; \
+	fi; \
 	rc=0; \
 	OIDC_ISSUER_URL=http://localhost:$$KC_PORT/realms/schema-registry \
 		$(GOTEST) -tags oidc -race -v -timeout $(TIMEOUT_OIDC) ./tests/integration/... || rc=$$?; \
-	CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-oidc.sh stop; \
+	if [ -z "$(CI)" ]; then \
+		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/setup-oidc.sh stop; \
+	fi; \
 	exit $$rc
 
 # =====================================================================
@@ -484,6 +707,12 @@ docker-run:
 docs-api:
 	@./scripts/generate-api-docs.sh
 
+## Generate MCP API reference from live server introspection
+docs-mcp:
+	@echo "Generating MCP API reference..."
+	@$(GOCMD) run ./cmd/generate-mcp-docs > docs/mcp-reference.md
+	@echo "  -> docs/mcp-reference.md ($$(wc -l < docs/mcp-reference.md | tr -d ' ') lines)"
+
 ## Clean build artifacts
 clean:
 	@echo "Cleaning..."
@@ -522,7 +751,20 @@ help:
 	@echo "  test                Run ALL tests (unit + BDD + integration + conformance"
 	@echo "                      + concurrency + migration + API + auth + compatibility)"
 	@echo "  test-unit           Unit tests (no Docker, no build tags)"
-	@echo "  test-bdd            BDD/Gherkin tests                     [BACKEND=]"
+	@echo "  test-bdd            BDD/Gherkin tests (TestFeatures only) [BACKEND=]"
+	@echo "  test-bdd-functional BDD functional tests (TestFeatures, Docker, memory)"
+	@echo "  test-bdd-db         BDD tests with real DB (TestFeatures) [BACKEND=]"
+	@echo "  test-bdd-auth       BDD auth tests (internal users)       [BACKEND=]"
+	@echo "  test-bdd-mcp        BDD MCP core tests (Docker, memory)"
+	@echo "  test-bdd-mcp-metrics        BDD MCP metrics tests (Docker)"
+	@echo "  test-bdd-mcp-confirmations  BDD MCP confirmation tests (Docker)"
+	@echo "  test-bdd-mcp-permissions    BDD MCP permission preset tests (Docker)"
+	@echo "  test-bdd-mcp-audit          BDD MCP audit tests (Docker)"
+	@echo "  test-bdd-rest-audit         BDD REST audit tests (Docker)"
+	@echo "  test-bdd-audit-outputs      BDD audit outputs tests (Docker, file+syslog+webhook)"
+	@echo "  test-bdd-kms-docker BDD REST KMS tests (Docker + Vault + OpenBao)"
+	@echo "  test-bdd-mcp-kms    BDD MCP+KMS tests (Docker + Vault + OpenBao)"
+	@echo "  test-bdd-kms        BDD KMS tests (Vault + OpenBao)       [BACKEND=]"
 	@echo "  test-integration    Integration tests against DB backends [BACKEND=] (no memory)"
 	@echo "  test-concurrency    Concurrency tests against DB backends [BACKEND=] (no memory)"
 	@echo "  test-conformance    Storage conformance tests             [BACKEND=]"
@@ -550,4 +792,5 @@ help:
 	@echo "  run                 Build and run the server"
 	@echo "  dev                 Run with hot reload (requires air)"
 	@echo "  docs-api            Generate API docs from OpenAPI (markdown + HTML)"
+	@echo "  docs-mcp            Generate MCP API reference (tools, resources, prompts)"
 	@echo "  clean               Clean build artifacts"

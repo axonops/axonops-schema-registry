@@ -6,6 +6,9 @@ server:
   port: 8081
   read_timeout: 30
   write_timeout: 30
+  shutdown_timeout: 30        # Graceful shutdown wait (seconds)
+  # cluster_id: ""            # Optional cluster identifier
+  # max_request_body_size: 0  # Max request body (bytes); 0 = 10MB default
 
 # Storage backend configuration
 # Options: memory, postgresql, mysql, cassandra
@@ -66,7 +69,7 @@ security:
     ca_file: ""
     min_version: "TLS1.2"
     client_auth: none  # none, request, require, verify
-    auto_reload: false
+    auto_reload: false            # SIGHUP reloads certs without restart
 
   # Authentication configuration
   auth:
@@ -83,13 +86,17 @@ security:
       # Users with bcrypt-hashed passwords (legacy config-based auth)
       # Use the CLI tool to manage users in the database instead
       users: {}
-      htpasswd_file: ""
+      htpasswd_file: ""             # Apache htpasswd file (bcrypt only)
 
     # API Key authentication settings
     api_key:
       header: "X-API-Key"
       query_param: "api_key"
-      storage_type: database  # memory or database
+      storage_type: database  # "database" (default) or "memory" (config-defined keys)
+      # keys:                 # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."  # bcrypt hash of the API key
+      #     role: developer
 
     # JWT authentication settings (for external IdP)
     jwt:
@@ -101,6 +108,9 @@ security:
       claims_mapping:
         username: sub
         role: role
+      default_role: readonly      # Fallback role when no claim matches
+      jwks_cache_ttl: 300         # JWKS cache TTL in seconds (5 minutes)
+      http_timeout: 10            # JWKS HTTP client timeout in seconds
 
     # RBAC settings
     rbac:
@@ -125,5 +135,29 @@ security:
     events:
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
     include_body: false
+
+  # Per-principal metrics (adds "principal" label to Prometheus metrics)
+  metrics:
+    per_principal_metrics: true
+
+# MCP (Model Context Protocol) server for AI assistant access
+# mcp:
+#   enabled: false
+#   host: 127.0.0.1              # Bind to localhost only for security
+#   port: 9081                    # Separate from REST API port
+#   auth_token: ""                # Bearer token (empty = no auth)
+#   read_only: false              # Restrict to read-only tools
+#   permission_preset: ""         # readonly | developer | operator | admin | full
+#   permission_scopes: []         # Individual scopes (when no preset)
+#   tool_policy: allow_all        # allow_all | deny_list | allow_list
+#   allowed_tools: []             # Tools to expose (for allow_list)
+#   denied_tools: []              # Tools to hide (for deny_list)
+#   allowed_origins:
+#     - "http://localhost:*"
+#     - "https://localhost:*"
+#     - "vscode-webview://*"
+#   require_confirmations: false  # Two-phase confirms for destructive ops
+#   confirmation_ttl: 300         # Confirmation token TTL (seconds)
+#   log_schemas: false            # Log full schema bodies (debug only)

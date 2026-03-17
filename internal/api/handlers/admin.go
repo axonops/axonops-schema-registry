@@ -105,6 +105,12 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = req.Username
+		hints.AfterHash = hashUser(user)
+	}
+
 	writeAdminJSON(w, http.StatusCreated, userToResponse(user))
 }
 
@@ -166,6 +172,9 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		updates["enabled"] = *req.Enabled
 	}
 
+	// Capture user state before update for audit trail.
+	existingUser, _ := h.authService.GetUserByID(r.Context(), id)
+
 	user, err := h.authService.UpdateUser(r.Context(), id, updates)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
@@ -179,6 +188,15 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingUser != nil {
+			hints.BeforeHash = hashUser(existingUser)
+		}
+		hints.AfterHash = hashUser(user)
 	}
 
 	writeAdminJSON(w, http.StatusOK, userToResponse(user))
@@ -196,6 +214,9 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture user state before deletion for audit trail.
+	existingUser, _ := h.authService.GetUserByID(r.Context(), id)
+
 	if err := h.authService.DeleteUser(r.Context(), id); err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeUserNotFound, "User not found")
@@ -204,6 +225,14 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingUser != nil {
+			hints.BeforeHash = hashUser(existingUser)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -344,6 +373,18 @@ func (h *AdminHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: result.ExpiresAt.Format(time.RFC3339),
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = req.Name
+		hints.AfterHash = hashAPIKey(&storage.APIKeyRecord{
+			Name:      result.Name,
+			Role:      result.Role,
+			UserID:    result.UserID,
+			Enabled:   result.Enabled,
+			KeyPrefix: result.KeyPrefix,
+		})
+	}
+
 	writeAdminJSON(w, http.StatusCreated, resp)
 }
 
@@ -402,6 +443,9 @@ func (h *AdminHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 		updates["enabled"] = *req.Enabled
 	}
 
+	// Capture API key state before update for audit trail.
+	existingKey, _ := h.authService.GetAPIKeyByID(r.Context(), id)
+
 	key, err := h.authService.UpdateAPIKey(r.Context(), id, updates)
 	if err != nil {
 		if errors.Is(err, storage.ErrAPIKeyNotFound) {
@@ -415,6 +459,15 @@ func (h *AdminHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingKey != nil {
+			hints.BeforeHash = hashAPIKey(existingKey)
+		}
+		hints.AfterHash = hashAPIKey(key)
 	}
 
 	writeAdminJSON(w, http.StatusOK, h.apiKeyToResponse(r.Context(), key))
@@ -432,6 +485,9 @@ func (h *AdminHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture API key state before deletion for audit trail.
+	existingKey, _ := h.authService.GetAPIKeyByID(r.Context(), id)
+
 	if err := h.authService.DeleteAPIKey(r.Context(), id); err != nil {
 		if errors.Is(err, storage.ErrAPIKeyNotFound) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
@@ -440,6 +496,14 @@ func (h *AdminHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingKey != nil {
+			hints.BeforeHash = hashAPIKey(existingKey)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -457,6 +521,9 @@ func (h *AdminHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture API key state before revocation for audit trail.
+	existingKey, _ := h.authService.GetAPIKeyByID(r.Context(), id)
+
 	if err := h.authService.RevokeAPIKey(r.Context(), id); err != nil {
 		if errors.Is(err, storage.ErrAPIKeyNotFound) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
@@ -472,6 +539,15 @@ func (h *AdminHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingKey != nil {
+			hints.BeforeHash = hashAPIKey(existingKey)
+		}
+		hints.AfterHash = hashAPIKey(key)
 	}
 
 	writeAdminJSON(w, http.StatusOK, h.apiKeyToResponse(r.Context(), key))
@@ -507,6 +583,9 @@ func (h *AdminHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
 
 	newExpiresAt := time.Now().UTC().Add(time.Duration(req.ExpiresIn) * time.Second)
 
+	// Capture API key state before rotation for audit trail.
+	existingKey, _ := h.authService.GetAPIKeyByID(r.Context(), id)
+
 	result, err := h.authService.RotateAPIKey(r.Context(), id, newExpiresAt)
 	if err != nil {
 		if errors.Is(err, storage.ErrAPIKeyNotFound) {
@@ -540,6 +619,21 @@ func (h *AdminHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
 	resp := types.RotateAPIKeyResponse{
 		NewKey:    newKeyResp,
 		RevokedID: id,
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
+		if existingKey != nil {
+			hints.BeforeHash = hashAPIKey(existingKey)
+		}
+		hints.AfterHash = hashAPIKey(&storage.APIKeyRecord{
+			Name:      result.Name,
+			Role:      result.Role,
+			UserID:    result.UserID,
+			Enabled:   result.Enabled,
+			KeyPrefix: result.KeyPrefix,
+		})
 	}
 
 	writeAdminJSON(w, http.StatusOK, resp)

@@ -176,6 +176,20 @@ docker run -d \
   ghcr.io/axonops/axonops-schema-registry:latest
 ```
 
+To also expose the MCP server for AI assistant access, add `-p 9081:9081` and enable the MCP server:
+
+```bash
+docker run -d \
+  --name schema-registry \
+  -p 8081:8081 \
+  -p 9081:9081 \
+  -e SCHEMA_REGISTRY_MCP_ENABLED=true \
+  -e SCHEMA_REGISTRY_MCP_HOST=0.0.0.0 \
+  ghcr.io/axonops/axonops-schema-registry:latest
+```
+
+> **Note:** The MCP server binds to `127.0.0.1` by default. Set `SCHEMA_REGISTRY_MCP_HOST=0.0.0.0` when running in a container so it is accessible from outside.
+
 ### Docker Compose with PostgreSQL
 
 Create a `docker-compose.yaml` file:
@@ -553,6 +567,8 @@ curl http://localhost:8081/
 The registry provides four health check endpoints. Three are Kubernetes-style endpoints designed for pod lifecycle management, and one is the legacy endpoint for backward compatibility with the Confluent Schema Registry API.
 
 All health endpoints are unauthenticated.
+
+> **MCP note:** The MCP server does not have a separate health endpoint. Use the REST API health endpoints (`GET /health/ready` on the REST port, default 8081) for health checks. The MCP server (default port 9081) shares the same `registry.Registry` service layer.
 
 ### Kubernetes Health Endpoints
 

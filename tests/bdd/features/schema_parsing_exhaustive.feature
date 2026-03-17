@@ -13,6 +13,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Valid","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | parse-avro-valid                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/parse-avro-valid/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Invalid Avro field type returns INVALID_SCHEMA
     When I register a schema under subject "parse-avro-badtype":
@@ -36,6 +64,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"UnionNull","fields":[{"name":"f1","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | parse-avro-union-null                         |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/parse-avro-union-null/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Avro schema with all primitive types
     When I register a schema under subject "parse-avro-prims":
@@ -43,6 +99,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"AllPrims","fields":[{"name":"a","type":"null"},{"name":"b","type":"boolean"},{"name":"c","type":"int"},{"name":"d","type":"long"},{"name":"e","type":"float"},{"name":"f","type":"double"},{"name":"g","type":"bytes"},{"name":"h","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | parse-avro-prims                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/parse-avro-prims/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Avro schema with logical types
     When I register a schema under subject "parse-avro-logical":
@@ -50,6 +134,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Logical","fields":[{"name":"d","type":{"type":"int","logicalType":"date"}},{"name":"ts","type":{"type":"long","logicalType":"timestamp-millis"}},{"name":"uuid","type":{"type":"string","logicalType":"uuid"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | parse-avro-logical                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/parse-avro-logical/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Avro schema with enum type
     When I register a schema under subject "parse-avro-enum":
@@ -57,6 +169,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WithEnum","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["ACTIVE","INACTIVE","DELETED"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-avro-enum                         |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-avro-enum/versions      |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: Avro schema with fixed type
     When I register a schema under subject "parse-avro-fixed":
@@ -64,6 +204,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WithFixed","fields":[{"name":"hash","type":{"type":"fixed","name":"MD5","size":16}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | parse-avro-fixed                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/parse-avro-fixed/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Avro schema with map and array
     When I register a schema under subject "parse-avro-collections":
@@ -71,6 +239,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Collections","fields":[{"name":"tags","type":{"type":"map","values":"string"}},{"name":"scores","type":{"type":"array","items":"int"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | parse-avro-collections                        |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/parse-avro-collections/versions     |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: Avro schema with nested records
     When I register a schema under subject "parse-avro-nested":
@@ -78,6 +274,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"value","type":"string"}]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-avro-nested                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-avro-nested/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: Avro schema with recursive reference
     When I register a schema under subject "parse-avro-recursive":
@@ -85,6 +309,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Node","fields":[{"name":"value","type":"string"},{"name":"next","type":["null","Node"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | parse-avro-recursive                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/parse-avro-recursive/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # AVRO COMPATIBILITY — FIELD NAME ALIAS
@@ -102,6 +354,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"AliasTest","fields":[{"name":"f1_renamed","type":"string","aliases":["f1"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | parse-avro-alias                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/parse-avro-alias/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Backward compatible — evolving field type to union
     Given the global compatibility level is "NONE"
@@ -115,6 +395,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"ToUnion","fields":[{"name":"f1","type":["null","string"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                             |
+      | outcome              | success                                     |
+      | actor_id             |                                             |
+      | actor_type           | anonymous                                   |
+      | auth_method          |                                             |
+      | role                 |                                             |
+      | target_type          | subject                                     |
+      | target_id            | parse-avro-to-union                         |
+      | schema_id            | *                                           |
+      | version              | *                                           |
+      | schema_type          | AVRO                                        |
+      | before_hash          |                                             |
+      | after_hash           | sha256:*                                    |
+      | context              | .                                           |
+      | transport_security   | tls                                         |
+      | source_ip            | *                                           |
+      | user_agent           | *                                           |
+      | method               | POST                                        |
+      | path                 | /subjects/parse-avro-to-union/versions      |
+      | status_code          | 200                                         |
+      | reason               |                                             |
+      | error                |                                             |
+      | request_body         |                                             |
+      | metadata             |                                             |
+      | timestamp            | *                                           |
+      | duration_ms          | *                                           |
+      | request_id           | *                                           |
 
   Scenario: Backward incompatible — removing type from union
     Given the global compatibility level is "NONE"
@@ -141,6 +449,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WidenUnion","fields":[{"name":"f1","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | parse-avro-widen-union                        |
+      | schema_id            | *                                             |
+      | version              | *                                             |
+      | schema_type          | AVRO                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/parse-avro-widen-union/versions     |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # JSON SCHEMA PARSING (Section 33)
@@ -152,6 +488,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | parse-json-valid                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/parse-json-valid/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Invalid JSON Schema returns INVALID_SCHEMA
     When I POST "/subjects/parse-json-invalid/versions" with body:
@@ -167,6 +531,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","$defs":{"Address":{"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}}}},"properties":{"home":{"$ref":"#/$defs/Address"},"work":{"$ref":"#/$defs/Address"}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-json-defs                         |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | JSON                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-json-defs/versions      |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: JSON Schema with recursive $ref
     When I register a "JSON" schema under subject "parse-json-recursive":
@@ -174,6 +566,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"},"children":{"type":"array","items":{"$ref":"#"}}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | parse-json-recursive                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/parse-json-recursive/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: JSON Schema with enum
     When I register a "JSON" schema under subject "parse-json-enum":
@@ -181,6 +601,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive","deleted"]},"priority":{"type":"integer","enum":[1,2,3,4,5]}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-json-enum                         |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | JSON                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-json-enum/versions      |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: JSON Schema with oneOf/anyOf/allOf
     When I register a "JSON" schema under subject "parse-json-composition":
@@ -188,6 +636,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"value":{"oneOf":[{"type":"string"},{"type":"integer"}]},"data":{"anyOf":[{"type":"object","properties":{"a":{"type":"string"}}},{"type":"object","properties":{"b":{"type":"integer"}}}]}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | parse-json-composition                         |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/parse-json-composition/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   Scenario: JSON Schema with string constraints
     When I register a "JSON" schema under subject "parse-json-string-constraints":
@@ -195,6 +671,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"email":{"type":"string","format":"email","minLength":5,"maxLength":255},"code":{"type":"string","pattern":"^[A-Z]{3}$"}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                       |
+      | outcome              | success                                               |
+      | actor_id             |                                                       |
+      | actor_type           | anonymous                                             |
+      | auth_method          |                                                       |
+      | role                 |                                                       |
+      | target_type          | subject                                               |
+      | target_id            | parse-json-string-constraints                         |
+      | schema_id            | *                                                     |
+      | version              | *                                                     |
+      | schema_type          | JSON                                                  |
+      | before_hash          |                                                       |
+      | after_hash           | sha256:*                                              |
+      | context              | .                                                     |
+      | transport_security   | tls                                                   |
+      | source_ip            | *                                                     |
+      | user_agent           | *                                                     |
+      | method               | POST                                                  |
+      | path                 | /subjects/parse-json-string-constraints/versions      |
+      | status_code          | 200                                                   |
+      | reason               |                                                       |
+      | error                |                                                       |
+      | request_body         |                                                       |
+      | metadata             |                                                       |
+      | timestamp            | *                                                     |
+      | duration_ms          | *                                                     |
+      | request_id           | *                                                     |
 
   Scenario: JSON Schema with numeric constraints
     When I register a "JSON" schema under subject "parse-json-numeric-constraints":
@@ -202,6 +706,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"age":{"type":"integer","minimum":0,"maximum":150},"score":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":100,"multipleOf":0.5}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                        |
+      | outcome              | success                                                |
+      | actor_id             |                                                        |
+      | actor_type           | anonymous                                              |
+      | auth_method          |                                                        |
+      | role                 |                                                        |
+      | target_type          | subject                                                |
+      | target_id            | parse-json-numeric-constraints                         |
+      | schema_id            | *                                                      |
+      | version              | *                                                      |
+      | schema_type          | JSON                                                   |
+      | before_hash          |                                                        |
+      | after_hash           | sha256:*                                               |
+      | context              | .                                                      |
+      | transport_security   | tls                                                    |
+      | source_ip            | *                                                      |
+      | user_agent           | *                                                      |
+      | method               | POST                                                   |
+      | path                 | /subjects/parse-json-numeric-constraints/versions      |
+      | status_code          | 200                                                    |
+      | reason               |                                                        |
+      | error                |                                                        |
+      | request_body         |                                                        |
+      | metadata             |                                                        |
+      | timestamp            | *                                                      |
+      | duration_ms          | *                                                      |
+      | request_id           | *                                                      |
 
   Scenario: JSON Schema with array constraints
     When I register a "JSON" schema under subject "parse-json-array-constraints":
@@ -209,6 +741,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"tags":{"type":"array","items":{"type":"string"},"minItems":1,"maxItems":10,"uniqueItems":true}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                                      |
+      | outcome              | success                                              |
+      | actor_id             |                                                      |
+      | actor_type           | anonymous                                            |
+      | auth_method          |                                                      |
+      | role                 |                                                      |
+      | target_type          | subject                                              |
+      | target_id            | parse-json-array-constraints                         |
+      | schema_id            | *                                                    |
+      | version              | *                                                    |
+      | schema_type          | JSON                                                 |
+      | before_hash          |                                                      |
+      | after_hash           | sha256:*                                             |
+      | context              | .                                                    |
+      | transport_security   | tls                                                  |
+      | source_ip            | *                                                    |
+      | user_agent           | *                                                    |
+      | method               | POST                                                 |
+      | path                 | /subjects/parse-json-array-constraints/versions      |
+      | status_code          | 200                                                  |
+      | reason               |                                                      |
+      | error                |                                                      |
+      | request_body         |                                                      |
+      | metadata             |                                                      |
+      | timestamp            | *                                                    |
+      | duration_ms          | *                                                    |
+      | request_id           | *                                                    |
 
   Scenario: JSON Schema with additionalProperties false
     When I register a "JSON" schema under subject "parse-json-closed":
@@ -216,6 +776,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-json-closed                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | JSON                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-json-closed/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: JSON Schema with nested objects
     When I register a "JSON" schema under subject "parse-json-nested":
@@ -223,6 +811,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"},"geo":{"type":"object","properties":{"lat":{"type":"number"},"lng":{"type":"number"}},"required":["lat","lng"]}},"required":["street"]}}}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-json-nested                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | JSON                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-json-nested/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: JSON Schema dedup — same schema gets same ID
     When I register a "JSON" schema under subject "parse-json-dedup1":
@@ -237,6 +853,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And the response field "id" should equal stored "json_dedup_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-json-dedup2                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | JSON                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-json-dedup2/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   # ==========================================================================
   # PROTOBUF PARSING (Section 34)
@@ -252,6 +896,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-proto-valid                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | PROTOBUF                                  |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-proto-valid/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: Invalid Protobuf schema returns INVALID_SCHEMA
     When I POST "/subjects/parse-proto-invalid/versions" with body:
@@ -274,6 +946,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | parse-proto-nested                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | PROTOBUF                                   |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/parse-proto-nested/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Protobuf with enum
     When I register a "PROTOBUF" schema under subject "parse-proto-enum":
@@ -289,6 +989,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-proto-enum                        |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | PROTOBUF                                |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-proto-enum/versions     |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: Protobuf with oneof
     When I register a "PROTOBUF" schema under subject "parse-proto-oneof":
@@ -304,6 +1032,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | parse-proto-oneof                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | PROTOBUF                                  |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/parse-proto-oneof/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   Scenario: Protobuf with map
     When I register a "PROTOBUF" schema under subject "parse-proto-map":
@@ -315,6 +1071,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-proto-map                         |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | PROTOBUF                                |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-proto-map/versions      |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: Protobuf with repeated field
     When I register a "PROTOBUF" schema under subject "parse-proto-repeated":
@@ -326,6 +1110,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | parse-proto-repeated                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/parse-proto-repeated/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Protobuf with well-known type imports
     When I register a "PROTOBUF" schema under subject "parse-proto-wkt":
@@ -339,6 +1151,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-proto-wkt                         |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | PROTOBUF                                |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-proto-wkt/versions      |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: Protobuf with package declaration
     When I register a "PROTOBUF" schema under subject "parse-proto-package":
@@ -352,6 +1192,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                             |
+      | outcome              | success                                     |
+      | actor_id             |                                             |
+      | actor_type           | anonymous                                   |
+      | auth_method          |                                             |
+      | role                 |                                             |
+      | target_type          | subject                                     |
+      | target_id            | parse-proto-package                         |
+      | schema_id            | *                                           |
+      | version              | *                                           |
+      | schema_type          | PROTOBUF                                    |
+      | before_hash          |                                             |
+      | after_hash           | sha256:*                                    |
+      | context              | .                                           |
+      | transport_security   | tls                                         |
+      | source_ip            | *                                           |
+      | user_agent           | *                                           |
+      | method               | POST                                        |
+      | path                 | /subjects/parse-proto-package/versions      |
+      | status_code          | 200                                         |
+      | reason               |                                             |
+      | error                |                                             |
+      | request_body         |                                             |
+      | metadata             |                                             |
+      | timestamp            | *                                           |
+      | duration_ms          | *                                           |
+      | request_id           | *                                           |
 
   Scenario: Protobuf with optional field (proto3)
     When I register a "PROTOBUF" schema under subject "parse-proto-optional":
@@ -364,6 +1232,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | parse-proto-optional                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/parse-proto-optional/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Protobuf dedup — same schema gets same ID
     When I register a "PROTOBUF" schema under subject "parse-proto-dedup1":
@@ -386,6 +1282,34 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And the response field "id" should equal stored "proto_dedup_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | parse-proto-dedup2                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | PROTOBUF                                   |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/parse-proto-dedup2/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Same message name in different packages are different schemas
     When I register a "PROTOBUF" schema under subject "parse-proto-pkg1":
@@ -409,3 +1333,31 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And I store the response field "id" as "pkg2_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | parse-proto-pkg2                        |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | PROTOBUF                                |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/parse-proto-pkg2/versions     |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |

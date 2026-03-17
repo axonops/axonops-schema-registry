@@ -39,7 +39,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "kmsKeyId" should be "arn:aws:kms:us-east-1:123456789012:key/abcd1234-5678-90ab-cdef-1234567890ab"
     And the response field "doc" should be "Test KEK with all fields"
     And the response field "shared" should be true
-
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | test-kek-full          |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: Create KEK with minimal required fields
     When I POST "/dek-registry/v1/keks" with body:
@@ -55,7 +82,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "name" should be "test-kek-minimal"
     And the response field "kmsType" should be "aws-kms"
     And the response field "shared" should be false
-
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | test-kek-minimal       |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: Get KEK by name
     Given I POST "/dek-registry/v1/keks" with body:
@@ -129,6 +183,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response should be valid JSON
     And the response field "doc" should be "Updated documentation"
     And the response field "shared" should be true
+    And the audit log should contain an event:
+      | event_type          | kek_update                            |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | method              | PUT                                   |
+      | path                | /dek-registry/v1/keks/update-test-kek |
+      | status_code         | 200                                   |
+      | target_type         | kek                                   |
+      | target_id           | update-test-kek                       |
+      | schema_id           |                                       |
+      | version             |                                       |
+      | schema_type         |                                       |
+      | context             | .                                      |
+      | before_hash         | sha256:*                              |
+      | after_hash          | sha256:*                              |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Update non-existent KEK returns 404
     When I PUT "/dek-registry/v1/keks/non-existent-kek" with body:
@@ -152,6 +234,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/soft-delete-kek"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type          | kek_delete_soft                       |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | method              | DELETE                                |
+      | path                | /dek-registry/v1/keks/soft-delete-kek |
+      | status_code         | 204                                   |
+      | target_type         | kek                                   |
+      | target_id           | soft-delete-kek                       |
+      | schema_id           |                                       |
+      | version             |                                       |
+      | schema_type         |                                       |
+      | context             | .                                      |
+      | before_hash         | sha256:*                              |
+      | after_hash          |                                       |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Soft-deleted KEK not visible in default list
     Given I POST "/dek-registry/v1/keks" with body:
@@ -198,6 +308,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       {}
       """
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type           | kek_undelete                                  |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | kek                                           |
+      | target_id            | undelete-kek                                  |
+      | schema_id            |                                               |
+      | version              |                                               |
+      | schema_type          |                                               |
+      | before_hash          | sha256:*                                      |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                              |
+      | transport_security   | tls                                           |
+      | method               | POST                                          |
+      | path                 | /dek-registry/v1/keks/undelete-kek/undelete   |
+      | status_code          | 204                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
     # Verify KEK is accessible again
     When I GET "/dek-registry/v1/keks/undelete-kek"
     Then the response status should be 200
@@ -216,6 +354,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 204
     And I GET "/dek-registry/v1/keks/permanent-delete-kek?deleted=true"
     And the response status should be 404
+    And the audit log should contain an event:
+      | event_type          | kek_delete_permanent                       |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | method              | DELETE                                     |
+      | path                | /dek-registry/v1/keks/permanent-delete-kek |
+      | status_code         | 204                                        |
+      | target_type         | kek                                        |
+      | target_id           | permanent-delete-kek                       |
+      | schema_id           |                                            |
+      | version             |                                            |
+      | schema_type         |                                            |
+      | context             | .                                           |
+      | before_hash         | sha256:*                                   |
+      | after_hash          |                                            |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: List multiple KEKs
     Given I POST "/dek-registry/v1/keks" with body:
@@ -276,7 +442,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "subject" should be "user.email"
     And the response field "version" should be 1
     And the response field "algorithm" should be "AES256_GCM"
-
+    And the audit log should contain an event:
+      | event_type          | dek_create                              |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | method              | POST                                    |
+      | path                | /dek-registry/v1/keks/dek-test-kek/deks |
+      | status_code         | 200                                     |
+      | target_type         | dek                                     |
+      | target_id           | dek-test-kek                            |
+      | schema_id           |                                         |
+      | version             |                                         |
+      | schema_type         |                                         |
+      | context             | .                                        |
+      | before_hash         |                                         |
+      | after_hash          | sha256:*                                |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Create DEK with default algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -292,6 +485,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES256_GCM"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                  |
+      | outcome             | success                                     |
+      | actor_id            |                                             |
+      | actor_type          | anonymous                                   |
+      | auth_method         |                                             |
+      | role                |                                             |
+      | method              | POST                                        |
+      | path                | /dek-registry/v1/keks/default-algo-kek/deks |
+      | status_code         | 200                                         |
+      | target_type         | dek                                         |
+      | target_id           | default-algo-kek                            |
+      | schema_id           |                                             |
+      | version             |                                             |
+      | schema_type         |                                             |
+      | context             | .                                            |
+      | before_hash         |                                             |
+      | after_hash          | sha256:*                                    |
+      | transport_security  | tls                                         |
+      | reason              |                                             |
+      | error               |                                             |
+      | request_body        |                                             |
+      | metadata            |                                             |
+      | timestamp           | *                                           |
+      | duration_ms         | *                                           |
+      | request_id          | *                                           |
+      | source_ip           | *                                           |
+      | user_agent          | *                                           |
 
   Scenario: Create DEK with AES128_GCM algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -308,6 +529,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES128_GCM"
+    And the audit log should contain an event:
+      | event_type          | dek_create                            |
+      | outcome             | success                               |
+      | actor_id            |                                       |
+      | actor_type          | anonymous                             |
+      | auth_method         |                                       |
+      | role                |                                       |
+      | method              | POST                                  |
+      | path                | /dek-registry/v1/keks/aes128-kek/deks |
+      | status_code         | 200                                   |
+      | target_type         | dek                                   |
+      | target_id           | aes128-kek                            |
+      | schema_id           |                                       |
+      | version             |                                       |
+      | schema_type         |                                       |
+      | context             | .                                      |
+      | before_hash         |                                       |
+      | after_hash          | sha256:*                              |
+      | transport_security  | tls                                   |
+      | reason              |                                       |
+      | error               |                                       |
+      | request_body        |                                       |
+      | metadata            |                                       |
+      | timestamp           | *                                     |
+      | duration_ms         | *                                     |
+      | request_id          | *                                     |
+      | source_ip           | *                                     |
+      | user_agent          | *                                     |
 
   Scenario: Create DEK with AES256_SIV algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -324,6 +573,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES256_SIV"
+    And the audit log should contain an event:
+      | event_type          | dek_create                               |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | method              | POST                                     |
+      | path                | /dek-registry/v1/keks/aes256siv-kek/deks |
+      | status_code         | 200                                      |
+      | target_type         | dek                                      |
+      | target_id           | aes256siv-kek                            |
+      | schema_id           |                                          |
+      | version             |                                          |
+      | schema_type         |                                          |
+      | context             | .                                         |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   Scenario: Create DEK with invalid algorithm returns 422
     Given I POST "/dek-registry/v1/keks" with body:
@@ -372,6 +649,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "version" should be 2
+    And the audit log should contain an event:
+      | event_type          | dek_create                             |
+      | outcome             | success                                |
+      | actor_id            |                                        |
+      | actor_type          | anonymous                              |
+      | auth_method         |                                        |
+      | role                |                                        |
+      | method              | POST                                   |
+      | path                | /dek-registry/v1/keks/dup-dek-kek/deks |
+      | status_code         | 200                                    |
+      | target_type         | dek                                    |
+      | target_id           | dup-dek-kek                            |
+      | schema_id           |                                        |
+      | version             |                                        |
+      | schema_type         |                                        |
+      | context             | .                                       |
+      | before_hash         |                                        |
+      | after_hash          | sha256:*                               |
+      | transport_security  | tls                                    |
+      | reason              |                                        |
+      | error               |                                        |
+      | request_body        |                                        |
+      | metadata            |                                        |
+      | timestamp           | *                                      |
+      | duration_ms         | *                                      |
+      | request_id          | *                                      |
+      | source_ip           | *                                      |
+      | user_agent          | *                                      |
 
   Scenario: Get DEK for subject
     Given I POST "/dek-registry/v1/keks" with body:
@@ -474,6 +779,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/delete-dek-kek/deks/delete.subject"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type          | dek_delete_soft                                          |
+      | outcome             | success                                                  |
+      | actor_id            |                                                          |
+      | actor_type          | anonymous                                                |
+      | auth_method         |                                                          |
+      | role                |                                                          |
+      | method              | DELETE                                                   |
+      | path                | /dek-registry/v1/keks/delete-dek-kek/deks/delete.subject |
+      | status_code         | 204                                                      |
+      | target_type         | dek                                                      |
+      | target_id           | delete-dek-kek                                           |
+      | schema_id           |                                                          |
+      | version             |                                                          |
+      | schema_type         |                                                          |
+      | context             | .                                                         |
+      | before_hash         | sha256:*                                                 |
+      | after_hash          |                                                          |
+      | transport_security  | tls                                                      |
+      | reason              |                                                          |
+      | error               |                                                          |
+      | request_body        |                                                          |
+      | metadata            |                                                          |
+      | timestamp           | *                                                        |
+      | duration_ms         | *                                                        |
+      | request_id          | *                                                        |
+      | source_ip           | *                                                        |
+      | user_agent          | *                                                        |
 
   Scenario: Undelete DEK
     Given I POST "/dek-registry/v1/keks" with body:
@@ -490,6 +823,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       {}
       """
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type           | dek_undelete                                                        |
+      | outcome              | success                                                             |
+      | actor_id             |                                                                     |
+      | actor_type           | anonymous                                                           |
+      | auth_method          |                                                                     |
+      | role                 |                                                                     |
+      | target_type          | dek                                                                 |
+      | target_id            | undelete-dek-kek                                                    |
+      | schema_id            |                                                                     |
+      | version              |                                                                     |
+      | schema_type          |                                                                     |
+      | before_hash          | sha256:*                                                            |
+      | after_hash           | sha256:*                                                            |
+      | context              | .                                                                    |
+      | transport_security   | tls                                                                 |
+      | method               | POST                                                                |
+      | path                 | /dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject/undelete |
+      | status_code          | 204                                                                 |
+      | reason               |                                                                     |
+      | error                |                                                                     |
+      | request_body         |                                                                     |
+      | metadata             |                                                                     |
+      | timestamp            | *                                                                   |
+      | duration_ms          | *                                                                   |
+      | request_id           | *                                                                   |
+      | source_ip            | *                                                                   |
+      | user_agent           | *                                                                   |
 
   # ============================================================================
   # Advanced Scenarios (10 scenarios)
@@ -531,6 +892,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "aws-kms"
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | aws-kms-kek            |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: KEK with Azure KMS type
     When I POST "/dek-registry/v1/keks" with body:
@@ -544,6 +933,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "azure-kms"
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | azure-kms-kek          |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: KEK with GCP KMS type
     When I POST "/dek-registry/v1/keks" with body:
@@ -557,6 +974,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "gcp-kms"
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | gcp-kms-kek            |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: Multiple DEKs under same KEK with different subjects
     Given I POST "/dek-registry/v1/keks" with body:
@@ -645,6 +1090,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "name" should be "complex-props-kek"
+    And the audit log should contain an event:
+      | event_type          | kek_create             |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /dek-registry/v1/keks  |
+      | status_code         | 200                    |
+      | target_type         | kek                    |
+      | target_id           | complex-props-kek      |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             | .                       |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: Delete DEK for non-existent KEK returns 404
     When I DELETE "/dek-registry/v1/keks/non-existent-kek/deks/some.subject"
@@ -671,6 +1144,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "kekName" should be "deleted-kek-dek"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                 |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | method              | POST                                       |
+      | path                | /dek-registry/v1/keks/deleted-kek-dek/deks |
+      | status_code         | 200                                        |
+      | target_type         | dek                                        |
+      | target_id           | deleted-kek-dek                            |
+      | schema_id           |                                            |
+      | version             |                                            |
+      | schema_type         |                                            |
+      | context             | .                                           |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: KEK shared flag reflected in response
     Given I POST "/dek-registry/v1/keks" with body:
@@ -767,6 +1268,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "kekName" should be "path-create-kek"
     And the response field "subject" should be "path.subject"
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type          | dek_create                                              |
+      | outcome             | success                                                 |
+      | actor_id            |                                                         |
+      | actor_type          | anonymous                                               |
+      | auth_method         |                                                         |
+      | role                |                                                         |
+      | method              | POST                                                    |
+      | path                | /dek-registry/v1/keks/path-create-kek/deks/path.subject |
+      | status_code         | 200                                                     |
+      | target_type         | dek                                                     |
+      | target_id           | path-create-kek                                         |
+      | schema_id           |                                                         |
+      | version             |                                                         |
+      | schema_type         |                                                         |
+      | context             | .                                                        |
+      | before_hash         |                                                         |
+      | after_hash          | sha256:*                                                |
+      | transport_security  | tls                                                     |
+      | reason              |                                                         |
+      | error               |                                                         |
+      | request_body        |                                                         |
+      | metadata            |                                                         |
+      | timestamp           | *                                                       |
+      | duration_ms         | *                                                       |
+      | request_id          | *                                                       |
+      | source_ip           | *                                                       |
+      | user_agent          | *                                                       |
 
   Scenario: Create DEK with subject in path and empty body
     Given I POST "/dek-registry/v1/keks" with body:
@@ -778,6 +1307,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response should be valid JSON
     And the response field "subject" should be "empty.subject"
     And the response field "algorithm" should be "AES256_GCM"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                              |
+      | outcome             | success                                                 |
+      | actor_id            |                                                         |
+      | actor_type          | anonymous                                               |
+      | auth_method         |                                                         |
+      | role                |                                                         |
+      | method              | POST                                                    |
+      | path                | /dek-registry/v1/keks/empty-body-kek/deks/empty.subject |
+      | status_code         | 200                                                     |
+      | target_type         | dek                                                     |
+      | target_id           | empty-body-kek                                          |
+      | schema_id           |                                                         |
+      | version             |                                                         |
+      | schema_type         |                                                         |
+      | context             | .                                                        |
+      | before_hash         |                                                         |
+      | after_hash          | sha256:*                                                |
+      | transport_security  | tls                                                     |
+      | reason              |                                                         |
+      | error               |                                                         |
+      | request_body        |                                                         |
+      | metadata            |                                                         |
+      | timestamp           | *                                                       |
+      | duration_ms         | *                                                       |
+      | request_id          | *                                                       |
+      | source_ip           | *                                                       |
+      | user_agent          | *                                                       |
 
   Scenario: Delete DEK by specific version
     Given I POST "/dek-registry/v1/keks" with body:
@@ -790,6 +1347,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type          | dek_delete_soft                                                 |
+      | outcome             | success                                                         |
+      | actor_id            |                                                                 |
+      | actor_type          | anonymous                                                       |
+      | auth_method         |                                                                 |
+      | role                |                                                                 |
+      | method              | DELETE                                                          |
+      | path                | /dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1 |
+      | status_code         | 204                                                             |
+      | target_type         | dek                                                             |
+      | target_id           | delver-kek                                                      |
+      | schema_id           |                                                                 |
+      | version             | 1                                                               |
+      | schema_type         |                                                                 |
+      | context             | .                                                                |
+      | before_hash         | sha256:*                                                        |
+      | after_hash          |                                                                 |
+      | transport_security  | tls                                                             |
+      | reason              |                                                                 |
+      | error               |                                                                 |
+      | request_body        |                                                                 |
+      | metadata            |                                                                 |
+      | timestamp           | *                                                               |
+      | duration_ms         | *                                                               |
+      | request_id          | *                                                               |
+      | source_ip           | *                                                               |
+      | user_agent          | *                                                               |
 
   Scenario: Undelete DEK by specific version
     Given I POST "/dek-registry/v1/keks" with body:
@@ -967,6 +1552,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     # Verify DEK is gone even with ?deleted=true
     When I GET "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject?deleted=true"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type          | dek_delete_permanent                                       |
+      | outcome             | success                                                    |
+      | actor_id            |                                                            |
+      | actor_type          | anonymous                                                  |
+      | auth_method         |                                                            |
+      | role                |                                                            |
+      | method              | DELETE                                                     |
+      | path                | /dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject |
+      | status_code         | 204                                                        |
+      | target_type         | dek                                                        |
+      | target_id           | permdel-dek-kek                                            |
+      | schema_id           |                                                            |
+      | version             |                                                            |
+      | schema_type         |                                                            |
+      | context             | .                                                           |
+      | before_hash         | sha256:*                                                   |
+      | after_hash          |                                                            |
+      | transport_security  | tls                                                        |
+      | reason              |                                                            |
+      | error               |                                                            |
+      | request_body        |                                                            |
+      | metadata            |                                                            |
+      | timestamp           | *                                                          |
+      | duration_ms         | *                                                          |
+      | request_id          | *                                                          |
+      | source_ip           | *                                                          |
+      | user_agent          | *                                                          |
 
   Scenario: Permanent delete DEK version after soft-delete
     Given I POST "/dek-registry/v1/keks" with body:
@@ -983,6 +1596,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     # Verify version is gone even with ?deleted=true
     When I GET "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1?deleted=true"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type          | dek_delete_permanent                                                      |
+      | outcome             | success                                                                   |
+      | actor_id            |                                                                           |
+      | actor_type          | anonymous                                                                 |
+      | auth_method         |                                                                           |
+      | role                |                                                                           |
+      | method              | DELETE                                                                    |
+      | path                | /dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1 |
+      | status_code         | 204                                                                       |
+      | target_type         | dek                                                                       |
+      | target_id           | permdel-ver-kek                                                           |
+      | schema_id           |                                                                           |
+      | version             | 1                                                                         |
+      | schema_type         |                                                                           |
+      | context             | .                                                                          |
+      | before_hash         | sha256:*                                                                  |
+      | after_hash          |                                                                           |
+      | transport_security  | tls                                                                       |
+      | reason              |                                                                           |
+      | error               |                                                                           |
+      | request_body        |                                                                           |
+      | metadata            |                                                                           |
+      | timestamp           | *                                                                         |
+      | duration_ms         | *                                                                         |
+      | request_id          | *                                                                         |
+      | source_ip           | *                                                                         |
+      | user_agent          | *                                                                         |
 
   Scenario: Permanent delete DEK without soft-delete first
     Given I POST "/dek-registry/v1/keks" with body:
@@ -995,6 +1636,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject?permanent=true"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type          | dek_delete_permanent                                                  |
+      | outcome             | success                                                               |
+      | actor_id            |                                                                       |
+      | actor_type          | anonymous                                                             |
+      | auth_method         |                                                                       |
+      | role                |                                                                       |
+      | method              | DELETE                                                                |
+      | path                | /dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject  |
+      | status_code         | 204                                                                   |
+      | target_type         | dek                                                                   |
+      | target_id           | permdel-direct-kek                                                    |
+      | schema_id           |                                                                       |
+      | version             |                                                                       |
+      | schema_type         |                                                                       |
+      | context             | .                                                                      |
+      | before_hash         | sha256:*                                                              |
+      | after_hash          |                                                                       |
+      | transport_security  | tls                                                                   |
+      | reason              |                                                                       |
+      | error               |                                                                       |
+      | request_body        |                                                                       |
+      | metadata            |                                                                       |
+      | timestamp           | *                                                                     |
+      | duration_ms         | *                                                                     |
+      | request_id          | *                                                                     |
+      | source_ip           | *                                                                     |
+      | user_agent          | *                                                                     |
 
   # ============================================================================
   # Algorithm Filter Scenarios (3 scenarios)
@@ -1025,6 +1694,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject?algorithm=AES256_GCM"
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type          | dek_delete_soft                                          |
+      | outcome             | success                                                  |
+      | actor_id            |                                                          |
+      | actor_type          | anonymous                                                |
+      | auth_method         |                                                          |
+      | role                |                                                          |
+      | method              | DELETE                                                   |
+      | path                | /dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject |
+      | status_code         | 204                                                      |
+      | target_type         | dek                                                      |
+      | target_id           | algo-del-kek                                             |
+      | schema_id           |                                                          |
+      | version             |                                                          |
+      | schema_type         |                                                          |
+      | context             | .                                                         |
+      | before_hash         | sha256:*                                                 |
+      | after_hash          |                                                          |
+      | transport_security  | tls                                                      |
+      | reason              |                                                          |
+      | error               |                                                          |
+      | request_body        |                                                          |
+      | metadata            |                                                          |
+      | timestamp           | *                                                        |
+      | duration_ms         | *                                                        |
+      | request_id          | *                                                        |
+      | source_ip           | *                                                        |
+      | user_agent          | *                                                        |
 
   Scenario: List DEK versions filtered by algorithm
     Given I POST "/dek-registry/v1/keks" with body:

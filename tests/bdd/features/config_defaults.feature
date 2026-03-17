@@ -47,6 +47,34 @@ Feature: Config and Mode defaultToGlobal Parameter
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ==========================================================================
   # MODE defaultToGlobal
@@ -62,6 +90,34 @@ Feature: Config and Mode defaultToGlobal Parameter
     When I GET "/mode/mode-default-test2?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: GET /mode/{subject}?defaultToGlobal=false returns 404 when no subject mode
     When I GET "/mode/mode-default-test3?defaultToGlobal=false"
@@ -76,6 +132,34 @@ Feature: Config and Mode defaultToGlobal Parameter
     When I GET "/mode/mode-has-mode?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | mode-has-mode                  |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode/mode-has-mode            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: GET /mode (global) always returns a value
     When I get the global mode

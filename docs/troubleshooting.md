@@ -22,11 +22,9 @@ This guide covers common issues encountered when running AxonOps Schema Registry
 
 ### Connection Refused
 
-**Symptom**: `curl: (7) Failed to connect to localhost port 8081: Connection refused`
+**Symptoms:** `curl: (7) Failed to connect to localhost port 8081: Connection refused`
 
-**Causes and fixes**:
-
-**Server not running.** Verify the process or container is running:
+**Diagnostics:**
 
 ```bash
 # Check if the process is running
@@ -34,85 +32,92 @@ pgrep -f schema-registry
 
 # Check container status
 docker ps -a --filter name=schema-registry
+
+# Verify which port the server is listening on
+ss -tlnp | grep schema-registry
 ```
 
-**Wrong port.** The default port is 8081. If you changed it, confirm the `server.port` value in your [configuration file](configuration.md):
+**Resolution:**
 
-```yaml
-server:
-  port: 8081
-```
+1. **Server not running.** Start or restart the registry process or container.
 
-**Binding to wrong interface.** By default the server may bind to `127.0.0.1`, which rejects connections from other hosts. Set `server.host` to `0.0.0.0` to accept connections on all interfaces:
+2. **Wrong port.** The default port is `8081`. Confirm the `server.port` value in your [configuration file](configuration.md):
 
-```yaml
-server:
-  host: "0.0.0.0"
-```
+   ```yaml
+   server:
+     port: 8081
+   ```
 
-**Docker networking.** When running in Docker, ensure the port is mapped correctly:
+3. **Binding to wrong interface.** By default the server MAY bind to `127.0.0.1`, which rejects connections from other hosts. Set `server.host` to `0.0.0.0` to accept connections on all interfaces:
 
-```bash
-# Map port explicitly
-docker run -d -p 8081:8081 ghcr.io/axonops/axonops-schema-registry:latest
+   ```yaml
+   server:
+     host: "0.0.0.0"
+   ```
 
-# Or use host networking
-docker run -d --network host ghcr.io/axonops/axonops-schema-registry:latest
-```
+4. **Docker networking.** When running in Docker, ensure the port is mapped correctly:
 
-If connecting from another container, use the container name or Docker network IP rather than `localhost`.
+   ```bash
+   # Map port explicitly
+   docker run -d -p 8081:8081 ghcr.io/axonops/axonops-schema-registry:latest
+
+   # Or use host networking
+   docker run -d --network host ghcr.io/axonops/axonops-schema-registry:latest
+   ```
+
+   If connecting from another container, use the container name or Docker network IP rather than `localhost`.
+
+**Root Cause:** The registry is not reachable because it is either not running, listening on a different port or interface, or Docker networking is misconfigured.
 
 ---
 
 ### Database Connection Errors
 
-**Symptom**: Server fails to start with a storage connection error, or returns 50002 errors after startup.
+**Symptoms:** Server fails to start with a storage connection error, or returns `50002` errors after startup.
+
+**Diagnostics:**
+
+```bash
+# Check server logs for storage errors
+docker logs schema-registry 2>&1 | grep -i "storage\|database\|connect"
+
+# Test database connectivity directly
+psql -h HOST -p PORT -U USER -d DATABASE       # PostgreSQL
+mysql -h HOST -P PORT -u USER -p DATABASE       # MySQL
+cqlsh HOST PORT                                  # Cassandra
+```
+
+**Resolution:**
 
 #### PostgreSQL
 
-- Verify host, port, username, password, and database name in your configuration.
+- Verify `host`, `port`, `user`, `password`, and `database` in your configuration.
 - Check that `pg_hba.conf` allows connections from the registry host.
-- Ensure the SSL mode in your configuration matches the server's TLS settings (`disable`, `require`, `verify-ca`, `verify-full`).
-- Test connectivity directly:
-
-```bash
-psql -h HOST -p PORT -U USER -d DATABASE
-```
-
-See [Storage Backends -- PostgreSQL](storage-backends.md) for connection pool tuning options.
+- Ensure the `ssl_mode` in your configuration matches the server's TLS settings (`disable`, `require`, `verify-ca`, `verify-full`).
+- See [Storage Backends -- PostgreSQL](storage-backends.md) for connection pool tuning options.
 
 #### MySQL
 
-- Verify host, port, username, password, and database name.
+- Verify `host`, `port`, `user`, `password`, and `database`.
 - Confirm the user has sufficient privileges:
 
-```sql
-GRANT ALL PRIVILEGES ON schemaregistry.* TO 'user'@'%';
-FLUSH PRIVILEGES;
-```
+  ```sql
+  GRANT ALL PRIVILEGES ON schemaregistry.* TO 'user'@'%';
+  FLUSH PRIVILEGES;
+  ```
 
-- The TLS mode must match the server configuration. Common values: `preferred`, `skip-verify`, `true`.
-- Test connectivity directly:
-
-```bash
-mysql -h HOST -P PORT -u USER -p DATABASE
-```
-
-See [Storage Backends -- MySQL](storage-backends.md) for connection pool tuning options.
+- The `tls_mode` MUST match the server configuration. Common values: `preferred`, `skip-verify`, `true`.
+- See [Storage Backends -- MySQL](storage-backends.md) for connection pool tuning options.
 
 #### Cassandra
 
-- Verify that the contact point hosts and port are correct.
-- The keyspace is created automatically on first startup when `migrate: true` is set. If `migrate` is disabled, create the keyspace manually before starting the registry.
-- Cassandra 5.0 or later is required for SAI (Storage Attached Index) support.
-- The consistency level must match your cluster topology. For example, `QUORUM` requires a majority of replicas to be available; `LOCAL_ONE` is sufficient for single-datacenter reads.
-- Test connectivity directly:
+- Verify that the contact point `hosts` and `port` are correct.
+- The keyspace is created automatically on first startup when `migrate: true` is set. If `migrate` is disabled, you MUST create the keyspace manually before starting the registry.
+- Cassandra 5.0 or later is REQUIRED for SAI (Storage Attached Index) support.
+- The `consistency` level MUST match your cluster topology. For example, `QUORUM` requires a majority of replicas to be available; `LOCAL_ONE` is sufficient for single-datacenter reads.
+- See [Storage Backends -- Cassandra](storage-backends.md) for detailed configuration.
 
-```bash
-cqlsh HOST PORT
-```
-
-See [Storage Backends -- Cassandra](storage-backends.md) for detailed configuration.
+**Root Cause:** The registry cannot reach the configured database due to incorrect connection parameters, network restrictions, insufficient privileges, or TLS configuration mismatches.
 
 ---
 
@@ -120,59 +125,75 @@ See [Storage Backends -- Cassandra](storage-backends.md) for detailed configurat
 
 #### 42201 Invalid Schema
 
-The schema content is malformed or violates type-specific rules. Common causes:
+**Symptoms:** Registration returns error code `42201` with a message indicating the schema is invalid.
 
-- **Malformed JSON.** The schema string is not valid JSON.
-- **Missing required fields.** For example, an Avro record type must include a `fields` array.
+**Diagnostics:**
+
+- Check the error message for specific parse failures (missing fields, syntax errors, unresolved references).
+- Validate the schema independently using a type-specific tool (e.g., `avro-tools`, `protoc`, or a JSON Schema validator).
+
+**Resolution:**
+
+- **Malformed JSON.** The schema string MUST be valid JSON.
+- **Missing required fields.** For example, an Avro record type MUST include a `fields` array.
 - **Invalid type references.** A field references a named type that is not defined within the schema or its declared references.
 - **Protobuf syntax errors.** The `.proto` content does not parse correctly.
-- **Unresolved references.** The `references` array in the registration request points to subjects or versions that do not exist.
+- **Unresolved references.** The `references` array in the registration request points to subjects or versions that do not exist in the registry.
 
-Verify the schema parses correctly in isolation before registering it.
+**Root Cause:** The schema content is malformed or violates type-specific rules. The registry validates schemas at registration time and rejects content that cannot be parsed.
 
 #### 409 Incompatible Schema
 
-The new schema violates the compatibility rules configured for the subject. To diagnose:
+**Symptoms:** Registration returns HTTP `409` with a message indicating the schema is incompatible.
+
+**Diagnostics:**
 
 1. Check the current compatibility level:
 
-```bash
-curl -s http://localhost:8081/config/my-subject | jq .
-```
+   ```bash
+   curl -s http://localhost:8081/config/my-subject | jq .
+   ```
 
 2. Run a compatibility check with verbose output:
 
-```bash
-curl -s -X POST \
-  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  -d '{"schema": "{...}", "schemaType": "AVRO"}' \
-  "http://localhost:8081/compatibility/subjects/my-subject/versions/latest?verbose=true" | jq .
-```
+   ```bash
+   curl -s -X POST \
+     -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+     -d '{"schema": "{...}", "schemaType": "AVRO"}' \
+     "http://localhost:8081/compatibility/subjects/my-subject/versions/latest?verbose=true" | jq .
+   ```
 
-3. If you need to register the schema regardless, temporarily set compatibility to `NONE`:
+**Resolution:**
 
-```bash
-curl -X PUT \
-  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  -d '{"compatibility": "NONE"}' \
-  http://localhost:8081/config/my-subject
-```
+- Fix the schema to be compatible with existing versions, OR
+- Temporarily set compatibility to `NONE` if you MUST register the schema regardless:
 
-Remember to restore the desired compatibility level afterward. See [Compatibility](compatibility.md) for details on each level.
+  ```bash
+  curl -X PUT \
+    -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+    -d '{"compatibility": "NONE"}' \
+    http://localhost:8081/config/my-subject
+  ```
+
+> **Warning:** Remember to restore the desired compatibility level afterward. See [Compatibility](compatibility.md) for details on each level.
+
+**Root Cause:** The new schema violates the compatibility rules configured for the subject. The registry checks compatibility at registration time to prevent breaking consumers.
 
 #### 42205 Operation Not Permitted
 
-The subject or global mode is set to `READONLY` or `READWRITE` is not enabled for the operation you are attempting.
+**Symptoms:** Registration or deletion returns error code `42205` indicating the operation is not permitted.
 
-Check the current mode:
+**Diagnostics:**
 
 ```bash
-# Global mode
+# Check global mode
 curl -s http://localhost:8081/mode | jq .
 
-# Per-subject mode
+# Check per-subject mode
 curl -s http://localhost:8081/mode/my-subject | jq .
 ```
+
+**Resolution:**
 
 Set the mode to `READWRITE` to allow writes:
 
@@ -183,27 +204,47 @@ curl -X PUT \
   http://localhost:8081/mode/my-subject
 ```
 
+**Root Cause:** The subject or global mode is set to `READONLY` or `IMPORT`, which restricts write operations.
+
 ---
 
 ### Authentication Issues
 
 #### 401 Unauthorized
 
-Authentication is enabled but the request was rejected. Common causes:
+**Symptoms:** Requests return HTTP `401` with error code `40101`.
 
-- **No credentials provided.** When authentication is enabled, every request must include credentials. See [Authentication](authentication.md) for supported methods.
+**Diagnostics:**
+
+- Confirm authentication is enabled in the configuration (`security.auth.enabled: true`).
+- Verify the credentials being sent (check headers, API key format, token expiration).
+
+**Resolution:**
+
+- **No credentials provided.** When authentication is enabled, every request MUST include credentials. See [Authentication](authentication.md) for supported methods.
 - **Invalid username or password.** Verify the credentials are correct for basic auth.
-- **Expired API key.** Check the key's expiration date. Expired keys return error code 40103.
-- **Disabled API key or user.** Disabled keys return 40104; disabled users return 40105.
+- **Expired API key.** Check the key's expiration date. Expired keys return error code `40103`.
+- **Disabled API key or user.** Disabled keys return `40104`; disabled users return `40105`.
 - **LDAP bind failure.** Verify `bind_dn` and `bind_password` in the LDAP configuration. Ensure the LDAP server is reachable.
-- **OIDC token issues.** The token may be expired, the audience claim may not match the configured value, or the issuer URL may be unreachable.
+- **OIDC token issues.** The token MAY be expired, the audience claim MAY not match the configured value, or the issuer URL MAY be unreachable.
+
+**Root Cause:** Authentication is enabled but the request does not contain valid credentials. The specific error code indicates the failure reason.
 
 #### 403 Forbidden
 
-The user authenticated successfully but lacks the required role for the operation.
+**Symptoms:** Requests return HTTP `403` with error code `40301`.
+
+**Diagnostics:**
 
 - Check role assignments: `GET /admin/users/{id}` (requires admin privileges).
-- Verify the RBAC role mapping in your [configuration](configuration.md). Admin endpoints under `/admin/` require the `admin` role.
+- Review the RBAC configuration in your [configuration](configuration.md).
+
+**Resolution:**
+
+- Assign the appropriate role to the user. Admin endpoints under `/admin/` require the `admin` role.
+- Users listed in `super_admins` bypass all permission checks.
+
+**Root Cause:** The user authenticated successfully but their assigned role lacks the required permission for the operation. See the [permission matrix](security.md#permission-matrix) for role-to-permission mappings.
 
 ---
 
@@ -211,23 +252,34 @@ The user authenticated successfully but lacks the required role for the operatio
 
 #### 40404 Subject Was Soft-Deleted
 
-The subject exists but was previously soft-deleted. It will not appear in normal listings.
+**Symptoms:** Operations on a subject return error code `40404` indicating the subject was soft-deleted.
 
-To view soft-deleted subjects:
+**Diagnostics:**
 
 ```bash
+# List subjects including soft-deleted ones
 curl -s "http://localhost:8081/subjects?deleted=true" | jq .
 ```
 
-To permanently delete a soft-deleted subject:
+**Resolution:**
+
+To permanently delete the soft-deleted subject:
 
 ```bash
 curl -X DELETE "http://localhost:8081/subjects/my-subject?permanent=true"
 ```
 
+Or re-register schemas under the same subject name to restore it.
+
+**Root Cause:** The subject exists but was previously soft-deleted. Soft-deleted subjects do not appear in normal listings.
+
 #### 40405 Subject Not Soft-Deleted
 
-You attempted a permanent delete on a subject that has not been soft-deleted first. The deletion process requires two steps:
+**Symptoms:** Permanent delete returns error code `40405`.
+
+**Resolution:**
+
+The deletion process REQUIRES two steps:
 
 ```bash
 # Step 1: Soft-delete
@@ -237,9 +289,15 @@ curl -X DELETE http://localhost:8081/subjects/my-subject
 curl -X DELETE "http://localhost:8081/subjects/my-subject?permanent=true"
 ```
 
+**Root Cause:** A permanent delete was attempted on a subject that has not been soft-deleted first. The two-step process is a safety mechanism.
+
 #### 42206 Reference Exists
 
-You attempted to delete a schema or subject that is referenced by another schema. Remove or update the referencing schemas first, then retry the deletion.
+**Symptoms:** Delete operation returns error code `42206`.
+
+**Resolution:** Remove or update the referencing schemas first, then retry the deletion.
+
+**Root Cause:** The schema or subject being deleted is referenced by another schema. The registry prevents deletion of referenced schemas to avoid breaking dependent schemas.
 
 ---
 
@@ -247,17 +305,40 @@ You attempted to delete a schema or subject that is referenced by another schema
 
 #### Slow Schema Registration
 
-- Check storage latency via Prometheus metrics: `schema_registry_storage_latency_seconds`.
+**Symptoms:** Schema registration requests take significantly longer than expected (typically >100ms).
+
+**Diagnostics:**
+
+```bash
+# Check storage latency via Prometheus metrics
+curl -s http://localhost:8081/metrics | grep schema_registry_storage_latency_seconds
+
+# Enable debug logging to identify the bottleneck
+SCHEMA_REGISTRY_LOG_LEVEL=debug ./schema-registry --config config.yaml
+```
+
+**Resolution:**
+
 - **PostgreSQL**: Increase `max_open_conns` if connection pool exhaustion is causing queuing. Check for lock contention with `pg_stat_activity`.
 - **MySQL**: Similar pool tuning via `max_open_conns` and `max_idle_conns`.
 - **Cassandra**: Consider using `LOCAL_ONE` consistency for reads if strong consistency is not required. Verify SAI indexes are healthy with `nodetool`.
-- Enable debug logging to identify the bottleneck (see [Diagnostic Commands](#diagnostic-commands)).
+
+**Root Cause:** Storage backend latency, connection pool exhaustion, or lock contention. The bottleneck is almost always in the database layer, not schema parsing.
 
 #### High Memory Usage
 
-- The number of registered schemas directly affects memory usage, as schemas are cached for fast lookups.
-- For large registries, increase container memory limits.
-- Check the total schema count via the `/schemas` endpoint or Prometheus metrics.
+**Symptoms:** The registry process consumes more memory than expected.
+
+**Diagnostics:**
+
+```bash
+# Check the total schema count
+curl -s http://localhost:8081/metrics | grep schema_registry_schemas_total
+```
+
+**Resolution:** Increase container memory limits for large registries.
+
+**Root Cause:** The number of registered schemas directly affects memory usage, as schemas are cached for fast lookups.
 
 ---
 
@@ -265,7 +346,19 @@ You attempted to delete a schema or subject that is referenced by another schema
 
 #### Schema ID Conflicts
 
-When using the import API (`POST /import/schemas`), the registry preserves the original schema IDs. If a schema with the same ID already exists with different content, the import will fail.
+**Symptoms:** Import returns an error indicating a schema ID already exists with different content.
+
+**Diagnostics:**
+
+```bash
+# Check current mode
+curl -s http://localhost:8081/mode | jq .
+
+# Inspect the conflicting schema ID
+curl -s http://localhost:8081/schemas/ids/{id} | jq .
+```
+
+**Resolution:**
 
 Ensure the global mode is set to `IMPORT` before importing:
 
@@ -278,9 +371,17 @@ curl -X PUT \
 
 After import completes, restore the mode to `READWRITE`.
 
+**Root Cause:** The import API (`POST /import/schemas`) preserves the original schema IDs. If a schema with the same ID already exists with different content, the import is rejected to prevent data corruption.
+
 #### Missing References
 
-Schemas that reference other schemas (via Avro named types, Protobuf imports, or JSON Schema `$ref`) must be imported in dependency order. Import referenced schemas first (lowest ID), then the schemas that depend on them.
+**Symptoms:** Import fails with errors about unresolved schema references.
+
+**Resolution:**
+
+Schemas that reference other schemas (via Avro named types, Protobuf imports, or JSON Schema `$ref`) MUST be imported in dependency order. Import referenced schemas first (lowest ID), then the schemas that depend on them.
+
+**Root Cause:** The registry resolves references at import time. If a referenced schema has not been imported yet, the reference cannot be resolved. The migration script handles this by sorting schemas by ID.
 
 See [Migration](migration.md) for the full import/export workflow.
 

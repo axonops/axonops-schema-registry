@@ -29,6 +29,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     And the response should have error code 42205
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: READONLY mode still allows read operations
     Given the global mode is "READWRITE"
@@ -45,6 +73,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # SUBJECT MODE OVERRIDES
@@ -68,6 +124,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | mode-ex-subj-override  |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode/mode-ex-subj-override |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Delete subject mode falls back to global
     Given the global mode is "READWRITE"
@@ -81,6 +165,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I GET "/mode/mode-ex-del-fallback?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | mode_delete            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | mode-ex-del-fallback   |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           |                        |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | DELETE                 |
+      | path                 | /mode/mode-ex-del-fallback |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Get mode for subject with no override and no defaultToGlobal returns 404
     When I GET "/mode/mode-ex-no-override"
@@ -107,6 +219,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     And the response field "id" should be 100
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-import         |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-import/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import same schema with same ID but different subject succeeds
     When I set the global mode to "IMPORT"
@@ -122,6 +262,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-import-reuse2  |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-import-reuse2/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import different schema with same ID fails
     When I set the global mode to "IMPORT"
@@ -137,6 +305,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 422
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-import-conflict1 |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-import-conflict1/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import mode skips compatibility checking
     When I set the global mode to "IMPORT"
@@ -153,6 +349,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-import-nocompat |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-import-nocompat/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Register without ID after exiting import mode auto-assigns ID
     When I set the global mode to "IMPORT"
@@ -168,6 +392,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-exit-import-auto |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-exit-import-auto/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # IMPORT MODE — EXPLICIT VERSION SUPPORT
@@ -186,6 +438,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "version" should be 5
     And the response field "id" should be 600
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-ver-explicit   |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-ver-explicit/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import multiple versions out of order
     When I set the global mode to "IMPORT"
@@ -221,6 +501,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "version" should be 3
     And the response field "id" should be 612
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-ver-ooo        |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-ver-ooo/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import with non-sequential version gaps
     When I set the global mode to "IMPORT"
@@ -243,6 +551,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I list versions of subject "mode-ex-ver-gaps"
     Then the response status should be 200
     And the response should be an array of length 3
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-ver-gaps       |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-ver-gaps/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import without explicit version auto-assigns next version
     When I set the global mode to "IMPORT"
@@ -263,6 +599,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get version 2 of subject "mode-ex-ver-auto"
     Then the response status should be 200
     And the response field "id" should be 631
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-ver-auto       |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-ver-auto/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: Import with duplicate version returns existing version
     When I set the global mode to "IMPORT"
@@ -278,6 +642,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | schema_register        |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mode-ex-ver-dup        |
+      | schema_id            | *                      |
+      | version              | *                      |
+      | schema_type          | AVRO                   |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | POST                   |
+      | path                 | /subjects/mode-ex-ver-dup/versions |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # IMPORT MODE — MUTUAL EXCLUSION WITH READWRITE
@@ -293,6 +685,34 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: READWRITE mode rejects registration with explicit ID
     When I set the global mode to "READWRITE"
@@ -303,3 +723,31 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 422
     And the response should have error code 42205
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |

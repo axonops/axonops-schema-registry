@@ -174,7 +174,7 @@ This is both backward-compatible (new consumers can read old data that lacks the
 
 In Protobuf (proto3), all fields are implicitly optional and default to zero values. In JSON Schema, omit the field from `required`.
 
-> **The golden rule:** if in doubt, make it nullable with a `null` default. You can always tighten constraints later, but loosening a required field is a compatibility headache.
+> **The golden rule:** if in doubt, make it nullable with a `null` default. You can always tighten constraints later, but loosening a required field is a compatibility issue.
 
 ### Timestamp Handling
 
@@ -198,7 +198,7 @@ Avoid epoch seconds (precision loss for sub-second events) and avoid mixing time
 | Open-ended categories (tags, labels, custom event types) | String |
 | Vocabularies that grow frequently (status codes, error types) | String with documentation |
 
-> **Warning (Avro):** Removing an enum symbol is **never** backward-compatible. A consumer using the old schema with the removed symbol cannot read data written with the new schema. Only add symbols -- never remove them. If you need to deprecate a symbol, keep it in the enum and document it as deprecated.
+> **Warning (Avro):** Removing an enum symbol is **not** backward-compatible. A consumer using the old schema with the removed symbol cannot read data written with the new schema. You MUST NOT remove enum symbols -- only add them. If you need to deprecate a symbol, keep it in the enum and document it as deprecated.
 
 ### Walkthrough: Building an Order Schema
 

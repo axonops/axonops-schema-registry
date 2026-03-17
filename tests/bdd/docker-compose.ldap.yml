@@ -1,0 +1,49 @@
+# LDAP overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable LDAP authentication
+# with OpenLDAP (osixia/openldap) over TLS (LDAPS) and RBAC.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.ldap.yml up -d --build --wait
+
+services:
+  ldap:
+    image: osixia/openldap:1.5.0
+    environment:
+      LDAP_ORGANISATION: "Example Org"
+      LDAP_DOMAIN: "example.org"
+      LDAP_BASE_DN: "dc=example,dc=org"
+      LDAP_ADMIN_PASSWORD: "adminpassword"
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: "ldap.crt"
+      LDAP_TLS_KEY_FILENAME: "ldap.key"
+      LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      LDAP_TLS_VERIFY_CLIENT: "try"
+    ports:
+      - "${LDAP_PORT:-20636}:636"
+    volumes:
+      - ../integration/testdata/ldap/memberof.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/00-memberof.ldif
+      - ../integration/testdata/ldap/bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/01-bootstrap.ldif
+      - ./certs/ldap/server.pem:/container/service/slapd/assets/certs/ldap.crt:ro
+      - ./certs/ldap/server-key.pem:/container/service/slapd/assets/certs/ldap.key:ro
+      - ./certs/ldap/ca.pem:/container/service/slapd/assets/certs/ca.crt:ro
+    command: "--copy-service --loglevel debug"
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:389", "-b", "dc=example,dc=org", "-D", "cn=admin,dc=example,dc=org", "-w", "adminpassword", "(objectClass=organization)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth-ldap.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-ldap.yaml
+      SCHEMA_REGISTRY_LDAP_URL: "ldaps://ldap:636"
+      SCHEMA_REGISTRY_LDAP_BIND_PASSWORD: "adminpassword"
+    volumes:
+      - ./certs/ldap/ca.pem:/etc/ldap-certs/ca.pem:ro
+      - ./certs/ldap/client.pem:/etc/ldap-certs/client.pem:ro
+      - ./certs/ldap/client-key.pem:/etc/ldap-certs/client-key.pem:ro
+    depends_on:
+      ldap:
+        condition: service_healthy

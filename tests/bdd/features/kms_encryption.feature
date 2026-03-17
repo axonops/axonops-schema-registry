@@ -24,6 +24,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                     |
+      | outcome             | success                                        |
+      | actor_id            |                                                |
+      | actor_type          | anonymous                                      |
+      | auth_method         |                                                |
+      | role                |                                                |
+      | method              | POST                                           |
+      | path                | /dek-registry/v1/keks/vault-kek-aes256gcm/deks |
+      | status_code         | 200                                            |
+      | target_type         | dek                                            |
+      | target_id           | vault-kek-aes256gcm                            |
+      | schema_id           |                                                |
+      | version             |                                                |
+      | schema_type         |                                                |
+      | context             | .                                               |
+      | before_hash         |                                                |
+      | after_hash          | sha256:*                                       |
+      | transport_security  | tls                                            |
+      | reason              |                                                |
+      | error               |                                                |
+      | request_body        |                                                |
+      | metadata            |                                                |
+      | timestamp           | *                                              |
+      | duration_ms         | *                                              |
+      | request_id          | *                                              |
+      | source_ip           | *                                              |
+      | user_agent          | *                                              |
 
   Scenario: Vault Transit DEK with AES128_GCM algorithm
     Given a shared KEK "vault-kek-aes128" with KMS type "hcvault" and key ID "test-key"
@@ -33,6 +61,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                  |
+      | outcome             | success                                     |
+      | actor_id            |                                             |
+      | actor_type          | anonymous                                   |
+      | auth_method         |                                             |
+      | role                |                                             |
+      | method              | POST                                        |
+      | path                | /dek-registry/v1/keks/vault-kek-aes128/deks |
+      | status_code         | 200                                         |
+      | target_type         | dek                                         |
+      | target_id           | vault-kek-aes128                            |
+      | schema_id           |                                             |
+      | version             |                                             |
+      | schema_type         |                                             |
+      | context             | .                                            |
+      | before_hash         |                                             |
+      | after_hash          | sha256:*                                    |
+      | transport_security  | tls                                         |
+      | reason              |                                             |
+      | error               |                                             |
+      | request_body        |                                             |
+      | metadata            |                                             |
+      | timestamp           | *                                           |
+      | duration_ms         | *                                           |
+      | request_id          | *                                           |
+      | source_ip           | *                                           |
+      | user_agent          | *                                           |
 
   Scenario: Vault Transit DEK with AES256_SIV algorithm
     Given a shared KEK "vault-kek-aes256siv" with KMS type "hcvault" and key ID "test-key"
@@ -42,6 +98,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                     |
+      | outcome             | success                                        |
+      | actor_id            |                                                |
+      | actor_type          | anonymous                                      |
+      | auth_method         |                                                |
+      | role                |                                                |
+      | method              | POST                                           |
+      | path                | /dek-registry/v1/keks/vault-kek-aes256siv/deks |
+      | status_code         | 200                                            |
+      | target_type         | dek                                            |
+      | target_id           | vault-kek-aes256siv                            |
+      | schema_id           |                                                |
+      | version             |                                                |
+      | schema_type         |                                                |
+      | context             | .                                               |
+      | before_hash         |                                                |
+      | after_hash          | sha256:*                                       |
+      | transport_security  | tls                                            |
+      | reason              |                                                |
+      | error               |                                                |
+      | request_body        |                                                |
+      | metadata            |                                                |
+      | timestamp           | *                                              |
+      | duration_ms         | *                                              |
+      | request_id          | *                                              |
+      | source_ip           | *                                              |
+      | user_agent          | *                                              |
 
   Scenario: Multi-version DEKs under Vault Transit KEK have unique key material
     Given a shared KEK "vault-kek-multiversion" with KMS type "hcvault" and key ID "test-key"
@@ -62,6 +146,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "keyMaterial" should not equal stored "v1_keyMaterial"
     And the response field "keyMaterial" should not equal stored "v2_keyMaterial"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                        |
+      | outcome             | success                                           |
+      | actor_id            |                                                   |
+      | actor_type          | anonymous                                         |
+      | auth_method         |                                                   |
+      | role                |                                                   |
+      | method              | POST                                              |
+      | path                | /dek-registry/v1/keks/vault-kek-multiversion/deks |
+      | status_code         | 200                                               |
+      | target_type         | dek                                               |
+      | target_id           | vault-kek-multiversion                            |
+      | schema_id           |                                                   |
+      | version             |                                                   |
+      | schema_type         |                                                   |
+      | context             | .                                                  |
+      | before_hash         |                                                   |
+      | after_hash          | sha256:*                                          |
+      | transport_security  | tls                                               |
+      | reason              |                                                   |
+      | error               |                                                   |
+      | request_body        |                                                   |
+      | metadata            |                                                   |
+      | timestamp           | *                                                 |
+      | duration_ms         | *                                                 |
+      | request_id          | *                                                 |
+      | source_ip           | *                                                 |
+      | user_agent          | *                                                 |
 
   # ============================================================================
   # OpenBao Transit Scenarios
@@ -78,6 +190,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                   |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | method              | POST                                         |
+      | path                | /dek-registry/v1/keks/bao-kek-aes256gcm/deks |
+      | status_code         | 200                                          |
+      | target_type         | dek                                          |
+      | target_id           | bao-kek-aes256gcm                            |
+      | schema_id           |                                              |
+      | version             |                                              |
+      | schema_type         |                                              |
+      | context             | .                                             |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   Scenario: OpenBao Transit DEK with AES128_GCM algorithm
     Given a shared KEK "bao-kek-aes128" with KMS type "openbao" and key ID "test-key"
@@ -87,6 +227,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                |
+      | outcome             | success                                   |
+      | actor_id            |                                           |
+      | actor_type          | anonymous                                 |
+      | auth_method         |                                           |
+      | role                |                                           |
+      | method              | POST                                      |
+      | path                | /dek-registry/v1/keks/bao-kek-aes128/deks |
+      | status_code         | 200                                       |
+      | target_type         | dek                                       |
+      | target_id           | bao-kek-aes128                            |
+      | schema_id           |                                           |
+      | version             |                                           |
+      | schema_type         |                                           |
+      | context             | .                                          |
+      | before_hash         |                                           |
+      | after_hash          | sha256:*                                  |
+      | transport_security  | tls                                       |
+      | reason              |                                           |
+      | error               |                                           |
+      | request_body        |                                           |
+      | metadata            |                                           |
+      | timestamp           | *                                         |
+      | duration_ms         | *                                         |
+      | request_id          | *                                         |
+      | source_ip           | *                                         |
+      | user_agent          | *                                         |
 
   Scenario: OpenBao Transit DEK with AES256_SIV algorithm
     Given a shared KEK "bao-kek-aes256siv" with KMS type "openbao" and key ID "test-key"
@@ -96,6 +264,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                   |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | method              | POST                                         |
+      | path                | /dek-registry/v1/keks/bao-kek-aes256siv/deks |
+      | status_code         | 200                                          |
+      | target_type         | dek                                          |
+      | target_id           | bao-kek-aes256siv                            |
+      | schema_id           |                                              |
+      | version             |                                              |
+      | schema_type         |                                              |
+      | context             | .                                             |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   # ============================================================================
   # Cross-KMS Scenarios
@@ -118,6 +314,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
     And the response field "keyMaterial" should not equal stored "vault_key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                               |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | method              | POST                                     |
+      | path                | /dek-registry/v1/keks/cross-bao-kek/deks |
+      | status_code         | 200                                      |
+      | target_type         | dek                                      |
+      | target_id           | cross-bao-kek                            |
+      | schema_id           |                                          |
+      | version             |                                          |
+      | schema_type         |                                          |
+      | context             | .                                         |
+      | before_hash         |                                          |
+      | after_hash          | sha256:*                                 |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   # ============================================================================
   # Non-Shared / Client-Provided Scenarios
@@ -141,6 +365,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "nonshared.subject"
     And the response field "keyMaterial" should be empty or absent
     And the response field "encryptedKeyMaterial" should be empty or absent
+    And the audit log should contain an event:
+      | event_type          | dek_create                                |
+      | outcome             | success                                   |
+      | actor_id            |                                           |
+      | actor_type          | anonymous                                 |
+      | auth_method         |                                           |
+      | role                |                                           |
+      | method              | POST                                      |
+      | path                | /dek-registry/v1/keks/non-shared-kek/deks |
+      | status_code         | 200                                       |
+      | target_type         | dek                                       |
+      | target_id           | non-shared-kek                            |
+      | schema_id           |                                           |
+      | version             |                                           |
+      | schema_type         |                                           |
+      | context             | .                                          |
+      | before_hash         |                                           |
+      | after_hash          | sha256:*                                  |
+      | transport_security  | tls                                       |
+      | reason              |                                           |
+      | error               |                                           |
+      | request_body        |                                           |
+      | metadata            |                                           |
+      | timestamp           | *                                         |
+      | duration_ms         | *                                         |
+      | request_id          | *                                         |
+      | source_ip           | *                                         |
+      | user_agent          | *                                         |
 
   Scenario: Client-provided encrypted key material is preserved
     Given a shared KEK "client-material-kek" with KMS type "hcvault" and key ID "test-key"
@@ -149,6 +401,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "kekName" should be "client-material-kek"
     And the response field "subject" should be "client.provided.field"
     And the response field "encryptedKeyMaterial" should be "client-provided-material"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                     |
+      | outcome             | success                                        |
+      | actor_id            |                                                |
+      | actor_type          | anonymous                                      |
+      | auth_method         |                                                |
+      | role                |                                                |
+      | method              | POST                                           |
+      | path                | /dek-registry/v1/keks/client-material-kek/deks |
+      | status_code         | 200                                            |
+      | target_type         | dek                                            |
+      | target_id           | client-material-kek                            |
+      | schema_id           |                                                |
+      | version             |                                                |
+      | schema_type         |                                                |
+      | context             | .                                               |
+      | before_hash         |                                                |
+      | after_hash          | sha256:*                                       |
+      | transport_security  | tls                                            |
+      | reason              |                                                |
+      | error               |                                                |
+      | request_body        |                                                |
+      | metadata            |                                                |
+      | timestamp           | *                                              |
+      | duration_ms         | *                                              |
+      | request_id          | *                                              |
+      | source_ip           | *                                              |
+      | user_agent          | *                                              |
 
   # ============================================================================
   # DEK Lifecycle with Encryption
@@ -175,6 +455,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "lifecycle.encrypted.field"
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should equal stored "original_encrypted"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                   |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | method              | POST                                         |
+      | path                | /dek-registry/v1/keks/lifecycle-enc-kek/deks |
+      | status_code         | 200                                          |
+      | target_type         | dek                                          |
+      | target_id           | lifecycle-enc-kek                            |
+      | schema_id           |                                              |
+      | version             |                                              |
+      | schema_type         |                                              |
+      | context             | .                                             |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |
 
   Scenario: Permanent delete removes encrypted DEK
     Given a shared KEK "permdelete-enc-kek" with KMS type "hcvault" and key ID "test-key"
@@ -190,6 +498,34 @@ Feature: KMS Server-Side Field-Level Encryption
     # Verify DEK is gone even with deleted=true
     When I GET "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field?deleted=true"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type          | dek_delete_permanent                                                     |
+      | outcome             | success                                                                  |
+      | actor_id            |                                                                          |
+      | actor_type          | anonymous                                                                |
+      | auth_method         |                                                                          |
+      | role                |                                                                          |
+      | method              | DELETE                                                                   |
+      | path                | /dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field |
+      | status_code         | 204                                                                      |
+      | target_type         | dek                                                                      |
+      | target_id           | permdelete-enc-kek                                                       |
+      | schema_id           |                                                                          |
+      | version             |                                                                          |
+      | schema_type         |                                                                          |
+      | context             | .                                                                         |
+      | before_hash         | sha256:*                                                                 |
+      | after_hash          |                                                                          |
+      | transport_security  | tls                                                                      |
+      | reason              |                                                                          |
+      | error               |                                                                          |
+      | request_body        |                                                                          |
+      | metadata            |                                                                          |
+      | timestamp           | *                                                                        |
+      | duration_ms         | *                                                                        |
+      | request_id          | *                                                                        |
+      | source_ip           | *                                                                        |
+      | user_agent          | *                                                                        |
 
   # ============================================================================
   # Error Scenarios
@@ -213,6 +549,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "unknown.kms.field"
     And the response field "keyMaterial" should be empty or absent
     And the response field "encryptedKeyMaterial" should be empty or absent
+    And the audit log should contain an event:
+      | event_type          | dek_create                                 |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | method              | POST                                       |
+      | path                | /dek-registry/v1/keks/unknown-kms-kek/deks |
+      | status_code         | 200                                        |
+      | target_type         | dek                                        |
+      | target_id           | unknown-kms-kek                            |
+      | schema_id           |                                            |
+      | version             |                                            |
+      | schema_type         |                                            |
+      | context             | .                                           |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: Vault Transit DEK version retrieval returns encrypted key material
     Given a shared KEK "vault-kek-retrieve" with KMS type "hcvault" and key ID "test-key"
@@ -224,6 +588,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "version" should be 1
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should equal stored "created_encrypted"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                    |
+      | outcome             | success                                       |
+      | actor_id            |                                               |
+      | actor_type          | anonymous                                     |
+      | auth_method         |                                               |
+      | role                |                                               |
+      | method              | POST                                          |
+      | path                | /dek-registry/v1/keks/vault-kek-retrieve/deks |
+      | status_code         | 200                                           |
+      | target_type         | dek                                           |
+      | target_id           | vault-kek-retrieve                            |
+      | schema_id           |                                               |
+      | version             |                                               |
+      | schema_type         |                                               |
+      | context             | .                                              |
+      | before_hash         |                                               |
+      | after_hash          | sha256:*                                      |
+      | transport_security  | tls                                           |
+      | reason              |                                               |
+      | error               |                                               |
+      | request_body        |                                               |
+      | metadata            |                                               |
+      | timestamp           | *                                             |
+      | duration_ms         | *                                             |
+      | request_id          | *                                             |
+      | source_ip           | *                                             |
+      | user_agent          | *                                             |
 
   # ============================================================================
   # Consumer Key Access Scenarios
@@ -245,6 +637,34 @@ Feature: KMS Server-Side Field-Level Encryption
     Then the response status should be 200
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "keyMaterial" should be empty or absent
+    And the audit log should contain an event:
+      | event_type          | dek_create                                        |
+      | outcome             | success                                           |
+      | actor_id            |                                                   |
+      | actor_type          | anonymous                                         |
+      | auth_method         |                                                   |
+      | role                |                                                   |
+      | method              | POST                                              |
+      | path                | /dek-registry/v1/keks/vault-kek-no-plaintext/deks |
+      | status_code         | 200                                               |
+      | target_type         | dek                                               |
+      | target_id           | vault-kek-no-plaintext                            |
+      | schema_id           |                                                   |
+      | version             |                                                   |
+      | schema_type         |                                                   |
+      | context             | .                                                  |
+      | before_hash         |                                                   |
+      | after_hash          | sha256:*                                          |
+      | transport_security  | tls                                               |
+      | reason              |                                                   |
+      | error               |                                                   |
+      | request_body        |                                                   |
+      | metadata            |                                                   |
+      | timestamp           | *                                                 |
+      | duration_ms         | *                                                 |
+      | request_id          | *                                                 |
+      | source_ip           | *                                                 |
+      | user_agent          | *                                                 |
 
   Scenario: Non-shared KEK consumer only receives encryptedKeyMaterial
     When I POST "/dek-registry/v1/keks" with body:
@@ -274,6 +694,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be "Y2xpZW50LXdyYXBwZWQta2V5LW1hdGVyaWFs"
     And the response field "keyMaterial" should be empty or absent
     And the response body should not contain "keyMaterial"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                        |
+      | outcome             | success                                           |
+      | actor_id            |                                                   |
+      | actor_type          | anonymous                                         |
+      | auth_method         |                                                   |
+      | role                |                                                   |
+      | method              | POST                                              |
+      | path                | /dek-registry/v1/keks/consumer-nonshared-kek/deks |
+      | status_code         | 200                                               |
+      | target_type         | dek                                               |
+      | target_id           | consumer-nonshared-kek                            |
+      | schema_id           |                                                   |
+      | version             |                                                   |
+      | schema_type         |                                                   |
+      | context             | .                                                  |
+      | before_hash         |                                                   |
+      | after_hash          | sha256:*                                          |
+      | transport_security  | tls                                               |
+      | reason              |                                                   |
+      | error               |                                                   |
+      | request_body        |                                                   |
+      | metadata            |                                                   |
+      | timestamp           | *                                                 |
+      | duration_ms         | *                                                 |
+      | request_id          | *                                                 |
+      | source_ip           | *                                                 |
+      | user_agent          | *                                                 |
 
   Scenario: DEK subject listing does not expose any key material
     Given a shared KEK "vault-kek-list-safe" with KMS type "hcvault" and key ID "test-key"
@@ -288,6 +736,34 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response body should not contain "keyMaterial"
     And the response body should not contain "encryptedKeyMaterial"
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type          | dek_create                                     |
+      | outcome             | success                                        |
+      | actor_id            |                                                |
+      | actor_type          | anonymous                                      |
+      | auth_method         |                                                |
+      | role                |                                                |
+      | method              | POST                                           |
+      | path                | /dek-registry/v1/keks/vault-kek-list-safe/deks |
+      | status_code         | 200                                            |
+      | target_type         | dek                                            |
+      | target_id           | vault-kek-list-safe                            |
+      | schema_id           |                                                |
+      | version             |                                                |
+      | schema_type         |                                                |
+      | context             | .                                               |
+      | before_hash         |                                                |
+      | after_hash          | sha256:*                                       |
+      | transport_security  | tls                                            |
+      | reason              |                                                |
+      | error               |                                                |
+      | request_body        |                                                |
+      | metadata            |                                                |
+      | timestamp           | *                                              |
+      | duration_ms         | *                                              |
+      | request_id          | *                                              |
+      | source_ip           | *                                              |
+      | user_agent          | *                                              |
 
   Scenario: Multiple subjects under same Vault Transit KEK have independent keys
     Given a shared KEK "vault-kek-multi-subject" with KMS type "hcvault" and key ID "test-key"
@@ -305,3 +781,31 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "keyMaterial" should not equal stored "email_key"
     And the response field "keyMaterial" should not equal stored "phone_key"
+    And the audit log should contain an event:
+      | event_type          | dek_create                                         |
+      | outcome             | success                                            |
+      | actor_id            |                                                    |
+      | actor_type          | anonymous                                          |
+      | auth_method         |                                                    |
+      | role                |                                                    |
+      | method              | POST                                               |
+      | path                | /dek-registry/v1/keks/vault-kek-multi-subject/deks |
+      | status_code         | 200                                                |
+      | target_type         | dek                                                |
+      | target_id           | vault-kek-multi-subject                            |
+      | schema_id           |                                                    |
+      | version             |                                                    |
+      | schema_type         |                                                    |
+      | context             | .                                                   |
+      | before_hash         |                                                    |
+      | after_hash          | sha256:*                                           |
+      | transport_security  | tls                                                |
+      | reason              |                                                    |
+      | error               |                                                    |
+      | request_body        |                                                    |
+      | metadata            |                                                    |
+      | timestamp           | *                                                  |
+      | duration_ms         | *                                                  |
+      | request_id          | *                                                  |
+      | source_ip           | *                                                  |
+      | user_agent          | *                                                  |

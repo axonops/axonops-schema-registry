@@ -1,0 +1,46 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  docs_enabled: true
+  metrics_refresh_interval: 5
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
+security:
+  audit:
+    enabled: true
+    outputs:
+      stdout:
+        enabled: true
+        format_type: json
+      file:
+        enabled: true
+        path: /tmp/audit.log
+        format_type: json
+        max_size_mb: 100
+        max_backups: 5
+        max_age_days: 30
+        compress: true
+      syslog:
+        enabled: true
+        network: tcp+tls
+        # address is overridden by env var SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS
+        address: "syslog-ng:6514"
+        app_name: schema-registry-test
+        facility: local0
+        format_type: json
+        tls_ca: /etc/audit-certs/ca.pem
+      webhook:
+        enabled: true
+        # url is overridden by env var SCHEMA_REGISTRY_AUDIT_WEBHOOK_URL
+        url: "http://webhook-receiver:8088/"
+        format_type: json
+        batch_size: 1
+        flush_interval: "100ms"
+        timeout: "5s"
+        max_retries: 3
+        buffer_size: 10000

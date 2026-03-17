@@ -18,6 +18,7 @@ This guide covers building AxonOps Schema Registry from source, running the test
   - [Migration Tests](#migration-tests)
   - [API Endpoint Tests](#api-endpoint-tests)
   - [Compatibility Tests](#compatibility-tests)
+  - [Data Contract & CSFLE Tests](#data-contract--csfle-tests)
   - [Go SerDe Data Contract & CSFLE Tests](#go-serde-data-contract--csfle-tests)
   - [Full Test Suite](#full-test-suite)
   - [Coverage](#coverage)
@@ -27,6 +28,7 @@ This guide covers building AxonOps Schema Registry from source, running the test
   - [OpenAPI Spec](#openapi-spec)
   - [Swagger UI](#swagger-ui)
   - [Static Documentation](#static-documentation)
+  - [MCP Reference](#mcp-reference)
 - [Docker](#docker)
   - [Build the Image](#build-the-image)
   - [Run with Docker](#run-with-docker)
@@ -37,14 +39,14 @@ This guide covers building AxonOps Schema Registry from source, running the test
 
 ## Prerequisites
 
-- **Go 1.24+** ([download](https://go.dev/dl/))
-- **Docker** (for integration, BDD, auth, and concurrency tests)
+- **Go 1.26+** ([download](https://go.dev/dl/))
+- **Docker** (for integration, BDD, auth, KMS, and concurrency tests)
 - **golangci-lint** ([install](https://golangci-lint.run/welcome/install/)) for linting
 - **Node.js** (optional, for generating static API documentation with Redocly)
 
 Optional tools for the full compatibility test suite:
 
-- **Maven** (for Java Confluent serializer tests)
+- **Maven** and **Java 17+** (for Java Confluent serializer and data contract tests)
 - **Python 3** (for Python Confluent serializer tests)
 
 ## Building from Source
@@ -92,39 +94,53 @@ build/schema-registry-darwin-arm64
 
 ```
 cmd/schema-registry/              Entry point (cobra CLI)
+cmd/generate-mcp-docs/            MCP reference doc generator
 internal/
+  analysis/                       Shared analysis (field extraction, quality scoring, fuzzy matching)
   api/                            HTTP server, handlers, types, OpenAPI
-  auth/                           Authentication, RBAC, JWT, rate limiting
-  cache/                          Caching layer
-  compatibility/                  Compatibility checkers
-    avro/                         Avro compatibility
-    jsonschema/                   JSON Schema compatibility
-    protobuf/                     Protobuf compatibility
-  config/                         Configuration loading
-  registry/                       Core business logic
-  schema/                         Schema parsers
-    avro/                         Avro parser
-    jsonschema/                   JSON Schema parser
-    protobuf/                     Protobuf parser
-  storage/                        Storage interface and backends
+    handlers/                     REST endpoint handlers (schema, admin, account, analysis, DEK, exporter)
+    types/                        Request/response structs + Confluent error codes
+  auth/                           Authentication, RBAC, JWT, rate limiting, audit, TLS
+  compatibility/                  Compatibility checkers (Avro, JSON Schema, Protobuf)
+  config/                         YAML config loading with env var overrides
+  context/                        Multi-tenant context management
+  exporter/                       Schema exporter (Schema Linking) logic
+  kms/                            KMS provider interface + implementations
+    vault/                        HashiCorp Vault Transit
+    aws/                          AWS KMS
+    azure/                        Azure Key Vault
+    gcp/                          GCP Cloud KMS
+  mcp/                            MCP (Model Context Protocol) server
+    content/                      Embedded markdown (16 glossary + 35 prompt files)
+  metrics/                        Prometheus metrics (REST + MCP)
+  registry/                       Core business logic (shared by REST + MCP)
+  rules/                          Data contract rules engine (CEL, JSONata)
+  schema/                         Schema parsers (Avro, JSON Schema, Protobuf)
+  storage/                        Storage interface (71 methods) + backends
     memory/                       In-memory backend
     postgres/                     PostgreSQL backend
     mysql/                        MySQL backend
     cassandra/                    Cassandra backend
     vault/                        HashiCorp Vault auth storage
-  metrics/                        Prometheus metrics
 tests/
-  bdd/                            BDD/Cucumber tests (76 feature files, ~1,400 scenarios)
+  api/                            External black-box API tests
+  bdd/                            BDD/Cucumber tests (feature files + scenarios)
+    features/                     Top-level feature files
+    features/mcp/                 MCP-specific feature files
+    steps/                        Step definition files
+    configs/                      Per-backend config (memory, postgres, mysql, cassandra)
+    docker-compose*.yml           Docker Compose files for test backends
   integration/                    Integration tests
   concurrency/                    Concurrency tests
-  storage/conformance/            Storage conformance suite
+  storage/conformance/            Storage conformance suite (shared across all backends)
   migration/                      Migration tests
-  api/                            External API tests
-  compatibility/                  Multi-language compatibility tests
+  compatibility/
     go/                           Go serializer tests
-    go-serde/                     Go SerDe data contract + CSFLE tests (30 tests, 7 files)
+    go-serde/                     Go SerDe data contract + CSFLE tests
     java/                         Java Confluent SerDe tests (wire compat + data contracts + CSFLE)
     python/                       Python serializer tests
+api/
+  openapi.yaml                    OpenAPI spec (embedded into binary)
 ```
 
 ## Running Tests
@@ -141,22 +157,42 @@ make help    # Show all available targets
 make test-unit
 ```
 
-Runs `go test -race -v -timeout 5m ./internal/...`. No Docker or external services required. This is the fastest feedback loop and should be run before every commit.
+Runs `go test -race -v -timeout 5m ./...`. No Docker or external services required. This is the fastest feedback loop and SHOULD be run before every commit.
 
 ### BDD Tests
 
-BDD tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) and cover all API endpoints, compatibility rules, error codes, and operational resilience across 76 feature files and 1,387 scenarios.
+BDD tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) and cover all API endpoints, compatibility rules, error codes, MCP tools/resources/prompts, permissions, encryption, exporters, data contracts, and operational resilience.
 
 ```bash
 make test-bdd                        # In-process, memory backend (no Docker)
+make test-bdd-functional             # Same as above (explicit alias)
 make test-bdd BACKEND=postgres       # Docker Compose with PostgreSQL
 make test-bdd BACKEND=mysql          # Docker Compose with MySQL
 make test-bdd BACKEND=cassandra      # Docker Compose with Cassandra
-make test-bdd BACKEND=confluent      # Against Confluent Schema Registry
+make test-bdd BACKEND=confluent      # Against Confluent Schema Registry 8.1.1
 make test-bdd BACKEND=all            # All backends sequentially
 ```
 
+Additional BDD targets for specific scenarios:
+
+```bash
+make test-bdd-db BACKEND=postgres    # In-process server with real DB
+make test-bdd-db BACKEND=all         # In-process server with all DBs
+make test-bdd-auth BACKEND=postgres  # BDD auth tests with real DB
+make test-bdd-auth BACKEND=all       # BDD auth tests with all DBs
+make test-bdd-kms BACKEND=memory     # BDD KMS encryption tests (Vault + OpenBao)
+make test-bdd-kms BACKEND=all        # BDD KMS tests with all backends
+
+# Audit BDD tests
+make test-bdd-rest-audit             # REST audit event assertions
+make test-bdd-mcp-audit              # MCP audit event assertions
+make test-bdd-mcp-metrics            # MCP Prometheus metrics tests
+make test-bdd-audit-outputs          # Multi-output audit (file + syslog TLS + webhook)
+```
+
 The `confluent` backend starts a real Confluent Schema Registry via Docker Compose to verify wire compatibility.
+
+The `test-bdd-audit-outputs` target uses a Docker Compose overlay (`docker-compose.audit-outputs.yml`) that adds syslog-ng (TCP+TLS on port 6514) and a webhook-receiver container alongside the schema registry.
 
 ### Integration Tests
 
@@ -331,6 +367,21 @@ To run with a custom configuration file:
 ./build/schema-registry --config config.yaml
 ```
 
+To enable the MCP server alongside the REST API, add to your config:
+
+```yaml
+mcp:
+  enabled: true
+  host: "127.0.0.1"
+  port: 9081
+```
+
+Or via environment variable:
+
+```bash
+SCHEMA_REGISTRY_MCP_ENABLED=true ./build/schema-registry --config config.yaml
+```
+
 ## API Documentation
 
 ### OpenAPI Spec
@@ -350,6 +401,16 @@ make docs-api
 ```
 
 Output is written to `docs/api/index.html`.
+
+### MCP Reference
+
+Generate the MCP API reference (all tools, resources, and prompts) from live server introspection:
+
+```bash
+make docs-mcp
+```
+
+Output is written to `docs/mcp-reference.md`.
 
 ## Docker
 
@@ -373,43 +434,61 @@ Or manually:
 docker run -p 8081:8081 axonops/schema-registry:latest
 ```
 
+To expose the MCP server:
+
+```bash
+docker run -p 8081:8081 -p 9081:9081 \
+  -e SCHEMA_REGISTRY_MCP_ENABLED=true \
+  -e SCHEMA_REGISTRY_MCP_HOST=0.0.0.0 \
+  axonops/schema-registry:latest
+```
+
 ## CI Pipeline
 
-GitHub Actions runs the following on every push:
+GitHub Actions runs 43 jobs on every push to `main` or `feature/**` branches:
 
-- Static analysis: golangci-lint, go vet, gosec, Trivy
-- Unit tests with coverage
-- Integration tests (PostgreSQL, MySQL, Cassandra)
-- BDD tests (memory, PostgreSQL, MySQL, Cassandra, Confluent)
-- Storage conformance tests (memory, PostgreSQL, MySQL, Cassandra)
-- API endpoint tests
-- Auth tests (LDAP, Vault, OIDC)
-- Migration tests
-- Compatibility tests (Go, Java, Python)
-- Data contract & CSFLE tests (Java SerDe with Vault)
-- Data contract & CSFLE tests (Go SerDe with Vault)
-- BDD KMS encryption tests (memory, PostgreSQL, MySQL, Cassandra)
-- Docker image build
+- **Build & Unit Tests:** Compile binary + all test binaries, run unit tests with coverage
+- **Static Analysis:** golangci-lint, go vet, gosec, Trivy vulnerability scanner
+- **Docker:** Multi-stage Docker image build verification
+- **Database Tests:** Integration + concurrency against PostgreSQL 15, MySQL 8, Cassandra 5.0
+- **Conformance:** Storage conformance against memory, PostgreSQL, MySQL, Cassandra (4 jobs)
+- **API:** Black-box API endpoint tests
+- **Auth:** LDAP (OpenLDAP), Vault (HashiCorp Vault 1.15), OIDC (Keycloak 24.0)
+- **Migration:** Import/migration tests
+- **BDD (Docker Compose):** memory, PostgreSQL, MySQL, Cassandra, Confluent 8.1.1 (5 jobs)
+- **BDD Functional:** In-process functional tests
+- **BDD DB:** In-process with real DB: PostgreSQL, MySQL, Cassandra (3 jobs)
+- **BDD Auth:** Auth BDD with real DB: PostgreSQL, MySQL, Cassandra (3 jobs)
+- **BDD KMS:** KMS encryption: memory, PostgreSQL, MySQL, Cassandra (4 jobs)
+- **BDD Audit:** REST audit, MCP audit, MCP metrics, audit outputs with syslog TLS + webhook (4 jobs)
+- **Compatibility:** Go + Java (4 Confluent versions) + Python (3 versions)
+- **Data Contracts:** Java SerDe, Go SerDe, Python SerDe — data contract + CSFLE with Vault (3 jobs)
+
+The `build` job compiles all test binaries and uploads them as artifacts. Downstream jobs download pre-compiled binaries to avoid redundant compilation.
 
 ## Code Conventions
 
 - Standard Go formatting (`gofmt`), enforced by golangci-lint
 - Structured logging via `log/slog`
 - Context-first function signatures: `func (s *Store) Method(ctx context.Context, ...) error`
+- Multi-tenant context: all storage/registry methods take `registryCtx string` (default `"."`)
 - Sentinel errors for storage operations, compared with `errors.Is()`
-- Build tags to separate test categories: `//go:build integration`, `//go:build bdd`, `//go:build api`, `//go:build concurrency`, `//go:build conformance`
+- Build tags to separate test categories: `//go:build integration`, `//go:build bdd`, `//go:build api`, `//go:build concurrency`, `//go:build conformance`, `//go:build ldap`, `//go:build vault`, `//go:build oidc`, `//go:build migration`
 - Schema fingerprints use SHA-256 for content-addressed deduplication
 - Soft-delete with a boolean flag, not physical deletion
 - Global configuration uses an empty string (`""`) as the subject key
 - The import API preserves original schema IDs for Confluent migration
+- Both REST handlers and MCP tools call `registry.Registry` for all business logic (shared layer)
+- BDD-first testing: every feature MUST have BDD coverage; Makefile targets are the canonical way to run tests
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch from `main`
-3. Write tests for new functionality
+3. Write tests for new functionality (BDD feature files + unit tests)
 4. Ensure unit tests and linting pass: `make test-unit && make lint`
-5. Submit a pull request
+5. Run BDD tests: `make test-bdd`
+6. Submit a pull request
 
 For larger changes, open an issue first to discuss the approach.
 
@@ -417,8 +496,10 @@ For larger changes, open an issue first to discuss the approach.
 
 - [Getting Started](getting-started.md) -- register your first schemas and integrate with Kafka clients
 - [Configuration](configuration.md) -- full YAML configuration reference
+- [Testing Strategy](testing.md) -- detailed testing philosophy, all test layers, how to write tests
 - [Storage Backends](storage-backends.md) -- setup guides for PostgreSQL, MySQL, Cassandra, and in-memory
 - [Authentication](authentication.md) -- API keys, LDAP, OIDC, JWT, and RBAC
 - [Schema Types](schema-types.md) -- Avro, Protobuf, and JSON Schema support details
 - [Compatibility](compatibility.md) -- compatibility levels and checking behavior
+- [MCP Server](mcp.md) -- MCP server for AI-assisted schema management
 - [API Reference](api-reference.md) -- complete endpoint documentation

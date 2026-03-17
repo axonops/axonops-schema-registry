@@ -20,6 +20,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FORWARD"
     # Reset
     When I set the global config to "NONE"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: Set subject-level compatibility independent of global
     Given I set the global config to "NONE"
@@ -30,6 +58,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FORWARD"
     When I get the global config
     And the response field "compatibilityLevel" should be "NONE"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | cc-subj-level                  |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config/cc-subj-level          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: Set compatibility for non-existent subject succeeds
     When I set the config for subject "cc-nonexist-subj" to "FULL"
@@ -37,6 +93,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     When I get the config for subject "cc-nonexist-subj"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | cc-nonexist-subj               |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config/cc-nonexist-subj       |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: Get config for subject with no subject-level config returns 404
     When I get the config for subject "cc-no-config-at-all"
@@ -57,6 +141,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FULL"
     # Reset
     When I set the global config to "NONE"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | cc-del-config                  |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config/cc-del-config          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ==========================================================================
   # COMPATIBILITY TESTING ENDPOINTS
@@ -128,6 +240,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
       {"type":"record","name":"ChgNone","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | cc-change-none                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/cc-change-none/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Change compatibility from FORWARD to BACKWARD enforces new rules
     Given the global compatibility level is "NONE"
@@ -150,6 +290,34 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
       {"type":"record","name":"FwdBwd","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"},{"name":"f3","type":"string","default":"y"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | cc-fwd-to-bwd                            |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/cc-fwd-to-bwd/versions         |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # TRANSITIVE COMPATIBILITY VIA REST

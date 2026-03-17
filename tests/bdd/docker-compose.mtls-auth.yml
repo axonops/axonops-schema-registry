@@ -1,0 +1,22 @@
+# Docker Compose overlay for mTLS + Basic auth tests.
+# Layers on docker-compose.base.yml which already has TLS enabled.
+# Adds client certificate verification and Basic auth with RBAC.
+#
+# The base healthcheck uses wget without a client certificate, which fails
+# when client_auth=verify.  We switch to a process check so Docker marks
+# the container healthy, and rely on the Go test's waitForMTLSURL() for
+# actual HTTPS+mTLS readiness.
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth-mtls.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-mtls.yaml
+      SCHEMA_REGISTRY_TLS_CA_FILE: "/etc/tls/ca.pem"
+      SCHEMA_REGISTRY_TLS_CLIENT_AUTH: "verify"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "schema-registry"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 5

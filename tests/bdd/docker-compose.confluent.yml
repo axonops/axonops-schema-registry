@@ -1,11 +1,30 @@
 # Confluent Schema Registry with Kafka (KRaft mode) for BDD tests.
 # Standalone compose — does NOT use docker-compose.base.yml.
 #
+# Includes a JMX Exporter Java agent on the schema-registry service so that
+# BDD conformance tests can scrape Confluent's metrics in Prometheus format
+# and verify that AxonOps exposes the same wire-compatible metric names.
+#
 # Usage:
 #   docker compose -f docker-compose.confluent.yml up -d --wait
 #   BDD_BACKEND=confluent go test -tags bdd -v -timeout 25m ./tests/bdd/...
 
 services:
+  # Downloads the Prometheus JMX Exporter agent JAR into a shared volume.
+  jmx-exporter-init:
+    image: curlimages/curl:8.11.1
+    user: root
+    volumes:
+      - jmx-agent:/opt/jmx-agent
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        if [ ! -f /opt/jmx-agent/jmx_prometheus_javaagent.jar ]; then
+          curl -fsSL -o /opt/jmx-agent/jmx_prometheus_javaagent.jar \
+            https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/1.0.1/jmx_prometheus_javaagent-1.0.1.jar
+        fi
+    restart: "no"
+
   kafka:
     image: confluentinc/cp-kafka:8.1.1
     hostname: kafka
@@ -37,8 +56,14 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      jmx-exporter-init:
+        condition: service_completed_successfully
     ports:
       - "${REGISTRY_PORT:-18081}:8081"
+      - "${JMX_METRICS_PORT:-19090}:9090"
+    volumes:
+      - jmx-agent:/opt/jmx-agent:ro
+      - ./configs/jmx-exporter-schema-registry.yml:/etc/jmx-exporter/config.yml:ro
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
@@ -46,6 +71,8 @@ services:
       SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: BACKWARD
       SCHEMA_REGISTRY_MODE_MUTABILITY: "true"
       SCHEMA_REGISTRY_DEBUG: "true"
+      # Attach JMX Exporter as a Java agent — exposes Prometheus metrics on port 9090.
+      SCHEMA_REGISTRY_OPTS: "-javaagent:/opt/jmx-agent/jmx_prometheus_javaagent.jar=9090:/etc/jmx-exporter/config.yml"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
       interval: 5s
@@ -53,3 +80,6 @@ services:
       start_period: 60s
       retries: 15
     restart: "no"
+
+volumes:
+  jmx-agent:

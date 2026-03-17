@@ -19,6 +19,34 @@ Feature: Boundary Testing
     When I GET "/subjects/large-schema/versions/1"
     Then the response status should be 200
     And the response should contain "field50"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | large-schema                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/large-schema/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register deeply nested Avro schema
     When I POST "/subjects/nested-schema/versions" with body:
@@ -32,6 +60,34 @@ Feature: Boundary Testing
     When I GET "/subjects/nested-schema/versions/1/schema"
     Then the response status should be 200
     And the response should contain "Level3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | nested-schema                            |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/nested-schema/versions         |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register schema with very long field names
     When I POST "/subjects/long-field-names/versions" with body:
@@ -42,6 +98,34 @@ Feature: Boundary Testing
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | long-field-names                         |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/long-field-names/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register many versions under one subject
     When I POST "/subjects/versioned-subject/versions" with body:
@@ -117,6 +201,34 @@ Feature: Boundary Testing
     When I GET "/subjects/versioned-subject/versions"
     Then the response status should be 200
     And the response should be an array of length 10
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | versioned-subject                        |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/versioned-subject/versions     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register many subjects
     When I POST "/subjects/subject-01/versions" with body:
@@ -262,6 +374,34 @@ Feature: Boundary Testing
     When I GET "/subjects"
     Then the response status should be 200
     And the response should be an array of length 20
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | subject-20                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/subject-20/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Empty schema string returns error
     When I POST "/subjects/empty-schema/versions" with body:
@@ -295,6 +435,34 @@ Feature: Boundary Testing
     When I GET "/subjects/unicode-schema/versions/1/schema"
     Then the response status should be 200
     And the response should contain "UnicodeRecord"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | unicode-schema                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/unicode-schema/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Schema with special characters in subject name
     When I POST "/subjects/com.example.test-service.events/versions" with body:
@@ -308,6 +476,34 @@ Feature: Boundary Testing
     When I GET "/subjects/com.example.test-service.events/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                                            |
+      | outcome              | success                                                    |
+      | actor_id             |                                                            |
+      | actor_type           | anonymous                                                  |
+      | auth_method          |                                                            |
+      | role                 |                                                            |
+      | target_type          | subject                                                    |
+      | target_id            | com.example.test-service.events                            |
+      | schema_id            | *                                                          |
+      | version              | *                                                          |
+      | schema_type          | AVRO                                                       |
+      | before_hash          |                                                            |
+      | after_hash           | sha256:*                                                   |
+      | context              | .                                                          |
+      | transport_security   | tls                                                        |
+      | source_ip            | *                                                          |
+      | user_agent           | *                                                          |
+      | method               | POST                                                       |
+      | path                 | /subjects/com.example.test-service.events/versions         |
+      | status_code          | 200                                                        |
+      | reason               |                                                            |
+      | error                |                                                            |
+      | request_body         |                                                            |
+      | metadata             |                                                            |
+      | timestamp            | *                                                          |
+      | duration_ms          | *                                                          |
+      | request_id           | *                                                          |
 
   Scenario: Very long subject name
     When I POST "/subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions" with body:
@@ -321,3 +517,31 @@ Feature: Boundary Testing
     When I GET "/subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions/1"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                                                                                                                                                                                                    |
+      | outcome              | success                                                                                                                                                                                                            |
+      | actor_id             |                                                                                                                                                                                                                    |
+      | actor_type           | anonymous                                                                                                                                                                                                          |
+      | auth_method          |                                                                                                                                                                                                                    |
+      | role                 |                                                                                                                                                                                                                    |
+      | target_type          | subject                                                                                                                                                                                                            |
+      | target_id            | this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling            |
+      | schema_id            | *                                                                                                                                                                                                                  |
+      | version              | *                                                                                                                                                                                                                  |
+      | schema_type          | AVRO                                                                                                                                                                                                               |
+      | before_hash          |                                                                                                                                                                                                                    |
+      | after_hash           | sha256:*                                                                                                                                                                                                           |
+      | context              | .                                                                                                                                                                                                                  |
+      | transport_security   | tls                                                                                                                                                                                                                |
+      | source_ip            | *                                                                                                                                                                                                                  |
+      | user_agent           | *                                                                                                                                                                                                                  |
+      | method               | POST                                                                                                                                                                                                               |
+      | path                 | /subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions |
+      | status_code          | 200                                                                                                                                                                                                                |
+      | reason               |                                                                                                                                                                                                                    |
+      | error                |                                                                                                                                                                                                                    |
+      | request_body         |                                                                                                                                                                                                                    |
+      | metadata             |                                                                                                                                                                                                                    |
+      | timestamp            | *                                                                                                                                                                                                                  |
+      | duration_ms          | *                                                                                                                                                                                                                  |
+      | request_id           | *                                                                                                                                                                                                                  |

@@ -26,6 +26,34 @@ Feature: Contexts — Cross-Context Isolation
     And I store the response field "id" as "ctx_b_id"
     # Both contexts should assign ID 1 independently
     Then the response field "id" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.ctx-id-b:test-subj                      |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .ctx-id-b                                 |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.ctx-id-b:test-subj/versions   |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Schema IDs start at 1 in each new context
     # Register in context A
@@ -49,6 +77,34 @@ Feature: Contexts — Cross-Context Isolation
       """
     Then the response status should be 200
     And the response field "id" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | :.fresh-b:s1                            |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .fresh-b                                |
+      | transport_security   | tls                                     |
+      | method               | POST                                    |
+      | path                 | /subjects/:.fresh-b:s1/versions         |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
 
   # ==========================================================================
   # VERSION ISOLATION
@@ -78,6 +134,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.ver-b:versioned/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.ver-b:versioned                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .ver-b                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.ver-b:versioned/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SUBJECT ISOLATION
@@ -99,6 +183,34 @@ Feature: Contexts — Cross-Context Isolation
     Then the response status should be 200
     And the response body should not contain "only-in-a"
     And the response body should not contain "only-in-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | :.subj-b:only-in-b                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .subj-b                                    |
+      | transport_security   | tls                                        |
+      | method               | POST                                       |
+      | path                 | /subjects/:.subj-b:only-in-b/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
 
   Scenario: Schema by ID is context-scoped
     # Register in context A
@@ -123,6 +235,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.byid-b:s1/versions/1"
     Then the response status should be 200
     And the response body should contain "ByIdB"
+    And the audit log should contain an event:
+      | event_type           | schema_register                        |
+      | outcome              | success                                |
+      | actor_id             |                                        |
+      | actor_type           | anonymous                              |
+      | auth_method          |                                        |
+      | role                 |                                        |
+      | target_type          | subject                                |
+      | target_id            | :.byid-b:s1                            |
+      | schema_id            | *                                      |
+      | version              | *                                      |
+      | schema_type          | AVRO                                   |
+      | before_hash          |                                        |
+      | after_hash           | sha256:*                               |
+      | context              | .byid-b                                |
+      | transport_security   | tls                                    |
+      | method               | POST                                   |
+      | path                 | /subjects/:.byid-b:s1/versions         |
+      | status_code          | 200                                    |
+      | reason               |                                        |
+      | error                |                                        |
+      | request_body         |                                        |
+      | metadata             |                                        |
+      | timestamp            | *                                      |
+      | duration_ms          | *                                      |
+      | request_id           | *                                      |
+      | source_ip            | *                                      |
+      | user_agent           | *                                      |
 
   # ==========================================================================
   # DELETE ISOLATION
@@ -149,6 +289,34 @@ Feature: Contexts — Cross-Context Isolation
     # Context A is deleted
     When I GET "/subjects/:.del-iso-a:shared/versions"
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                       |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.del-iso-a:shared                        |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .del-iso-a                                |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.del-iso-a:shared              |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Permanent delete in one context does not affect another
     When I POST "/subjects/:.pdel-a:shared/versions" with body:
@@ -170,6 +338,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.pdel-b:shared/versions/1"
     Then the response status should be 200
     And the response body should contain "PDelB"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                  |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.pdel-a:shared                           |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .pdel-a                                   |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.pdel-a:shared                 |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # LOOKUP ISOLATION
@@ -193,6 +389,34 @@ Feature: Contexts — Cross-Context Isolation
       {"schema": "{\"type\":\"record\",\"name\":\"LookupA\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                      |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | :.lookup-a:s1                      |
+      | schema_id            | *                                  |
+      | version              | *                                  |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           |                                    |
+      | context              | .lookup-a                          |
+      | transport_security   | tls                                |
+      | method               | POST                               |
+      | path                 | /subjects/:.lookup-a:s1            |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
 
   Scenario: Soft-delete isolation between contexts
     When I POST "/subjects/:.soft-a:s1/versions" with body:
@@ -215,6 +439,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.soft-b:s1/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                    |
+      | outcome              | success                                |
+      | actor_id             |                                        |
+      | actor_type           | anonymous                              |
+      | auth_method          |                                        |
+      | role                 |                                        |
+      | target_type          | subject                                |
+      | target_id            | :.soft-a:s1                            |
+      | schema_id            |                                        |
+      | version              |                                        |
+      | schema_type          | AVRO                                   |
+      | before_hash          | sha256:*                               |
+      | after_hash           |                                        |
+      | context              | .soft-a                                |
+      | transport_security   | tls                                    |
+      | method               | DELETE                                 |
+      | path                 | /subjects/:.soft-a:s1                  |
+      | status_code          | 200                                    |
+      | reason               |                                        |
+      | error                |                                        |
+      | request_body         |                                        |
+      | metadata             |                                        |
+      | timestamp            | *                                      |
+      | duration_ms          | *                                      |
+      | request_id           | *                                      |
+      | source_ip            | *                                      |
+      | user_agent           | *                                      |
 
   Scenario: Schema fingerprint dedup is per-context
     # Same schema content in two contexts should each get their own ID
@@ -232,6 +484,34 @@ Feature: Contexts — Cross-Context Isolation
     And I store the response field "id" as "fp_id_b"
     # Both should have ID 1 (per-context)
     Then the response field "id" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | :.fp-b:s1                          |
+      | schema_id            | *                                  |
+      | version              | *                                  |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .fp-b                              |
+      | transport_security   | tls                                |
+      | method               | POST                               |
+      | path                 | /subjects/:.fp-b:s1/versions       |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
 
   Scenario: Default context and named context are isolated
     # Register in default context (no prefix)
@@ -255,6 +535,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.named:shared-name/versions/1"
     Then the response status should be 200
     And the response body should contain "NamedS"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.named:shared-name                       |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .named                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.named:shared-name/versions    |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: List versions is context-scoped
     When I POST "/subjects/:.lv-a:s1/versions" with body:
@@ -280,3 +588,31 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.lv-b:s1/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                      |
+      | outcome              | success                              |
+      | actor_id             |                                      |
+      | actor_type           | anonymous                            |
+      | auth_method          |                                      |
+      | role                 |                                      |
+      | target_type          | subject                              |
+      | target_id            | :.lv-b:s1                            |
+      | schema_id            | *                                    |
+      | version              | *                                    |
+      | schema_type          | AVRO                                 |
+      | before_hash          |                                      |
+      | after_hash           | sha256:*                             |
+      | context              | .lv-b                                |
+      | transport_security   | tls                                  |
+      | method               | POST                                 |
+      | path                 | /subjects/:.lv-b:s1/versions         |
+      | status_code          | 200                                  |
+      | reason               |                                      |
+      | error                |                                      |
+      | request_body         |                                      |
+      | metadata             |                                      |
+      | timestamp            | *                                    |
+      | duration_ms          | *                                    |
+      | request_id           | *                                    |
+      | source_ip            | *                                    |
+      | user_agent           | *                                    |

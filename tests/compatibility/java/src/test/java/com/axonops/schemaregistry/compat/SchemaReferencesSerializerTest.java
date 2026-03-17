@@ -335,6 +335,12 @@ public class SchemaReferencesSerializerTest {
         serConfig.put("latest.compatibility.strict", false);
         serConfig.put("json.fail.invalid.schema", true);
 
+        String jsonSerUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (jsonSerUsername != null && !jsonSerUsername.isEmpty()) {
+            serConfig.put("basic.auth.credentials.source", "USER_INFO");
+            serConfig.put("basic.auth.user.info", jsonSerUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
+
         KafkaJsonSchemaSerializer<JsonNode> jsonSerializer = new KafkaJsonSchemaSerializer<>(client);
         jsonSerializer.configure(serConfig, false);
 
@@ -442,6 +448,12 @@ public class SchemaReferencesSerializerTest {
         config.put("use.latest.version", true);
         config.put("latest.compatibility.strict", false);
 
+        String freshJsonUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (freshJsonUsername != null && !freshJsonUsername.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", freshJsonUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
+
         KafkaJsonSchemaSerializer<JsonNode> jsonSerializer = new KafkaJsonSchemaSerializer<>(writeClient);
         jsonSerializer.configure(config, false);
 
@@ -517,11 +529,19 @@ public class SchemaReferencesSerializerTest {
 
         // The registration should fail because the referenced subject does not exist
         String url = SCHEMA_REGISTRY_URL + "/subjects/" + personSubject + "/versions";
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", CONTENT_TYPE)
-                .POST(HttpRequest.BodyPublishers.ofString(personBody))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(personBody));
+
+        String authUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (authUsername != null && !authUsername.isEmpty()) {
+            String credentials = authUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", "");
+            String encoded = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+            requestBuilder.header("Authorization", "Basic " + encoded);
+        }
+
+        HttpRequest request = requestBuilder.build();
 
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -725,11 +745,19 @@ public class SchemaReferencesSerializerTest {
                 + "]}";
 
         String url = SCHEMA_REGISTRY_URL + "/subjects/" + personSubject + "/versions";
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder jsonRequestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", CONTENT_TYPE)
-                .POST(HttpRequest.BodyPublishers.ofString(personBody))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(personBody));
+
+        String jsonAuthUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (jsonAuthUsername != null && !jsonAuthUsername.isEmpty()) {
+            String credentials = jsonAuthUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", "");
+            String encoded = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+            jsonRequestBuilder.header("Authorization", "Basic " + encoded);
+        }
+
+        HttpRequest request = jsonRequestBuilder.build();
 
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -762,13 +790,7 @@ public class SchemaReferencesSerializerTest {
      * Create a SchemaRegistryClient with all providers registered.
      */
     private SchemaRegistryClient createClient() {
-        return new CachedSchemaRegistryClient(
-                Collections.singletonList(SCHEMA_REGISTRY_URL),
-                100,
-                Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-                Collections.emptyMap(),
-                Collections.emptyMap()
-        );
+        return TestHelper.createClient(SCHEMA_REGISTRY_URL);
     }
 
     /**
@@ -783,6 +805,12 @@ public class SchemaReferencesSerializerTest {
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         config.put("auto.register.schemas", true);
 
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
+
         KafkaAvroSerializer serializer = new KafkaAvroSerializer(client);
         serializer.configure(config, false);
         return serializer;
@@ -794,6 +822,12 @@ public class SchemaReferencesSerializerTest {
     private KafkaAvroDeserializer createAvroDeserializer(SchemaRegistryClient client) {
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
+
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         KafkaAvroDeserializer deserializer = new KafkaAvroDeserializer(client);
         deserializer.configure(config, false);

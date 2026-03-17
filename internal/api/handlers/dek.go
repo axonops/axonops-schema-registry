@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -57,6 +58,12 @@ func (h *Handler) CreateKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = req.Name
+		hints.AfterHash = hashKEK(kek)
+	}
+
 	writeJSON(w, http.StatusOK, kekToResponse(kek))
 }
 
@@ -99,6 +106,8 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	beforeHash := hashKEK(existing)
+
 	// Apply updates
 	if req.KmsProps != nil {
 		existing.KmsProps = req.KmsProps
@@ -115,6 +124,13 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
+		hints.BeforeHash = beforeHash
+		hints.AfterHash = hashKEK(existing)
+	}
+
 	writeJSON(w, http.StatusOK, kekToResponse(existing))
 }
 
@@ -122,6 +138,9 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteKEK(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	permanent := r.URL.Query().Get("permanent") == "true"
+
+	// Fetch before deletion for audit before_hash.
+	existing, _ := h.registry.GetKEK(r.Context(), name, true)
 
 	if err := h.registry.DeleteKEK(r.Context(), name, permanent); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
@@ -132,12 +151,23 @@ func (h *Handler) DeleteKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashKEK(existing)
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // UndeleteKEK handles POST /dek-registry/v1/keks/{name}/undelete
 func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
+
+	// Fetch deleted state for before_hash.
+	existing, _ := h.registry.GetKEK(r.Context(), name, true)
 
 	if err := h.registry.UndeleteKEK(r.Context(), name); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
@@ -146,6 +176,18 @@ func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashKEK(existing)
+		}
+		// After undelete, fetch restored state.
+		if restored, err := h.registry.GetKEK(r.Context(), name, false); err == nil {
+			hints.AfterHash = hashKEK(restored)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -202,6 +244,12 @@ func (h *Handler) CreateDEK(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		hints.AfterHash = hashDEK(dek)
 	}
 
 	writeJSON(w, http.StatusOK, dekToResponse(dek))
@@ -297,6 +345,9 @@ func (h *Handler) DeleteDEK(w http.ResponseWriter, r *http.Request) {
 	algorithm := r.URL.Query().Get("algorithm")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
+	// Fetch before deletion for audit before_hash.
+	existing, _ := h.registry.GetDEK(r.Context(), kekName, subject, -1, algorithm, true)
+
 	if err := h.registry.DeleteDEK(r.Context(), kekName, subject, -1, algorithm, permanent); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
@@ -310,6 +361,14 @@ func (h *Handler) DeleteDEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -318,6 +377,9 @@ func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 	kekName := chi.URLParam(r, "name")
 	subject := chi.URLParam(r, "subject")
 	algorithm := r.URL.Query().Get("algorithm")
+
+	// Fetch deleted state for before_hash.
+	existing, _ := h.registry.GetDEK(r.Context(), kekName, subject, -1, algorithm, true)
 
 	if err := h.registry.UndeleteDEK(r.Context(), kekName, subject, -1, algorithm); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
@@ -330,6 +392,17 @@ func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
+		if restored, err := h.registry.GetDEK(r.Context(), kekName, subject, -1, algorithm, false); err == nil {
+			hints.AfterHash = hashDEK(restored)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -353,6 +426,9 @@ func (h *Handler) DeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch before deletion for audit before_hash.
+	existing, _ := h.registry.GetDEK(r.Context(), kekName, subject, version, algorithm, true)
+
 	if err := h.registry.DeleteDEK(r.Context(), kekName, subject, version, algorithm, permanent); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
@@ -364,6 +440,15 @@ func (h *Handler) DeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		hints.Version = version
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -386,6 +471,9 @@ func (h *Handler) UndeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch deleted state for before_hash.
+	existing, _ := h.registry.GetDEK(r.Context(), kekName, subject, version, algorithm, true)
+
 	if err := h.registry.UndeleteDEK(r.Context(), kekName, subject, version, algorithm); err != nil {
 		if errors.Is(err, storage.ErrKEKNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
@@ -397,6 +485,18 @@ func (h *Handler) UndeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		hints.Version = version
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
+		if restored, err := h.registry.GetDEK(r.Context(), kekName, subject, version, algorithm, false); err == nil {
+			hints.AfterHash = hashDEK(restored)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -442,6 +542,12 @@ func (h *Handler) CreateDEKWithSubject(w http.ResponseWriter, r *http.Request) {
 		}
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		hints.AfterHash = hashDEK(dek)
 	}
 
 	writeJSON(w, http.StatusOK, dekToResponse(dek))

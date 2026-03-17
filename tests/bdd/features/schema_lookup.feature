@@ -17,6 +17,34 @@ Feature: Schema Lookup
     And the response should have field "id"
     And the response field "version" should be 1
     And the response should have field "schema"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | order-value                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/order-value            |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup non-existent schema in an existing subject returns 404
     Given subject "customer-value" has schema:
@@ -63,6 +91,34 @@ Feature: Schema Lookup
     And the response field "subject" should be "proto-lookup"
     And the response should have field "id"
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | proto-lookup                     |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | PROTOBUF                         |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/proto-lookup           |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup existing JSON Schema with schemaType specified
     Given subject "json-lookup" has "JSON" schema:
@@ -77,6 +133,34 @@ Feature: Schema Lookup
     And the response field "subject" should be "json-lookup"
     And the response should have field "id"
     And the response field "version" should be 1
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | json-lookup                      |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | JSON                             |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/json-lookup            |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup returns correct version when multiple versions exist
     Given the global compatibility level is "NONE"
@@ -99,6 +183,34 @@ Feature: Schema Lookup
     Then the response status should be 200
     And the response field "version" should be 2
     And the response field "subject" should be "multi-ver-lookup"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | multi-ver-lookup                 |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/multi-ver-lookup       |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup after soft-delete returns 404
     Given subject "del-lookup" has schema:
@@ -112,6 +224,34 @@ Feature: Schema Lookup
       {"type":"record","name":"Session","fields":[{"name":"session_id","type":"string"},{"name":"user_id","type":"string"},{"name":"started_at","type":"long"}]}
       """
     Then the response status should be 404
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft              |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | del-lookup                       |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          | sha256:*                         |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | DELETE                           |
+      | path                 | /subjects/del-lookup             |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup after soft-delete with deleted flag returns the schema
     Given subject "del-lookup-recover" has schema:
@@ -128,6 +268,62 @@ Feature: Schema Lookup
     And the response field "subject" should be "del-lookup-recover"
     And the response field "version" should be 1
     And the response should have field "id"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft              |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | del-lookup-recover               |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          | sha256:*                         |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | DELETE                           |
+      | path                 | /subjects/del-lookup-recover     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                              |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | del-lookup-recover                         |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           |                                            |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/del-lookup-recover               |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   Scenario: Lookup does not create a new version
     Given the global compatibility level is "NONE"
@@ -144,6 +340,34 @@ Feature: Schema Lookup
     When I list versions of subject "no-side-effect"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | no-side-effect                   |
+      | schema_id            | *                                |
+      | version              | *                                |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/no-side-effect         |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Lookup with empty schema returns error
     Given subject "empty-lookup" has schema:

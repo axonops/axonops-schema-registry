@@ -5,7 +5,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +15,17 @@ import (
 	"github.com/go-ldap/ldap/v3"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+)
+
+// Sentinel errors for LDAP authentication outcomes.
+// These allow callers to distinguish "user not found" from "wrong password"
+// so that fallback behavior can be scoped appropriately.
+var (
+	// ErrLDAPUserNotFound indicates the user does not exist in LDAP.
+	ErrLDAPUserNotFound = errors.New("ldap: user not found")
+
+	// ErrLDAPInvalidCredentials indicates the user exists in LDAP but the password is wrong.
+	ErrLDAPInvalidCredentials = errors.New("ldap: invalid credentials")
 )
 
 // LDAPProvider handles LDAP authentication.
@@ -27,6 +40,9 @@ func NewLDAPProvider(cfg config.LDAPConfig) (*LDAPProvider, error) {
 	}
 	if cfg.BindDN == "" {
 		return nil, fmt.Errorf("LDAP bind DN is required")
+	}
+	if cfg.BindPassword == "" {
+		return nil, fmt.Errorf("LDAP bind password is required")
 	}
 	if cfg.UserSearchFilter == "" {
 		cfg.UserSearchFilter = "(sAMAccountName=%s)"
@@ -48,6 +64,14 @@ func NewLDAPProvider(cfg config.LDAPConfig) (*LDAPProvider, error) {
 	}
 	if cfg.DefaultRole == "" {
 		cfg.DefaultRole = "readonly"
+	}
+
+	// Warn if LDAP connection is not encrypted — credentials will be in plaintext.
+	if !strings.HasPrefix(cfg.URL, "ldaps://") && !cfg.StartTLS {
+		slog.Warn("LDAP configured without TLS — bind credentials and user passwords will be transmitted in plaintext",
+			slog.String("url", cfg.URL),
+			slog.String("recommendation", "use ldaps:// URL or enable start_tls"),
+		)
 	}
 
 	return &LDAPProvider{
@@ -79,17 +103,30 @@ func (p *LDAPProvider) Authenticate(ctx context.Context, username, password stri
 		return nil, fmt.Errorf("user search failed: %w", err)
 	}
 	if userEntry == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, ErrLDAPUserNotFound
 	}
 
 	// Re-bind with user's credentials to verify password
 	userDN := userEntry.DN
 	if err := conn.Bind(userDN, password); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrLDAPInvalidCredentials
 	}
 
-	// Get user's groups and determine role
+	// Get user's groups from memberOf attribute
 	groups := p.getUserGroups(userEntry)
+
+	// If group search is configured, re-bind as service account and search for groups
+	if p.config.GroupSearchBase != "" && p.config.GroupSearchFilter != "" {
+		if err := conn.Bind(p.config.BindDN, p.config.BindPassword); err != nil {
+			return nil, fmt.Errorf("failed to re-bind for group search: %w", err)
+		}
+		searchedGroups, err := p.searchGroups(conn, userDN)
+		if err != nil {
+			return nil, fmt.Errorf("group search failed: %w", err)
+		}
+		groups = mergeGroups(groups, searchedGroups)
+	}
+
 	role := p.mapGroupsToRole(groups)
 
 	// Extract username and email from entry
@@ -101,7 +138,7 @@ func (p *LDAPProvider) Authenticate(ctx context.Context, username, password stri
 	return &User{
 		Username: actualUsername,
 		Role:     role,
-		Method:   "basic", // LDAP is used via basic auth
+		Method:   "ldap",
 	}, nil
 }
 
@@ -146,6 +183,11 @@ func (p *LDAPProvider) connect() (*ldap.Conn, error) {
 	return conn, nil
 }
 
+// IsSecure returns true if the LDAP connection uses TLS (LDAPS or StartTLS).
+func (p *LDAPProvider) IsSecure() bool {
+	return strings.HasPrefix(p.config.URL, "ldaps://") || p.config.StartTLS
+}
+
 // getTLSConfig returns TLS configuration for LDAP connection.
 func (p *LDAPProvider) getTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
@@ -164,6 +206,15 @@ func (p *LDAPProvider) getTLSConfig() (*tls.Config, error) {
 			return nil, fmt.Errorf("failed to parse CA cert")
 		}
 		tlsConfig.RootCAs = caCertPool
+	}
+
+	// Load client certificate for mTLS if provided
+	if p.config.ClientCertFile != "" && p.config.ClientKeyFile != "" {
+		clientCert, err := tls.LoadX509KeyPair(p.config.ClientCertFile, p.config.ClientKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load LDAP client certificate: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{clientCert}
 	}
 
 	return tlsConfig, nil
@@ -235,9 +286,9 @@ func (p *LDAPProvider) mapGroupsToRole(groups []string) string {
 		// Try matching just the CN (common name)
 		cn := extractCN(group)
 		if cn != "" {
-			// Case-insensitive matching for CN
+			// Constant-time case-insensitive matching for CN
 			for pattern, role := range p.config.RoleMapping {
-				if strings.EqualFold(pattern, cn) || strings.EqualFold(pattern, group) {
+				if constantTimeEqualFold(pattern, cn) || constantTimeEqualFold(pattern, group) {
 					return role
 				}
 			}
@@ -245,6 +296,58 @@ func (p *LDAPProvider) mapGroupsToRole(groups []string) string {
 	}
 
 	return p.config.DefaultRole
+}
+
+// searchGroups searches for groups that a user belongs to using an LDAP query.
+// This is used when memberOf attribute is not available or when groups are stored
+// in a separate subtree that requires an explicit search.
+func (p *LDAPProvider) searchGroups(conn *ldap.Conn, userDN string) ([]string, error) {
+	// Build search filter: replace %s with the user's DN
+	filter := strings.ReplaceAll(p.config.GroupSearchFilter, "%s", ldap.EscapeFilter(userDN))
+
+	searchRequest := ldap.NewSearchRequest(
+		p.config.GroupSearchBase,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, // No size limit
+		p.config.RequestTimeout,
+		false, // TypesOnly
+		filter,
+		[]string{"dn"},
+		nil, // Controls
+	)
+
+	result, err := conn.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := make([]string, 0, len(result.Entries))
+	for _, entry := range result.Entries {
+		groups = append(groups, entry.DN)
+	}
+	return groups, nil
+}
+
+// mergeGroups merges two group lists, removing duplicates (case-insensitive).
+func mergeGroups(a, b []string) []string {
+	seen := make(map[string]struct{}, len(a)+len(b))
+	result := make([]string, 0, len(a)+len(b))
+	for _, g := range a {
+		key := strings.ToLower(g)
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			result = append(result, g)
+		}
+	}
+	for _, g := range b {
+		key := strings.ToLower(g)
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			result = append(result, g)
+		}
+	}
+	return result
 }
 
 // extractCN extracts the Common Name (CN) from a Distinguished Name (DN).

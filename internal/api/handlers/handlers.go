@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,12 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
-
-// errInvalidVersion is returned when a version string is not valid.
-var errInvalidVersion = errors.New("invalid version")
 
 // schemaTypeForResponse returns the schema type string for API responses.
 // Always returns a non-empty type string; defaults to "AVRO" if unset.
@@ -33,6 +33,7 @@ func schemaTypeForResponse(st storage.SchemaType) string {
 // Handler provides HTTP handlers for the schema registry.
 type Handler struct {
 	registry  *registry.Registry
+	metrics   *metrics.Metrics
 	clusterID string
 	version   string
 	commit    string
@@ -67,50 +68,50 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 	}
 }
 
-// checkModeForWrite checks if the current mode allows write operations for the given subject.
-// Returns:
-//   - mode string: non-empty if writes are blocked by READONLY or READONLY_OVERRIDE
-//   - error: non-nil if the mode check itself failed (e.g. storage unreachable)
-//
-// Both READONLY and READONLY_OVERRIDE block data and config writes.
-func (h *Handler) checkModeForWrite(r *http.Request, registryCtx string, subject string) (string, error) {
-	mode, err := h.registry.GetMode(r.Context(), registryCtx, subject)
-	if err != nil {
-		return "", fmt.Errorf("failed to check mode: %w", err)
-	}
-	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
-		return mode, nil
-	}
-	return "", nil
+// SetMetrics sets the metrics instance for recording schema operation metrics.
+func (h *Handler) SetMetrics(m *metrics.Metrics) {
+	h.metrics = m
 }
 
-// resolveAlias resolves a subject alias. If the subject has an alias configured,
-// the alias target is returned. Otherwise the original subject is returned.
-// Alias resolution is single-level (no recursive chaining).
-func (h *Handler) resolveAlias(ctx context.Context, registryCtx string, subject string) string {
+// getPreviousSubjectConfig returns the previous config for audit before_hash.
+// For subject-specific configs, uses direct lookup (no fallback to global default)
+// so that the first subject-specific config write has no before_hash.
+// For global configs (subject=""), checks the existing global config.
+func (h *Handler) getPreviousSubjectConfig(ctx context.Context, registryCtx, subject string) string {
 	if subject == "" {
-		return subject
+		// Global config: check if a global config exists.
+		config, err := h.registry.GetGlobalConfig(ctx, registryCtx)
+		if err != nil {
+			return ""
+		}
+		return config
 	}
-	config, err := h.registry.GetSubjectConfigFull(ctx, registryCtx, subject)
-	if err == nil && config.Alias != "" {
-		return config.Alias
+	config, err := h.registry.GetSubjectConfig(ctx, registryCtx, subject)
+	if err != nil {
+		return ""
 	}
-	return subject
+	return config
 }
 
-// parseSchemaType validates and returns the schema type from a request.
-// Confluent is case-sensitive: only "AVRO", "PROTOBUF", and "JSON" are accepted.
-// Empty string defaults to AVRO. Returns empty string and false for invalid types.
-func parseSchemaType(raw string) (storage.SchemaType, bool) {
-	if raw == "" {
-		return storage.SchemaTypeAvro, true
+// getPreviousSubjectMode returns the previous mode for audit before_hash.
+// For subject-specific modes, uses direct lookup (no fallback to global default)
+// so that the first subject-specific mode write has no before_hash.
+// For global modes (subject=""), checks the existing global mode.
+func (h *Handler) getPreviousSubjectMode(ctx context.Context, registryCtx, subject string) string {
+	if subject == "" {
+		// Use GetGlobalModeDirect which falls back to "READWRITE" when no mode
+		// is explicitly stored, so before_hash always reflects the logical state.
+		mode, err := h.registry.GetGlobalModeDirect(ctx, registryCtx)
+		if err != nil {
+			return ""
+		}
+		return mode
 	}
-	switch storage.SchemaType(raw) {
-	case storage.SchemaTypeAvro, storage.SchemaTypeProtobuf, storage.SchemaTypeJSON:
-		return storage.SchemaType(raw), true
-	default:
-		return "", false
+	mode, err := h.registry.GetSubjectMode(ctx, registryCtx, subject)
+	if err != nil {
+		return ""
 	}
+	return mode
 }
 
 // HealthCheck handles GET /
@@ -327,7 +328,7 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 
@@ -378,10 +379,10 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -558,18 +559,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 
-	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeInternalError(w, modeErr)
-		return
-	} else if mode != "" {
-		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
-			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
-		return
-	}
-
+	// Parse request body and set audit hints BEFORE mode enforcement so that
+	// all exit paths (including READONLY/IMPORT blocks) have full audit context.
 	var req types.RegisterSchemaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")
@@ -581,7 +574,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
@@ -590,12 +583,42 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
+	// Set audit hints early so ALL failure paths capture them — including
+	// mode enforcement, compatibility, and parse errors. SchemaType is a
+	// property of the request (what was attempted), not the outcome.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
+		hints.Context = registryCtx
+	}
+
+	// Check mode enforcement
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
+		writeInternalError(w, modeErr)
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
+	// Capture previous fingerprint for audit change integrity.
+	var prevFingerprint string
+	if prev, _ := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); prev != nil {
+		prevFingerprint = prev.Fingerprint
+	}
+
 	var schema *storage.SchemaRecord
 	var err error
 
 	// Confluent behavior: IMPORT mode requires explicit ID, READWRITE mode requires no ID.
 	// These are mutually exclusive operational modes.
 	if req.ID > 0 {
+		// Set schema ID hint early so failure paths capture it.
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			hints.SchemaID = req.ID
+		}
 		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
 			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
@@ -649,6 +672,9 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
+			if hints := auth.GetAuditHints(r.Context()); hints != nil {
+				hints.Reason = "incompatible"
+			}
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
 			return
 		}
@@ -659,6 +685,27 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordSchemaRegistration(string(schema.SchemaType), true)
+		h.metrics.SchemaVersions.WithLabelValues(subject).Set(float64(schema.Version))
+	}
+
+	// Set audit hints for change integrity tracking.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevFingerprint != "" {
+			hints.BeforeHash = "sha256:" + prevFingerprint
+		}
+		if schema.Fingerprint != "" {
+			hints.AfterHash = "sha256:" + schema.Fingerprint
+		}
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schema.SchemaType)
+		hints.SchemaID = schema.ID
+		hints.Version = schema.Version
+		hints.Context = registryCtx
 	}
 
 	writeJSON(w, http.StatusOK, types.RegisterSchemaResponse{
@@ -672,7 +719,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 
 	var req types.LookupSchemaRequest
@@ -686,11 +733,20 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
 		return
+	}
+
+	// Set audit hints early so failure paths capture target info.
+	// SchemaType is a property of the request (what type was being looked up).
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
+		hints.Context = registryCtx
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
@@ -700,7 +756,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, fmt.Sprintf("Subject '%s' not found.", subject))
 			return
 		}
-		if errors.Is(err, storage.ErrSchemaNotFound) {
+		if errors.Is(err, storage.ErrSchemaNotFound) || errors.Is(err, storage.ErrVersionNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
@@ -710,6 +766,12 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set schema ID and version on audit hints after successful lookup.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.SchemaID = schema.ID
+		hints.Version = schema.Version
 	}
 
 	resp := types.LookupSchemaResponse{
@@ -734,17 +796,34 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
 		return
+	}
+
+	// Capture schema type and fingerprint before deletion for metrics and audit.
+	var deletionSchemaType string
+	var beforeFingerprint string
+	if latest, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); err == nil {
+		deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
+		beforeFingerprint = latest.Fingerprint
+	} else if permanent {
+		// For permanent deletes the subject is already soft-deleted, so GetLatestSchema
+		// (which only returns non-deleted schemas) fails. Fetch including deleted schemas
+		// to capture before_hash for audit.
+		if schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, true); err == nil && len(schemas) > 0 {
+			latest := schemas[len(schemas)-1]
+			deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
+			beforeFingerprint = latest.Fingerprint
+		}
 	}
 
 	versions, err := h.registry.DeleteSubject(r.Context(), registryCtx, subject, permanent)
@@ -771,6 +850,22 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.metrics != nil {
+		for range versions {
+			h.metrics.RecordSchemaDeletion(deletionSchemaType)
+		}
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		hints.SchemaType = deletionSchemaType
+		if beforeFingerprint != "" {
+			hints.BeforeHash = "sha256:" + beforeFingerprint
+		}
+	}
+
 	writeJSON(w, http.StatusOK, versions)
 }
 
@@ -780,12 +875,12 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -794,11 +889,39 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
 		return
+	}
+
+	// Capture schema details before deletion for metrics and audit.
+	var deletionSchemaType string
+	var beforeFingerprint string
+	var beforeSchemaType string
+	var beforeSchemaID int64
+	if schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version); err == nil {
+		deletionSchemaType = schemaTypeForResponse(schema.SchemaType)
+		beforeFingerprint = schema.Fingerprint
+		beforeSchemaType = schemaTypeForResponse(schema.SchemaType)
+		beforeSchemaID = schema.ID
+	} else if permanent {
+		// For permanent deletes the version is already soft-deleted, so GetSchemaBySubjectVersion
+		// (which rejects deleted versions) fails. Fetch including deleted schemas to capture
+		// before_hash, schema_type, and schema_id for audit.
+		if schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, true); err == nil {
+			for _, s := range schemas {
+				// Handle "latest" (-1): match the highest-versioned deleted schema.
+				if s.Version == version || (version == -1 && s.Version == schemas[len(schemas)-1].Version) {
+					deletionSchemaType = schemaTypeForResponse(s.SchemaType)
+					beforeFingerprint = s.Fingerprint
+					beforeSchemaType = schemaTypeForResponse(s.SchemaType)
+					beforeSchemaID = s.ID
+					break
+				}
+			}
+		}
 	}
 
 	deletedVersion, err := h.registry.DeleteVersion(r.Context(), registryCtx, subject, version, permanent)
@@ -822,6 +945,26 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordSchemaDeletion(deletionSchemaType)
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		hints.Version = deletedVersion
+		if beforeFingerprint != "" {
+			hints.BeforeHash = "sha256:" + beforeFingerprint
+		}
+		if beforeSchemaType != "" {
+			hints.SchemaType = beforeSchemaType
+		}
+		if beforeSchemaID != 0 {
+			hints.SchemaID = beforeSchemaID
+		}
 	}
 
 	writeJSON(w, http.StatusOK, deletedVersion)
@@ -871,7 +1014,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -897,6 +1040,12 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture previous subject-specific config for audit change integrity.
+	// We use GetConfigDirect (no fallback to global default) so that the
+	// first subject-specific config write has no before_hash — the test
+	// assertions expect before_hash="" when no prior subject config exists.
+	prevConfig := h.getPreviousSubjectConfig(r.Context(), registryCtx, subject)
+
 	configOpts := registry.SetConfigOpts{
 		Alias:               req.Alias,
 		CompatibilityGroup:  req.CompatibilityGroup,
@@ -921,6 +1070,17 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints for config change integrity — hash full config struct.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevConfig != "" {
+			hints.BeforeHash = hashString(prevConfig)
+		}
+		hints.AfterHash = hashConfigRequest(&req)
+		hints.TargetType = "config"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+	}
+
 	resp := types.ConfigRequest{
 		Compatibility:       strings.ToUpper(req.Compatibility),
 		Normalize:           req.Normalize,
@@ -942,7 +1102,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -961,6 +1121,15 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "config"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		if level != "" {
+			hints.BeforeHash = hashString(level)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
 		CompatibilityLevel: level,
 	})
@@ -972,7 +1141,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	var req types.CompatibilityCheckRequest
@@ -986,7 +1155,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type: %s", req.SchemaType))
@@ -997,6 +1166,9 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	result, err := h.registry.CheckCompatibility(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
 	if err != nil {
 		if errors.Is(err, registry.ErrInvalidSchema) {
+			if h.metrics != nil {
+				h.metrics.RecordCompatibilityError(string(schemaType), "")
+			}
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -1019,8 +1191,21 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, err.Error())
 			return
 		}
+		if h.metrics != nil {
+			h.metrics.RecordCompatibilityError(string(schemaType), "")
+		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordCompatibilityCheck(string(schemaType), "", result.IsCompatible)
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
 	}
 
 	verbose := r.URL.Query().Get("verbose") == "true"
@@ -1039,10 +1224,10 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -1141,6 +1326,8 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	// (resets to global default). This matches Confluent's ModeResource.updateMode
 	// where Optional.empty() mode results in a tombstone write.
 	if req.Mode == "" {
+		// Capture previous mode for audit before the delete.
+		prevMode := h.getPreviousSubjectMode(r.Context(), registryCtx, subject)
 		if subject != "" {
 			if _, err := h.registry.DeleteMode(r.Context(), registryCtx, subject); err != nil && !errors.Is(err, storage.ErrNotFound) {
 				writeInternalError(w, err)
@@ -1152,9 +1339,25 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		// Set audit hints for mode reset/delete.
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			if prevMode != "" {
+				hints.BeforeHash = hashString(prevMode)
+			}
+			// After hash is the default mode "READWRITE" since we're resetting.
+			hints.AfterHash = hashString("READWRITE")
+			hints.TargetType = "mode"
+			hints.TargetID = chi.URLParam(r, "subject")
+			hints.Context = registryCtx
+		}
 		writeJSON(w, http.StatusOK, types.ModeResponse{})
 		return
 	}
+
+	// Capture previous subject-specific mode for audit change integrity.
+	// Uses direct lookup (no fallback to global default) so that the first
+	// subject-specific mode write has no before_hash.
+	prevMode := h.getPreviousSubjectMode(r.Context(), registryCtx, subject)
 
 	if err := h.registry.SetMode(r.Context(), registryCtx, subject, req.Mode, force); err != nil {
 		if errors.Is(err, registry.ErrInvalidMode) {
@@ -1169,13 +1372,22 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints for mode change integrity.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevMode != "" {
+			hints.BeforeHash = hashString(prevMode)
+		}
+		hints.AfterHash = hashString(strings.ToUpper(req.Mode))
+		hints.TargetType = "mode"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+	}
+
 	writeJSON(w, http.StatusOK, types.ModeResponse{
 		Mode: strings.ToUpper(req.Mode),
 	})
 }
 
-// parseVersion parses a version string, handling "latest" and "-1".
-// Returns errInvalidVersion for non-numeric strings, zero, or negative values (other than -1).
 // parsePagination extracts offset and limit query params and applies them to a slice length.
 // Returns the start and end indices for slicing.
 func parsePagination(r *http.Request, total int) (start, end int) {
@@ -1202,20 +1414,6 @@ func parsePagination(r *http.Request, total int) (start, end int) {
 	return start, end
 }
 
-func parseVersion(s string) (int, error) {
-	if s == "latest" || s == "-1" {
-		return -1, nil
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, errInvalidVersion
-	}
-	if v < 1 {
-		return 0, errInvalidVersion
-	}
-	return v, nil
-}
-
 // configToResponse converts a ConfigRecord to a ConfigResponse.
 func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
 	return types.ConfigResponse{
@@ -1237,17 +1435,21 @@ func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Debug("json encode error", "error", err)
+	}
 }
 
 // writeError writes an error response.
 func writeError(w http.ResponseWriter, status int, code int, message string) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(types.ErrorResponse{
+	if err := json.NewEncoder(w).Encode(types.ErrorResponse{
 		ErrorCode: code,
 		Message:   message,
-	})
+	}); err != nil {
+		slog.Debug("json encode error", "error", err)
+	}
 }
 
 // writeInternalError writes a generic 500 error response and logs the actual error.
@@ -1437,6 +1639,12 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints early so even early rejections capture them.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.Context = registryCtx
+	}
+
 	// Bulk import requires IMPORT mode (Confluent behavior)
 	mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, "")
 	if modeErr != nil {
@@ -1460,16 +1668,53 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints from parsed request body.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		seen := make(map[string]struct{})
+		var subjects []string
+		for _, s := range req.Schemas {
+			if _, ok := seen[s.Subject]; !ok && s.Subject != "" {
+				seen[s.Subject] = struct{}{}
+				subjects = append(subjects, s.Subject)
+			}
+		}
+		// Only set target_id for single-subject imports; multi-subject is ambiguous.
+		if len(subjects) == 1 {
+			hints.TargetID = subjects[0]
+		}
+		// Set schema_id from the first schema in the request.
+		if len(req.Schemas) > 0 {
+			hints.SchemaID = req.Schemas[0].ID
+		}
+	}
+
 	// Convert API types to registry types
 	importReqs := make([]registry.ImportSchemaRequest, len(req.Schemas))
 	for i, s := range req.Schemas {
+		schemaType := storage.SchemaType(strings.ToUpper(s.SchemaType))
+		if schemaType == "" {
+			schemaType = storage.SchemaTypeAvro
+		}
 		importReqs[i] = registry.ImportSchemaRequest{
 			ID:         s.ID,
 			Subject:    s.Subject,
 			Version:    s.Version,
-			SchemaType: storage.SchemaType(strings.ToUpper(s.SchemaType)),
+			SchemaType: schemaType,
 			Schema:     s.Schema,
 			References: s.References,
+		}
+	}
+
+	// Set schema_type hint from the converted import requests (after defaulting).
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		schemaTypes := make(map[storage.SchemaType]struct{})
+		for _, req := range importReqs {
+			schemaTypes[req.SchemaType] = struct{}{}
+		}
+		if len(schemaTypes) == 1 {
+			for t := range schemaTypes {
+				hints.SchemaType = string(t)
+			}
 		}
 	}
 
@@ -1477,30 +1722,32 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Even on error, we might have partial results
 		if result != nil {
-			resp := types.ImportSchemasResponse{
-				Imported: result.Imported,
-				Errors:   result.Errors,
-				Results:  make([]types.ImportSchemaResult, len(result.Results)),
-			}
-			for i, r := range result.Results {
-				resp.Results[i] = types.ImportSchemaResult{
-					ID:      r.ID,
-					Subject: r.Subject,
-					Version: r.Version,
-					Success: r.Success,
-					Error:   r.Error,
-				}
-			}
-			// Return partial success with warning
+			resp := importResultToResponse(result)
 			w.Header().Set("X-Warning", err.Error())
-			writeJSON(w, http.StatusOK, resp)
+			statusCode := importStatusCode(result)
+			setImportOutcomeHint(r, result)
+			writeJSON(w, statusCode, resp)
 			return
 		}
 		writeInternalError(w, err)
 		return
 	}
 
-	// Convert result to response
+	// Set after_hash for fully successful imports.
+	if result.Imported > 0 && result.Errors == 0 {
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			hints.AfterHash = hashImportResult(result)
+		}
+	}
+
+	resp := importResultToResponse(result)
+	statusCode := importStatusCode(result)
+	setImportOutcomeHint(r, result)
+	writeJSON(w, statusCode, resp)
+}
+
+// importResultToResponse converts a registry.ImportResult to an API response type.
+func importResultToResponse(result *registry.ImportResult) types.ImportSchemasResponse {
 	resp := types.ImportSchemasResponse{
 		Imported: result.Imported,
 		Errors:   result.Errors,
@@ -1515,8 +1762,30 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 			Error:   r.Error,
 		}
 	}
+	return resp
+}
 
-	writeJSON(w, http.StatusOK, resp)
+// importStatusCode returns the appropriate HTTP status code for an import result.
+// Total failure (0 imported, errors > 0) returns 422; otherwise 200.
+func importStatusCode(result *registry.ImportResult) int {
+	if result.Imported == 0 && result.Errors > 0 {
+		return http.StatusUnprocessableEntity // 422
+	}
+	return http.StatusOK
+}
+
+// setImportOutcomeHint sets the audit outcome hint based on import results.
+// Total failure → "failure", partial success → "partial_failure", full success → left unset.
+func setImportOutcomeHint(r *http.Request, result *registry.ImportResult) {
+	hints := auth.GetAuditHints(r.Context())
+	if hints == nil {
+		return
+	}
+	if result.Imported == 0 && result.Errors > 0 {
+		hints.Outcome = "failure"
+	} else if result.Errors > 0 {
+		hints.Outcome = "partial_failure"
+	}
 }
 
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema
@@ -1525,10 +1794,10 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -1576,7 +1845,7 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, ""); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, ""); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -1589,6 +1858,15 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "config"
+		hints.TargetID = ""
+		hints.Context = registryCtx
+		if level != "" {
+			hints.BeforeHash = hashString(level)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
@@ -1610,6 +1888,15 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "mode"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		if mode != "" {
+			hints.BeforeHash = hashString(mode)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, types.ModeResponse{
 		Mode: mode,
 	})
@@ -1623,6 +1910,15 @@ func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "mode"
+		hints.TargetID = ""
+		hints.Context = registryCtx
+		if mode != "" {
+			hints.BeforeHash = hashString(mode)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ModeResponse{
@@ -1674,7 +1970,7 @@ func (h *Handler) GetSubjectMetadata(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 
 	// Check for key/value metadata query parameters.
 	// The Confluent Go client sends: ?deleted=true&key=major&value=1
@@ -1782,4 +2078,172 @@ func (h *Handler) resolveReferenceSchemasForResponse(ctx context.Context, regist
 		}
 	}
 	return resolved
+}
+
+// hashString returns "sha256:<hex>" for a non-empty string, used for audit change integrity.
+func hashString(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return fmt.Sprintf("sha256:%x", h)
+}
+
+// hashKEK returns a sha256 hash of the KEK's non-sensitive metadata.
+// Excludes KmsProps which MAY contain credentials.
+func hashKEK(kek *storage.KEKRecord) string {
+	obj := struct {
+		Name     string `json:"name"`
+		KmsType  string `json:"kmsType"`
+		KmsKeyID string `json:"kmsKeyId"`
+		Doc      string `json:"doc"`
+		Shared   bool   `json:"shared"`
+		Deleted  bool   `json:"deleted"`
+	}{
+		Name:     kek.Name,
+		KmsType:  kek.KmsType,
+		KmsKeyID: kek.KmsKeyID,
+		Doc:      kek.Doc,
+		Shared:   kek.Shared,
+		Deleted:  kek.Deleted,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashDEK returns a sha256 hash of the DEK's non-sensitive metadata.
+// Excludes EncryptedKeyMaterial and KeyMaterial.
+func hashDEK(dek *storage.DEKRecord) string {
+	obj := struct {
+		Subject   string `json:"subject"`
+		Version   int    `json:"version"`
+		Algorithm string `json:"algorithm"`
+		Deleted   bool   `json:"deleted"`
+	}{
+		Subject:   dek.Subject,
+		Version:   dek.Version,
+		Algorithm: dek.Algorithm,
+		Deleted:   dek.Deleted,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashExporter returns a sha256 hash of the exporter's non-sensitive metadata.
+// Excludes Config map which MAY contain credentials or connection strings.
+func hashExporter(exp *storage.ExporterRecord) string {
+	obj := struct {
+		Name                string   `json:"name"`
+		ContextType         string   `json:"contextType"`
+		Context             string   `json:"context"`
+		Subjects            []string `json:"subjects"`
+		SubjectRenameFormat string   `json:"subjectRenameFormat"`
+	}{
+		Name:                exp.Name,
+		ContextType:         exp.ContextType,
+		Context:             exp.Context,
+		Subjects:            exp.Subjects,
+		SubjectRenameFormat: exp.SubjectRenameFormat,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashExporterStatus returns a sha256 hash of the exporter status state.
+func hashExporterStatus(status *storage.ExporterStatusRecord) string {
+	obj := struct {
+		State  string `json:"state"`
+		Offset int64  `json:"offset"`
+	}{
+		State:  status.State,
+		Offset: status.Offset,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashUser returns a sha256 hash of the user's non-sensitive metadata.
+// Excludes PasswordHash which MUST NOT appear in audit logs.
+func hashUser(user *storage.UserRecord) string {
+	obj := struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		Enabled  bool   `json:"enabled"`
+	}{
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+		Enabled:  user.Enabled,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashAPIKey returns a sha256 hash of the API key's non-sensitive metadata.
+// Excludes KeyHash and full key material which MUST NOT appear in audit logs.
+func hashAPIKey(key *storage.APIKeyRecord) string {
+	obj := struct {
+		Name      string `json:"name"`
+		Role      string `json:"role"`
+		UserID    int64  `json:"userId"`
+		Enabled   bool   `json:"enabled"`
+		KeyPrefix string `json:"keyPrefix"`
+	}{
+		Name:      key.Name,
+		Role:      key.Role,
+		UserID:    key.UserID,
+		Enabled:   key.Enabled,
+		KeyPrefix: key.KeyPrefix,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashImportResult returns a sha256 hash of the successfully imported schemas.
+func hashImportResult(result *registry.ImportResult) string {
+	type importEntry struct {
+		ID      int64  `json:"id"`
+		Subject string `json:"subject"`
+		Version int    `json:"version"`
+	}
+	var entries []importEntry
+	for _, r := range result.Results {
+		if r.Success {
+			entries = append(entries, importEntry{
+				ID:      r.ID,
+				Subject: r.Subject,
+				Version: r.Version,
+			})
+		}
+	}
+	data, _ := json.Marshal(entries)
+	return hashString(string(data))
+}
+
+// hashConfigRequest returns a sha256 hash of the full config request struct.
+// Hashes all config fields, not just the compatibility level.
+func hashConfigRequest(req *types.ConfigRequest) string {
+	obj := struct {
+		Compatibility       string            `json:"compatibility"`
+		Alias               string            `json:"alias,omitempty"`
+		CompatibilityGroup  string            `json:"compatibilityGroup,omitempty"`
+		ValidateFields      *bool             `json:"validateFields,omitempty"`
+		DefaultMetadata     *storage.Metadata `json:"defaultMetadata,omitempty"`
+		OverrideMetadata    *storage.Metadata `json:"overrideMetadata,omitempty"`
+		DefaultRuleSet      *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+		OverrideRuleSet     *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+		AliasForDeks        string            `json:"aliasForDeks,omitempty"`
+		CompatibilityPolicy string            `json:"compatibilityPolicy,omitempty"`
+	}{
+		Compatibility:       strings.ToUpper(req.Compatibility),
+		Alias:               req.Alias,
+		CompatibilityGroup:  req.CompatibilityGroup,
+		ValidateFields:      req.ValidateFields,
+		DefaultMetadata:     req.DefaultMetadata,
+		OverrideMetadata:    req.OverrideMetadata,
+		DefaultRuleSet:      req.DefaultRuleSet,
+		OverrideRuleSet:     req.OverrideRuleSet,
+		AliasForDeks:        req.AliasForDeks,
+		CompatibilityPolicy: req.CompatibilityPolicy,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
 }

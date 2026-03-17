@@ -30,6 +30,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""},{"name":"ts","type":"long","default":0}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-chain-1                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-chain-1/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro BACKWARD vs BACKWARD_TRANSITIVE - non-transitive passes, transitive fails
     # v1={id, code:string}, v2={id} (drops code), v3={id, code:int default:0} (re-adds code as int).
@@ -51,6 +79,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Event","fields":[{"name":"id","type":"string"},{"name":"code","type":"int","default":0}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-vs-b                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-vs-b/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro BACKWARD_TRANSITIVE catches what BACKWARD misses
     # Same schema chain as above, but under BACKWARD_TRANSITIVE.
@@ -91,6 +147,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Metric","fields":[{"name":"value","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-promo                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-promo/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro BACKWARD_TRANSITIVE - enum grows across 3 versions
     # Adding enum symbols is backward-compatible: new reader has superset of symbols.
@@ -109,6 +193,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Order","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["NEW","PROCESSING","DONE"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-enum                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-enum/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro BACKWARD_TRANSITIVE - 4 versions progressive field addition
     # Each version adds a field with a default. Backward-compatible against all prior versions.
@@ -130,6 +242,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"User","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""},{"name":"email","type":"string","default":""},{"name":"age","type":"int","default":0}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-4ver                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-4ver/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro FORWARD_TRANSITIVE - 3 versions compatible
     # For Avro FORWARD: old reader reads new writer data. Old reader ignores unknown fields.
@@ -149,6 +289,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"},{"name":"tag","type":["null","string"],"default":null},{"name":"src","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-ft-chain-1                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-ft-chain-1/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro FORWARD_TRANSITIVE - v3 removes field from v1
     # v1={id, name}, v2={id, name, tag}. Forward-compatible (v1 ignores tag).
@@ -192,6 +360,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"},{"name":"code","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-ft-vs-f                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-ft-vs-f/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro FORWARD_TRANSITIVE catches what FORWARD misses
     # Same v1, v2 as above, registered under NONE. Switch to FORWARD_TRANSITIVE.
@@ -233,6 +429,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"},{"name":"tag","type":["null","string"],"default":null},{"name":"src","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-flt-safe                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-flt-safe/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro FULL_TRANSITIVE - promotion fails (one-directional)
     # Type promotion (int->long) is backward-compatible but NOT forward-compatible.
@@ -279,6 +503,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"User","fields":[{"name":"id","type":"int"},{"name":"name","type":["null","string"],"default":null},{"name":"email","type":["null","string"],"default":null},{"name":"phone","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-flt-4v                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-flt-4v/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Avro BACKWARD_TRANSITIVE - 5 version complex evolution
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -303,6 +555,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"record","name":"Order","fields":[{"name":"id","type":"int"},{"name":"amount","type":"float"},{"name":"currency","type":"string","default":"USD"},{"name":"region","type":"string","default":"US"},{"name":"ts","type":"long","default":0},{"name":"tag","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | avro-bt-5v                            |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/avro-bt-5v/versions         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # JSON SCHEMA TRANSITIVE CHAINS
@@ -325,6 +605,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-chain-1                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-chain-1/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - v3 adds required prop (fails vs v1)
     # With closed model: v2 adds optional name (compatible). v3 makes name required.
@@ -363,6 +671,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"array","items":{"type":"string"},"minItems":3}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-vs-b                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-vs-b/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - constraint relaxation chain
     # Relaxing maxLength is backward-compatible: new schema accepts wider range.
@@ -381,6 +717,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"name":{"type":"string","maxLength":200}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-relax                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-relax/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - 4 versions progressive evolution (closed model)
     # With closed content model, progressive property additions are backward-compatible.
@@ -402,6 +766,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-4v                            |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-4v/versions         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema FORWARD_TRANSITIVE - 3 versions compatible (closed model)
     # With closed content model, properties in reader(old) not in writer(new) are
@@ -420,6 +812,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-ft-chain-1                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-ft-chain-1/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema FORWARD_TRANSITIVE - property removal fails chain
     # v1={id, name, email, required:[id,name]}, v2={id, name, required:[id,name]}.
@@ -475,6 +895,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"],"title":"v3"}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-flt-safe                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-flt-safe/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema FULL_TRANSITIVE - adding required property fails
     # v1={id}, v2={id, name optional}. Under FULL_TRANSITIVE:
@@ -513,6 +961,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"status":{"type":"string","enum":["NEW","ACTIVE","DONE"]}},"required":["status"]}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-enum                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-enum/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - nested object evolution (closed model)
     # With closed content model on nested objects, adding properties is compatible.
@@ -530,6 +1006,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"},"zip":{"type":"string"}},"additionalProperties":false}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-nested                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-nested/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - 5 version chain (closed model)
     # With closed content model, progressive property additions are backward-compatible.
@@ -555,6 +1059,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"},"c":{"type":"string"},"d":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | json-bt-5v                            |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | JSON                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/json-bt-5v/versions         |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # PROTOBUF TRANSITIVE CHAINS
@@ -590,6 +1122,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-chain-1                      |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-chain-1/versions   |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf BACKWARD vs BACKWARD_TRANSITIVE differentiator
     # v1={id, code:string}, v2={id} (removes code). Under BACKWARD, the checker
@@ -623,6 +1183,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-vs-b                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-vs-b/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf BACKWARD_TRANSITIVE catches field number type change
     # Same v1, v2 as above but registered under NONE. Switch to BACKWARD_TRANSITIVE.
@@ -682,6 +1270,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-typegroup                    |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-typegroup/versions |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf BACKWARD_TRANSITIVE - 4 versions progressive fields
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -720,6 +1336,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-4v                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-4v/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf BACKWARD_TRANSITIVE - enum evolution across 3 versions
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -757,6 +1401,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-enum                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-enum/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FORWARD_TRANSITIVE - 3 versions compatible
     # Type-group changes within the varint group (int32, uint32, int64, uint64, bool)
@@ -787,6 +1459,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-ft-chain-1                      |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-ft-chain-1/versions   |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FORWARD_TRANSITIVE - field removal compatible
     # Field removal is wire-safe in proto3 (readers ignore unknown fields, use
@@ -819,6 +1519,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-ft-remove                       |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-ft-remove/versions    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FORWARD vs FORWARD_TRANSITIVE differentiator
     # v1=sint32 (zigzag group), v2=int32 (varint group), registered under NONE.
@@ -847,6 +1575,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-ft-vs-f                         |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-ft-vs-f/versions      |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FORWARD_TRANSITIVE catches what FORWARD misses
     # Same v1=sint32, v2=int32 as above. FORWARD_TRANSITIVE v3=uint32:
@@ -905,6 +1661,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-flt-safe                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-flt-safe/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FULL_TRANSITIVE - field removal compatible
     # Field removal is wire-safe in proto3. v3 removes name — compatible with
@@ -937,6 +1721,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-flt-fail                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-flt-fail/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf BACKWARD_TRANSITIVE - 5 version complex evolution
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -991,6 +1803,34 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-bt-5v                           |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-bt-5v/versions        |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Protobuf FULL_TRANSITIVE - 4-version safe evolution
     # Type-group changes within the varint group are FULL-compatible.
@@ -1029,3 +1869,31 @@ Feature: Transitive Compatibility - Multi-Version Chains
       }
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | proto-flt-4v                          |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | PROTOBUF                              |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/proto-flt-4v/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |

@@ -67,6 +67,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm2:flexible/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.cfgm2:flexible                          |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm2                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.cfgm2:flexible/versions       |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 3: DELETE PER-SUBJECT CONFIG FALLS BACK TO SERVER DEFAULT
@@ -106,6 +134,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain an event:
+      | event_type           | config_delete                             |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | config                                    |
+      | target_id            | :.cfgm3:fallback                          |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .cfgm3                                    |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /config/:.cfgm3:fallback                  |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 4: READONLY MODE BLOCKS REGISTRATION IN CONTEXT
@@ -135,6 +191,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
+    And the audit log should contain an event:
+      | event_type           | mode_update                               |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | mode                                      |
+      | target_id            | :.cfgm4:readonly-test                     |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm4                                    |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /mode/:.cfgm4:readonly-test               |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 5: READWRITE MODE ALLOWS REGISTRATION AFTER MODE CHANGE
@@ -175,6 +259,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm5:rw-test/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.cfgm5:rw-test                           |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm5                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.cfgm5:rw-test/versions        |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 6: MODE IN ONE CONTEXT DOES NOT AFFECT ANOTHER
@@ -212,6 +324,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"schema": "{\"type\":\"record\",\"name\":\"ModeIsoB\",\"namespace\":\"com.cfgm.s6b\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":[\"null\",\"string\"],\"default\":null}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.cfgm6b:mode-iso                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm6b                                   |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.cfgm6b:mode-iso/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 7: CONFIG IN ONE CONTEXT DOES NOT LEAK TO ANOTHER
@@ -250,6 +390,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.cfgm7a:cfg-leak                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm7a                                   |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.cfgm7a:cfg-leak/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 8: GLOBAL MODE APPLIES TO CONTEXT SUBJECTS
@@ -281,6 +449,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type           | mode_update                               |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | mode                                      |
+      | target_id            | _global                                   |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /mode                                     |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 9: PER-SUBJECT MODE OVERRIDES GLOBAL MODE IN CONTEXT
@@ -316,6 +512,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
+    And the audit log should contain an event:
+      | event_type           | mode_update                               |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | mode                                      |
+      | target_id            | :.cfgm9:override                          |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm9                                    |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /mode/:.cfgm9:override                    |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 10: DELETE PER-SUBJECT MODE RESTORES DEFAULT BEHAVIOR
@@ -354,6 +578,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm10:mode-del/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | mode_delete                               |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | mode                                      |
+      | target_id            | :.cfgm10:mode-del                         |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .cfgm10                                   |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /mode/:.cfgm10:mode-del                   |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 11: COMPATIBILITY CHECK RESPECTS CONTEXT CONFIG
@@ -432,3 +684,31 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.cfgm12:avro-evo                         |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm12                                   |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.cfgm12:avro-evo/versions      |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |

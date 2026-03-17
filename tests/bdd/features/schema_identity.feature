@@ -41,6 +41,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     When I GET "/subjects/identity-dedup-plain/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | identity-dedup-plain                     |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/identity-dedup-plain/versions  |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 2. SAME SCHEMA + DIFFERENT METADATA = SAME ID, NEW VERSION
@@ -85,6 +113,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response body should contain "team-platform"
     And the response body should contain "events"
     And the response field "id" should equal stored "base_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | identity-meta-diff                      |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/identity-meta-diff/versions   |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   # ==========================================================================
   # 3. SAME SCHEMA + SAME METADATA = DEDUP (SAME ID, SAME VERSION)
@@ -122,6 +178,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     When I GET "/subjects/identity-meta-same/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | identity-meta-same                      |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/identity-meta-same/versions   |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   # ==========================================================================
   # 4. SAME SCHEMA + DIFFERENT RULESET = SAME ID, NEW VERSION
@@ -182,6 +266,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     Then the response status should be 200
     And the response body should contain "checkEmailFormat"
     And the response field "id" should equal stored "rules_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | identity-rules-diff                      |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/identity-rules-diff/versions   |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 5. SCHEMA WITH METADATA, THEN SAME SCHEMA WITHOUT = NEW VERSION
@@ -222,6 +334,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     Then the response status should be 200
     And the response body should contain "classification"
     And the response body should contain "internal"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | identity-meta-then-none                      |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/identity-meta-then-none/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Schema with explicitly different metadata creates new version with same ID
     # Register with metadata A (v1)
@@ -261,6 +401,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     Then the response status should be 200
     And the response body should contain "public"
     And the response field "id" should equal stored "med_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | identity-meta-explicit-diff                      |
+      | schema_id            | *                                                |
+      | version              | *                                                |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/identity-meta-explicit-diff/versions   |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 6. DIFFERENT SCHEMA TEXT = DIFFERENT VERSION (AND POTENTIALLY DIFFERENT ID)
@@ -290,6 +458,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     When I GET "/subjects/identity-diff-text/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | identity-diff-text                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/identity-diff-text/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 7. MULTIPLE METADATA CHANGES CREATE SEQUENTIAL VERSIONS, SAME ID
@@ -349,6 +545,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     Then the response status should be 200
     And the response body should contain "beta-team"
     And the response body should contain "priority"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | identity-meta-seq                       |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/identity-meta-seq/versions    |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   # ==========================================================================
   # 8. VERIFY VERSION COUNT AFTER METADATA-ONLY CHANGES
@@ -415,6 +639,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     Then the response status should be 200
     And the response field "version" should be 4
     And the response field "id" should equal stored "vc_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | identity-version-count                       |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/identity-version-count/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 9. SCHEMA LOOKUP MATCHES BY CONTENT, NOT METADATA
@@ -451,6 +703,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response should have field "subject"
     And the response field "subject" should be "identity-lookup"
     And the response field "id" should equal stored "lookup_id"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup              |
+      | outcome              | success                    |
+      | actor_id             |                            |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | identity-lookup            |
+      | schema_id            | *                          |
+      | version              | *                          |
+      | schema_type          | AVRO                       |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              | .                          |
+      | transport_security   | tls                        |
+      | source_ip            | *                          |
+      | user_agent           | *                          |
+      | method               | POST                       |
+      | path                 | /subjects/identity-lookup  |
+      | status_code          | 200                        |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           | *                          |
 
   # ==========================================================================
   # 10. CROSS-SUBJECT SAME SCHEMA = SAME GLOBAL ID
@@ -480,6 +760,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response should be an array of length 2
     And the response array should contain "identity-cross-a"
     And the response array should contain "identity-cross-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | identity-cross-b                        |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | POST                                    |
+      | path                 | /subjects/identity-cross-b/versions     |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   # ==========================================================================
   # 11. CROSS-SUBJECT SAME SCHEMA WITH DIFFERENT METADATA = SAME ID
@@ -516,6 +824,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response should be an array of length 2
     And the response array should contain "identity-cross-meta-a"
     And the response array should contain "identity-cross-meta-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | identity-cross-meta-b                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/identity-cross-meta-b/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 12. METADATA + RULESET COMBINED CHANGE = SAME ID, NEW VERSION
@@ -573,6 +909,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response body should contain "premium"
     And the response body should contain "sizeCheck"
     And the response field "id" should equal stored "combo_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | identity-combo                        |
+      | schema_id            | *                                     |
+      | version              | *                                     |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/identity-combo/versions     |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # 13. SAME RULESET REGISTERED TWICE = DEDUP
@@ -623,6 +987,34 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     When I GET "/subjects/identity-rules-same/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | identity-rules-same                       |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/identity-rules-same/versions    |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   # ==========================================================================
   # 14. LATEST VERSION REFLECTS MOST RECENT METADATA
@@ -656,3 +1048,31 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
     And the response field "version" should be 2
     And the response body should contain "approved"
     And the response field "id" should equal stored "latest_id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                        |
+      | outcome              | success                                |
+      | actor_id             |                                        |
+      | actor_type           | anonymous                              |
+      | auth_method          |                                        |
+      | role                 |                                        |
+      | target_type          | subject                                |
+      | target_id            | identity-latest                        |
+      | schema_id            | *                                      |
+      | version              | *                                      |
+      | schema_type          | AVRO                                   |
+      | before_hash          |                                        |
+      | after_hash           | sha256:*                               |
+      | context              | .                                      |
+      | transport_security   | tls                                    |
+      | source_ip            | *                                      |
+      | user_agent           | *                                      |
+      | method               | POST                                   |
+      | path                 | /subjects/identity-latest/versions     |
+      | status_code          | 200                                    |
+      | reason               |                                        |
+      | error                |                                        |
+      | request_body         |                                        |
+      | metadata             |                                        |
+      | timestamp            | *                                      |
+      | duration_ms          | *                                      |
+      | request_id           | *                                      |

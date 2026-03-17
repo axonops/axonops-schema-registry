@@ -7,6 +7,7 @@ This guide covers the observability features of AxonOps Schema Registry, includi
 - [Overview](#overview)
 - [Health Check](#health-check)
 - [Prometheus Metrics](#prometheus-metrics)
+  - [Confluent-Compatible Metrics](#confluent-compatible-metrics)
   - [Request Metrics](#request-metrics)
   - [Schema Metrics](#schema-metrics)
   - [Compatibility Metrics](#compatibility-metrics)
@@ -14,6 +15,8 @@ This guide covers the observability features of AxonOps Schema Registry, includi
   - [Cache Metrics](#cache-metrics)
   - [Auth Metrics](#auth-metrics)
   - [Rate Limit Metrics](#rate-limit-metrics)
+  - [MCP Metrics](#mcp-metrics)
+  - [Per-Principal Metrics](#per-principal-metrics)
   - [Runtime Metrics](#runtime-metrics)
   - [Path Normalization](#path-normalization)
 - [Prometheus Scrape Configuration](#prometheus-scrape-configuration)
@@ -90,6 +93,70 @@ Metrics are exposed at `GET /metrics` in Prometheus/OpenMetrics format. This end
 curl -s http://localhost:8081/metrics
 ```
 
+### Confluent-Compatible Metrics
+
+AxonOps Schema Registry exposes metrics with the `kafka_schema_registry_` prefix that match the metric names produced by Confluent Schema Registry's JMX exporter. This means existing Grafana dashboards, Prometheus alerts, and monitoring infrastructure designed for Confluent Schema Registry work without modification.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kafka_schema_registry_registered_count` | Counter | -- | Total number of schemas registered (cumulative). Equivalent to Confluent's `registered-count` JMX MBean. |
+| `kafka_schema_registry_deleted_count` | Counter | -- | Total number of schemas deleted (cumulative). Equivalent to Confluent's `deleted-count` JMX MBean. |
+| `kafka_schema_registry_api_success_count` | Counter | -- | Total successful API calls (HTTP 2xx/3xx). Equivalent to Confluent's `api-success-count` JMX MBean. |
+| `kafka_schema_registry_api_failure_count` | Counter | -- | Total failed API calls (HTTP 4xx/5xx). Equivalent to Confluent's `api-failure-count` JMX MBean. |
+| `kafka_schema_registry_schemas_created` | Counter | `schema_type` | Schemas created by type (`avro`, `json`, `protobuf`). Equivalent to Confluent's per-type `*-schemas-created` JMX MBeans. |
+| `kafka_schema_registry_schemas_deleted` | Counter | `schema_type` | Schemas deleted by type (`avro`, `json`, `protobuf`). Equivalent to Confluent's per-type `*-schemas-deleted` JMX MBeans. |
+| `kafka_schema_registry_master_slave_role` | Gauge | -- | 1.0 if this node is the active leader, 0.0 if follower. Always 1.0 for standalone deployments. Equivalent to Confluent's `master-slave-role` JMX MBean. |
+| `kafka_schema_registry_node_count` | Gauge | -- | Number of schema registry nodes in the cluster. Always 1 for standalone deployments. Equivalent to Confluent's `node-count` JMX MBean. |
+
+> **Confluent Dashboard Compatibility:** If you are migrating from Confluent Schema Registry, your existing Grafana dashboards querying `kafka_schema_registry_*` metrics SHOULD work without changes. AxonOps exposes these metrics natively via the `/metrics` endpoint — no JMX exporter is required.
+
+#### Per-Endpoint Metrics
+
+AxonOps also exposes per-endpoint metrics that mirror Confluent's Jersey/JMX per-endpoint instrumentation. The `endpoint` label uses Confluent's `@PerformanceMetric` naming convention.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kafka_schema_registry_jersey_metrics_request_total` | Counter | `endpoint` | Total requests per endpoint |
+| `kafka_schema_registry_jersey_metrics_request_latency_seconds` | Histogram | `endpoint` | Request latency per endpoint |
+| `kafka_schema_registry_jersey_metrics_request_error_total` | Counter | `endpoint` | Total error responses (4xx/5xx) per endpoint |
+
+**Supported endpoint names:**
+
+| Endpoint Label | HTTP Method + Path |
+|---|---|
+| `subjects.list` | `GET /subjects` |
+| `subjects.get-schema` | `POST /subjects/{subject}` |
+| `subjects.delete-subject` | `DELETE /subjects/{subject}` |
+| `subjects.versions.register` | `POST /subjects/{subject}/versions` |
+| `subjects.versions.list` | `GET /subjects/{subject}/versions` |
+| `subjects.versions.get-schema` | `GET /subjects/{subject}/versions/{version}` |
+| `subjects.versions.deleteSchemaVersion-schema` | `DELETE /subjects/{subject}/versions/{version}` |
+| `schemas.get-schemas` | `GET /schemas` |
+| `schemas.get-types` | `GET /schemas/types` |
+| `schemas.ids.get-schema` | `GET /schemas/ids/{id}` |
+| `compatibility.subjects.versions.verify` | `POST /compatibility/subjects/{subject}/versions/{version}` |
+| `config.get-global` | `GET /config` |
+| `config.update-global` | `PUT /config` |
+| `config.delete-global` | `DELETE /config` |
+| `config.get-subject` | `GET /config/{subject}` |
+| `config.update-subject` | `PUT /config/{subject}` |
+| `config.delete-subject` | `DELETE /config/{subject}` |
+| `mode.get-global` | `GET /mode` |
+| `mode.update-global` | `PUT /mode` |
+| `mode.delete-global` | `DELETE /mode` |
+| `mode.get-subject` | `GET /mode/{subject}` |
+| `mode.update-subject` | `PUT /mode/{subject}` |
+| `mode.delete-subject` | `DELETE /mode/{subject}` |
+| `contexts.list` | `GET /contexts` |
+
+**Confluent metrics NOT exposed** (not applicable to AxonOps architecture):
+
+- `leader-initialization-latency` — Kafka leader election concept (AxonOps does not use Kafka for coordination)
+- `custom-schema-provider-count` — Confluent-only extension mechanism
+- `certificate-expiration-keystore/truststore` — Different TLS model
+- Jetty connection metrics — AxonOps uses Go's `net/http`, not Jetty
+- Internal Kafka client metrics — AxonOps does not depend on Kafka
+
 ### Request Metrics
 
 | Metric | Type | Labels | Description |
@@ -143,6 +210,31 @@ curl -s http://localhost:8081/metrics
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `schema_registry_rate_limit_hits_total` | Counter | `client` | Requests rejected by rate limiting |
+
+### MCP Metrics
+
+When the MCP server is enabled (`mcp.enabled: true`), the following metrics track MCP tool invocations:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `schema_registry_mcp_tool_calls_total` | Counter | `tool`, `status` | Total MCP tool invocations (`success` or `error`) |
+| `schema_registry_mcp_tool_call_duration_seconds` | Histogram | `tool` | MCP tool call latency in seconds |
+| `schema_registry_mcp_tool_call_errors_total` | Counter | `tool` | MCP tool calls that returned errors |
+| `schema_registry_mcp_tool_calls_active` | Gauge | -- | Number of MCP tool calls currently being processed |
+| `schema_registry_mcp_confirmations_total` | Counter | `outcome` | Two-phase confirmation events (`token_issued`, `confirmed`, `token_rejected`) |
+| `schema_registry_mcp_policy_denials_total` | Counter | `reason` | Policy denial events (`origin_rejected`, `confirmation_required`) |
+| `schema_registry_mcp_permission_denied_total` | Counter | `tool`, `scope` | Tool calls blocked by permission scopes |
+
+### Per-Principal Metrics
+
+When `security.per_principal_metrics: true` is enabled, these optional metrics track activity per authenticated user or API key:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `schema_registry_principal_requests_total` | Counter | `principal`, `method`, `path`, `status` | HTTP requests per authenticated principal |
+| `schema_registry_principal_mcp_calls_total` | Counter | `principal`, `tool`, `status` | MCP tool calls per authenticated principal |
+
+> **Cardinality Warning:** Per-principal metrics create a time series per unique principal. This is safe for environments with a bounded number of API keys or users, but MAY cause high cardinality in environments with many dynamic principals.
 
 ### Runtime Metrics
 

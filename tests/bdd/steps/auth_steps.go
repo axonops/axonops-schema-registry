@@ -3,13 +3,55 @@
 package steps
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+// jwtPrivateKey is the cached RSA private key for signing JWT tokens in BDD tests.
+// Loaded once per test process from tests/bdd/certs/jwt/jwt-private.pem.
+var (
+	jwtPrivateKey     *rsa.PrivateKey
+	jwtPrivateKeyOnce sync.Once
+	jwtPrivateKeyErr  error
+)
+
+// loadJWTPrivateKey loads and caches the RSA private key from the test fixtures directory.
+func loadJWTPrivateKey() (*rsa.PrivateKey, error) {
+	jwtPrivateKeyOnce.Do(func() {
+		// Find the key relative to this source file.
+		_, filename, _, _ := runtime.Caller(0)
+		stepsDir := filepath.Dir(filename)
+		keyPath := filepath.Join(stepsDir, "..", "certs", "jwt", "jwt-private.pem")
+
+		keyData, err := os.ReadFile(keyPath)
+		if err != nil {
+			jwtPrivateKeyErr = fmt.Errorf("read JWT private key: %w", err)
+			return
+		}
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+		if err != nil {
+			jwtPrivateKeyErr = fmt.Errorf("parse JWT private key: %w", err)
+			return
+		}
+		jwtPrivateKey = key
+	})
+	return jwtPrivateKey, jwtPrivateKeyErr
+}
 
 // RegisterAuthSteps registers authentication and admin-related step definitions.
 func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
@@ -22,6 +64,153 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I authenticate with API key "([^"]*)"$`, func(key string) error {
 		key = tc.resolveVars(key)
 		tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte(key+":ignored"))
+		return nil
+	})
+
+	ctx.Step(`^I authenticate with bearer token "([^"]*)"$`, func(token string) error {
+		token = tc.resolveVars(token)
+		tc.AuthHeader = "Bearer " + token
+		return nil
+	})
+
+	ctx.Step(`^I obtain an OIDC token for "([^"]*)" with password "([^"]*)"$`, func(username, password string) error {
+		tokenURL, ok := tc.StoredValues["_oidc_token_url"]
+		if !ok {
+			return fmt.Errorf("_oidc_token_url not set in StoredValues")
+		}
+		clientID, _ := tc.StoredValues["_oidc_client_id"]
+		if clientID == nil {
+			clientID = "schema-registry"
+		}
+		clientSecret, _ := tc.StoredValues["_oidc_client_secret"]
+		if clientSecret == nil {
+			clientSecret = "schema-registry-secret"
+		}
+
+		resp, err := http.PostForm(fmt.Sprintf("%v", tokenURL), url.Values{
+			"grant_type":    {"password"},
+			"client_id":     {fmt.Sprintf("%v", clientID)},
+			"client_secret": {fmt.Sprintf("%v", clientSecret)},
+			"username":      {username},
+			"password":      {password},
+			"scope":         {"openid"},
+		})
+		if err != nil {
+			return fmt.Errorf("OIDC token request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read OIDC token response: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("OIDC token request returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var tokenResp map[string]interface{}
+		if err := json.Unmarshal(body, &tokenResp); err != nil {
+			return fmt.Errorf("parse OIDC token response: %w", err)
+		}
+
+		// Use id_token for OIDC authentication (contains correct aud claim).
+		// Fall back to access_token if id_token is not present.
+		token := ""
+		if idToken, ok := tokenResp["id_token"].(string); ok && idToken != "" {
+			token = idToken
+		} else if accessToken, ok := tokenResp["access_token"].(string); ok && accessToken != "" {
+			token = accessToken
+		}
+		if token == "" {
+			return fmt.Errorf("no id_token or access_token in OIDC response: %s", string(body))
+		}
+
+		tc.StoredValues["_oidc_token"] = token
+		tc.AuthHeader = "Bearer " + token
+		return nil
+	})
+
+	// --- JWT token generation steps ---
+	ctx.Step(`^I generate a JWT token with claims:$`, func(table *godog.Table) error {
+		privateKey, err := loadJWTPrivateKey()
+		if err != nil {
+			return fmt.Errorf("load JWT private key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(5 * time.Minute).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			return fmt.Errorf("sign JWT: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
+		return nil
+	})
+
+	ctx.Step(`^I generate an expired JWT token with claims:$`, func(table *godog.Table) error {
+		privateKey, err := loadJWTPrivateKey()
+		if err != nil {
+			return fmt.Errorf("load JWT private key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Add(-2 * time.Hour).Unix(),
+			"exp": time.Now().Add(-1 * time.Hour).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			return fmt.Errorf("sign expired JWT: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
+		return nil
+	})
+
+	ctx.Step(`^I generate a JWT token signed with wrong key with claims:$`, func(table *godog.Table) error {
+		// Generate an ephemeral RSA key that doesn't match the registry's public key.
+		wrongKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return fmt.Errorf("generate wrong RSA key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(5 * time.Minute).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(wrongKey)
+		if err != nil {
+			return fmt.Errorf("sign JWT with wrong key: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
 		return nil
 	})
 
@@ -258,6 +447,53 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("field %q is empty", field)
 		}
 		return nil
+	})
+
+	// --- mTLS client certificate steps ---
+	ctx.Step(`^I connect with mTLS certificate "([^"]*)"$`, func(certName string) error {
+		_, filename, _, _ := runtime.Caller(0)
+		stepsDir := filepath.Dir(filename)
+		certsDir := filepath.Join(stepsDir, "..", "certs", "mtls")
+		certFile := filepath.Join(certsDir, certName+".pem")
+		keyFile := filepath.Join(certsDir, certName+"-key.pem")
+		caFile := filepath.Join(certsDir, "ca.pem")
+		return tc.SetMTLSClient(certFile, keyFile, caFile)
+	})
+
+	ctx.Step(`^I connect without a client certificate$`, func() error {
+		tc.SetTLSOnlyClient()
+		return nil
+	})
+
+	ctx.Step(`^the connection should be refused$`, func() error {
+		if LastError == nil {
+			return fmt.Errorf("expected connection error but request succeeded with status %d", tc.LastStatusCode)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I attempt a GET request to "([^"]*)"$`, func(path string) error {
+		return tc.DoRequestAllowError("GET", path, nil)
+	})
+
+	ctx.Step(`^I attempt a POST request to "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(body.Content), &parsed); err != nil {
+			return fmt.Errorf("parse body: %w", err)
+		}
+		return tc.DoRequestAllowError("POST", path, parsed)
+	})
+
+	ctx.Step(`^I attempt a DELETE request to "([^"]*)"$`, func(path string) error {
+		return tc.DoRequestAllowError("DELETE", path, nil)
+	})
+
+	ctx.Step(`^I attempt a PUT request to "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(body.Content), &parsed); err != nil {
+			return fmt.Errorf("parse body: %w", err)
+		}
+		return tc.DoRequestAllowError("PUT", path, parsed)
 	})
 }
 

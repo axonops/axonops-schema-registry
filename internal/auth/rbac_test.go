@@ -497,6 +497,87 @@ func TestEncryptionPermissionsInRoles(t *testing.T) {
 	}
 }
 
+func TestDefaultEndpointPermissionsIncludesAnalysisAndStatistics(t *testing.T) {
+	perms := DefaultEndpointPermissions()
+
+	tests := []struct {
+		method     string
+		pathPrefix string
+		wantPerm   Permission
+	}{
+		// Analysis endpoints (read-only POST /schemas/*)
+		{"POST", "/schemas", PermissionSchemaRead},
+		// Analysis endpoints (read-only POST /subjects/validate and /subjects/match)
+		{"POST", "/subjects/validate", PermissionSchemaRead},
+		{"POST", "/subjects/match", PermissionSchemaRead},
+		// Statistics
+		{"GET", "/statistics", PermissionSchemaRead},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.pathPrefix, func(t *testing.T) {
+			found := false
+			for _, ep := range perms {
+				if ep.Method == tt.method && ep.PathPrefix == tt.pathPrefix {
+					found = true
+					if ep.Permission != tt.wantPerm {
+						t.Errorf("%s %s: want permission %s, got %s", tt.method, tt.pathPrefix, tt.wantPerm, ep.Permission)
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("no endpoint permission found for %s %s", tt.method, tt.pathPrefix)
+			}
+		})
+	}
+}
+
+func TestAnalysisEndpointsAccessibleToReadonlyUsers(t *testing.T) {
+	cfg := config.RBACConfig{
+		Enabled:     true,
+		DefaultRole: "readonly",
+	}
+	authorizer := NewAuthorizer(cfg)
+	permissions := DefaultEndpointPermissions()
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	wrapped := authorizer.AuthorizeEndpoint(permissions)(dummyHandler)
+
+	readonlyUser := &User{Username: "reader", Role: string(RoleReadOnly)}
+
+	// These read-only analysis endpoints MUST be accessible to readonly users
+	readOnlyEndpoints := []struct {
+		method string
+		path   string
+	}{
+		{"POST", "/schemas/validate"},
+		{"POST", "/schemas/normalize"},
+		{"POST", "/schemas/search"},
+		{"POST", "/schemas/quality"},
+		{"POST", "/schemas/complexity"},
+		{"POST", "/subjects/validate"},
+		{"POST", "/subjects/match"},
+		{"GET", "/statistics"},
+		{"GET", "/statistics/fields/schemaType"},
+		{"GET", "/statistics/patterns"},
+	}
+
+	for _, ep := range readOnlyEndpoints {
+		t.Run(ep.method+" "+ep.path, func(t *testing.T) {
+			req := httptest.NewRequest(ep.method, ep.path, nil)
+			req = req.WithContext(setUser(req.Context(), readonlyUser))
+			rr := httptest.NewRecorder()
+			wrapped.ServeHTTP(rr, req)
+			if rr.Code == http.StatusForbidden {
+				t.Errorf("readonly user should access %s %s, got 403", ep.method, ep.path)
+			}
+		})
+	}
+}
+
 func TestAuthorizeEndpointDenyByDefault(t *testing.T) {
 	cfg := config.RBACConfig{
 		Enabled:     true,
