@@ -25,7 +25,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -64,7 +64,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -101,7 +101,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -138,7 +138,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -171,7 +171,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -209,7 +209,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -268,7 +268,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -331,7 +331,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -371,7 +371,7 @@ Feature: MCP Observability — Logging & Error Tracking
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

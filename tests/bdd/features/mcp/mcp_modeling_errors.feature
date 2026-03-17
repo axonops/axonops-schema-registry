@@ -42,7 +42,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -79,7 +79,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -112,7 +112,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -154,7 +154,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -207,7 +207,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -288,7 +288,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -347,7 +347,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -396,7 +396,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -445,7 +445,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

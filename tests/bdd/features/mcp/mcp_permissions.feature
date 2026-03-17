@@ -30,7 +30,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -80,7 +80,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -117,7 +117,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -178,7 +178,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -215,7 +215,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -268,7 +268,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -308,7 +308,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -353,7 +353,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -394,7 +394,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

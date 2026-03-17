@@ -24,7 +24,7 @@ Feature: MCP Context Isolation
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -71,7 +71,7 @@ Feature: MCP Context Isolation
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .staging               |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -114,7 +114,7 @@ Feature: MCP Context Isolation
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -160,7 +160,7 @@ Feature: MCP Context Isolation
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .teamctx               |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

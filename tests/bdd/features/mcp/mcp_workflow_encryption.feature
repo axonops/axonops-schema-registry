@@ -37,7 +37,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -96,7 +96,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -154,7 +154,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -224,7 +224,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -288,7 +288,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

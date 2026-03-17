@@ -51,7 +51,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -101,7 +101,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -171,7 +171,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -222,7 +222,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -292,7 +292,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -356,7 +356,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -455,7 +455,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -535,7 +535,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -594,7 +594,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -692,7 +692,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -757,7 +757,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -819,7 +819,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              |                        |
+      | context              | .                      |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |

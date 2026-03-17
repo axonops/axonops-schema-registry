@@ -25,7 +25,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -61,7 +61,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -91,7 +91,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -127,7 +127,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -160,7 +160,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -196,7 +196,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -227,7 +227,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -257,7 +257,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -293,7 +293,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -326,7 +326,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -356,7 +356,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -391,7 +391,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -425,7 +425,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -456,7 +456,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -487,7 +487,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -523,7 +523,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -556,7 +556,7 @@ Feature: MCP Admin Tools
       | schema_type        |                 |
       | before_hash        |                 |
       | after_hash         |                 |
-      | context            |                 |
+      | context            | .               |
       | request_id         |                 |
       | transport_security |                 |
       | source_ip          |                 |
@@ -591,7 +591,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -623,7 +623,7 @@ Feature: MCP Admin Tools
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                    |
       | request_id         |                      |
       | transport_security |                      |
       | source_ip          |                      |
@@ -658,7 +658,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -692,7 +692,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
@@ -726,7 +726,7 @@ Feature: MCP Admin Tools
       | schema_type        |                |
       | before_hash        |                |
       | after_hash         |                |
-      | context            |                |
+      | context            | .              |
       | request_id         |                |
       | transport_security |                |
       | source_ip          |                |
