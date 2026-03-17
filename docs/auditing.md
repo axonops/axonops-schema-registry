@@ -133,6 +133,7 @@ Uses [lumberjack](https://github.com/natefinch/lumberjack) for automatic log rot
 | `outputs.file.max_backups` | Number of rotated log files to retain. | `5` |
 | `outputs.file.max_age_days` | Days to retain rotated log files. | `30` |
 | `outputs.file.compress` | Gzip-compress rotated log files. | `true` |
+| `outputs.file.permissions` | File permissions for the audit log file. | `"0600"` |
 
 ### Syslog Output (RFC 5424)
 
@@ -174,6 +175,8 @@ All audit configuration fields support environment variable overrides with the `
 SCHEMA_REGISTRY_AUDIT_ENABLED=true
 SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY=false
 SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE=10000
+SCHEMA_REGISTRY_AUDIT_LOG_FILE=/var/log/audit.log
+SCHEMA_REGISTRY_AUDIT_EVENTS=schema_register,schema_delete,config_update
 SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED=true
 SCHEMA_REGISTRY_AUDIT_STDOUT_FORMAT=json
 SCHEMA_REGISTRY_AUDIT_FILE_ENABLED=true
@@ -183,6 +186,7 @@ SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB=100
 SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS=5
 SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS=30
 SCHEMA_REGISTRY_AUDIT_FILE_COMPRESS=true
+SCHEMA_REGISTRY_AUDIT_FILE_PERMISSIONS=0600
 SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED=true
 SCHEMA_REGISTRY_AUDIT_SYSLOG_NETWORK=tcp+tls
 SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS=syslog.internal:6514
@@ -200,6 +204,7 @@ SCHEMA_REGISTRY_AUDIT_WEBHOOK_FLUSH_INTERVAL=5s
 SCHEMA_REGISTRY_AUDIT_WEBHOOK_TIMEOUT=10s
 SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES=3
 SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE=10000
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS='{"Authorization":"Bearer token","X-Custom":"value"}'
 ```
 
 ### Prometheus Metrics

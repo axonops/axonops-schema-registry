@@ -770,6 +770,437 @@ func TestConfig_EnvOverrides_MCP(t *testing.T) {
 	}
 }
 
+func TestConfig_EnvOverrides_Server_Extended(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_READ_TIMEOUT", "120")
+	t.Setenv("SCHEMA_REGISTRY_WRITE_TIMEOUT", "90")
+	t.Setenv("SCHEMA_REGISTRY_CLUSTER_ID", "my-cluster")
+	t.Setenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", "10485760")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Server.ReadTimeout != 120 {
+		t.Errorf("Expected ReadTimeout 120, got %d", cfg.Server.ReadTimeout)
+	}
+	if cfg.Server.WriteTimeout != 90 {
+		t.Errorf("Expected WriteTimeout 90, got %d", cfg.Server.WriteTimeout)
+	}
+	if cfg.Server.ClusterID != "my-cluster" {
+		t.Errorf("Expected ClusterID my-cluster, got %s", cfg.Server.ClusterID)
+	}
+	if cfg.Server.MaxRequestBodySize != 10485760 {
+		t.Errorf("Expected MaxRequestBodySize 10485760, got %d", cfg.Server.MaxRequestBodySize)
+	}
+}
+
+func TestConfig_EnvOverrides_PostgreSQL_ConnectionPool(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS", "50")
+	t.Setenv("SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS", "25")
+	t.Setenv("SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME", "3600")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Storage.PostgreSQL.MaxOpenConns != 50 {
+		t.Errorf("Expected MaxOpenConns 50, got %d", cfg.Storage.PostgreSQL.MaxOpenConns)
+	}
+	if cfg.Storage.PostgreSQL.MaxIdleConns != 25 {
+		t.Errorf("Expected MaxIdleConns 25, got %d", cfg.Storage.PostgreSQL.MaxIdleConns)
+	}
+	if cfg.Storage.PostgreSQL.ConnMaxLifetime != 3600 {
+		t.Errorf("Expected ConnMaxLifetime 3600, got %d", cfg.Storage.PostgreSQL.ConnMaxLifetime)
+	}
+}
+
+func TestConfig_EnvOverrides_MySQL_ConnectionPool(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS", "100")
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS", "50")
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME", "1800")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Storage.MySQL.MaxOpenConns != 100 {
+		t.Errorf("Expected MaxOpenConns 100, got %d", cfg.Storage.MySQL.MaxOpenConns)
+	}
+	if cfg.Storage.MySQL.MaxIdleConns != 50 {
+		t.Errorf("Expected MaxIdleConns 50, got %d", cfg.Storage.MySQL.MaxIdleConns)
+	}
+	if cfg.Storage.MySQL.ConnMaxLifetime != 1800 {
+		t.Errorf("Expected ConnMaxLifetime 1800, got %d", cfg.Storage.MySQL.ConnMaxLifetime)
+	}
+}
+
+func TestConfig_EnvOverrides_LogFormat(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_LOG_FORMAT", "text")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Logging.Format != "text" {
+		t.Errorf("Expected text, got %s", cfg.Logging.Format)
+	}
+}
+
+func TestConfig_EnvOverrides_SecurityMetrics(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL", "false")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Security.Metrics.PerPrincipalMetrics == nil {
+		t.Fatal("Expected PerPrincipalMetrics to be set")
+	}
+	if *cfg.Security.Metrics.PerPrincipalMetrics {
+		t.Error("Expected PerPrincipalMetrics false")
+	}
+}
+
+func TestConfig_EnvOverrides_SecurityMetrics_True(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL", "true")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Security.Metrics.PerPrincipalMetrics == nil || !*cfg.Security.Metrics.PerPrincipalMetrics {
+		t.Error("Expected PerPrincipalMetrics true")
+	}
+}
+
+func TestConfig_EnvOverrides_TLS_AutoReload(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_TLS_AUTO_RELOAD", "true")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if !cfg.Security.TLS.AutoReload {
+		t.Error("Expected AutoReload true")
+	}
+}
+
+func TestConfig_EnvOverrides_BasicAuth(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_BASIC_REALM", "My Realm")
+	t.Setenv("SCHEMA_REGISTRY_BASIC_USERS", `{"admin":"$2a$10$hash1","viewer":"$2a$10$hash2"}`)
+	t.Setenv("SCHEMA_REGISTRY_BASIC_HTPASSWD_FILE", "/etc/htpasswd")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Security.Auth.Basic.Realm != "My Realm" {
+		t.Errorf("Expected My Realm, got %s", cfg.Security.Auth.Basic.Realm)
+	}
+	if len(cfg.Security.Auth.Basic.Users) != 2 {
+		t.Fatalf("Expected 2 users, got %d", len(cfg.Security.Auth.Basic.Users))
+	}
+	if cfg.Security.Auth.Basic.Users["admin"] != "$2a$10$hash1" {
+		t.Errorf("Expected $2a$10$hash1, got %s", cfg.Security.Auth.Basic.Users["admin"])
+	}
+	if cfg.Security.Auth.Basic.HTPasswd != "/etc/htpasswd" {
+		t.Errorf("Expected /etc/htpasswd, got %s", cfg.Security.Auth.Basic.HTPasswd)
+	}
+}
+
+func TestConfig_EnvOverrides_LDAP_RoleMapping(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", `{"cn=admins,ou=groups,dc=example,dc=com":"admin","cn=readers,ou=groups,dc=example,dc=com":"readonly"}`)
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if len(cfg.Security.Auth.LDAP.RoleMapping) != 2 {
+		t.Fatalf("Expected 2 mappings, got %d", len(cfg.Security.Auth.LDAP.RoleMapping))
+	}
+	if cfg.Security.Auth.LDAP.RoleMapping["cn=admins,ou=groups,dc=example,dc=com"] != "admin" {
+		t.Error("Expected admin mapping")
+	}
+}
+
+func TestConfig_EnvOverrides_OIDC_Extended(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING", `{"oidc-admin":"admin","oidc-reader":"readonly"}`)
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ALLOWED_ALGORITHMS", "RS256, ES256")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if len(cfg.Security.Auth.OIDC.RoleMapping) != 2 {
+		t.Fatalf("Expected 2 role mappings, got %d", len(cfg.Security.Auth.OIDC.RoleMapping))
+	}
+	if cfg.Security.Auth.OIDC.RoleMapping["oidc-admin"] != "admin" {
+		t.Error("Expected oidc-admin -> admin mapping")
+	}
+	if len(cfg.Security.Auth.OIDC.AllowedAlgorithms) != 2 {
+		t.Fatalf("Expected 2 algorithms, got %d", len(cfg.Security.Auth.OIDC.AllowedAlgorithms))
+	}
+	if cfg.Security.Auth.OIDC.AllowedAlgorithms[0] != "RS256" {
+		t.Errorf("Expected RS256, got %s", cfg.Security.Auth.OIDC.AllowedAlgorithms[0])
+	}
+	if cfg.Security.Auth.OIDC.AllowedAlgorithms[1] != "ES256" {
+		t.Errorf("Expected ES256, got %s", cfg.Security.Auth.OIDC.AllowedAlgorithms[1])
+	}
+}
+
+func TestConfig_EnvOverrides_APIKey(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_HEADER", "X-Custom-Key")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_QUERY_PARAM", "key")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_STORAGE_TYPE", "memory")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_SECRET", "super-secret-pepper-32bytes!!!!")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_PREFIX", "sr_live_")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH", "120")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Security.Auth.APIKey.Header != "X-Custom-Key" {
+		t.Errorf("Expected X-Custom-Key, got %s", cfg.Security.Auth.APIKey.Header)
+	}
+	if cfg.Security.Auth.APIKey.QueryParam != "key" {
+		t.Errorf("Expected key, got %s", cfg.Security.Auth.APIKey.QueryParam)
+	}
+	if cfg.Security.Auth.APIKey.StorageType != "memory" {
+		t.Errorf("Expected memory, got %s", cfg.Security.Auth.APIKey.StorageType)
+	}
+	if cfg.Security.Auth.APIKey.Secret != "super-secret-pepper-32bytes!!!!" {
+		t.Errorf("Expected secret, got %s", cfg.Security.Auth.APIKey.Secret)
+	}
+	if cfg.Security.Auth.APIKey.KeyPrefix != "sr_live_" {
+		t.Errorf("Expected sr_live_, got %s", cfg.Security.Auth.APIKey.KeyPrefix)
+	}
+	if cfg.Security.Auth.APIKey.CacheRefreshSeconds != 120 {
+		t.Errorf("Expected 120, got %d", cfg.Security.Auth.APIKey.CacheRefreshSeconds)
+	}
+}
+
+func TestConfig_EnvOverrides_JWT_ClaimsMapping(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", `{"role_claim":"roles","username_claim":"preferred_username"}`)
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if len(cfg.Security.Auth.JWT.ClaimsMapping) != 2 {
+		t.Fatalf("Expected 2 claims mappings, got %d", len(cfg.Security.Auth.JWT.ClaimsMapping))
+	}
+	if cfg.Security.Auth.JWT.ClaimsMapping["role_claim"] != "roles" {
+		t.Error("Expected role_claim -> roles")
+	}
+}
+
+func TestConfig_EnvOverrides_RBAC(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_RBAC_ENABLED", "true")
+	t.Setenv("SCHEMA_REGISTRY_RBAC_DEFAULT_ROLE", "readonly")
+	t.Setenv("SCHEMA_REGISTRY_RBAC_SUPER_ADMINS", "alice, bob, charlie")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if !cfg.Security.Auth.RBAC.Enabled {
+		t.Error("Expected RBAC enabled")
+	}
+	if cfg.Security.Auth.RBAC.DefaultRole != "readonly" {
+		t.Errorf("Expected readonly, got %s", cfg.Security.Auth.RBAC.DefaultRole)
+	}
+	if len(cfg.Security.Auth.RBAC.SuperAdmins) != 3 {
+		t.Fatalf("Expected 3 super admins, got %d", len(cfg.Security.Auth.RBAC.SuperAdmins))
+	}
+	if cfg.Security.Auth.RBAC.SuperAdmins[0] != "alice" {
+		t.Errorf("Expected alice, got %s", cfg.Security.Auth.RBAC.SuperAdmins[0])
+	}
+	if cfg.Security.Auth.RBAC.SuperAdmins[1] != "bob" {
+		t.Errorf("Expected bob, got %s", cfg.Security.Auth.RBAC.SuperAdmins[1])
+	}
+	if cfg.Security.Auth.RBAC.SuperAdmins[2] != "charlie" {
+		t.Errorf("Expected charlie, got %s", cfg.Security.Auth.RBAC.SuperAdmins[2])
+	}
+}
+
+func TestConfig_EnvOverrides_RateLimit_Extended(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_CLIENT", "true")
+	t.Setenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_ENDPOINT", "1")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if !cfg.Security.RateLimiting.PerClient {
+		t.Error("Expected PerClient true")
+	}
+	if !cfg.Security.RateLimiting.PerEndpoint {
+		t.Error("Expected PerEndpoint true")
+	}
+}
+
+func TestConfig_EnvOverrides_Audit_Extended(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_LOG_FILE", "/var/log/audit.log")
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_EVENTS", "schema_register, schema_delete, config_update")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if cfg.Security.Audit.LogFile != "/var/log/audit.log" {
+		t.Errorf("Expected /var/log/audit.log, got %s", cfg.Security.Audit.LogFile)
+	}
+	if len(cfg.Security.Audit.Events) != 3 {
+		t.Fatalf("Expected 3 events, got %d", len(cfg.Security.Audit.Events))
+	}
+	if cfg.Security.Audit.Events[0] != "schema_register" {
+		t.Errorf("Expected schema_register, got %s", cfg.Security.Audit.Events[0])
+	}
+	if cfg.Security.Audit.Events[1] != "schema_delete" {
+		t.Errorf("Expected schema_delete, got %s", cfg.Security.Audit.Events[1])
+	}
+	if cfg.Security.Audit.Events[2] != "config_update" {
+		t.Errorf("Expected config_update, got %s", cfg.Security.Audit.Events[2])
+	}
+}
+
+func TestConfig_EnvOverrides_Webhook_Headers(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", `{"Authorization":"Bearer token123","X-Custom":"value"}`)
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if len(cfg.Security.Audit.Outputs.Webhook.Headers) != 2 {
+		t.Fatalf("Expected 2 headers, got %d", len(cfg.Security.Audit.Outputs.Webhook.Headers))
+	}
+	if cfg.Security.Audit.Outputs.Webhook.Headers["Authorization"] != "Bearer token123" {
+		t.Error("Expected Authorization header")
+	}
+	if cfg.Security.Audit.Outputs.Webhook.Headers["X-Custom"] != "value" {
+		t.Error("Expected X-Custom header")
+	}
+}
+
+func TestConfig_EnvOverrides_InvalidJSON(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_BASIC_USERS", "not-json")
+	t.Setenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", "{broken")
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING", "123")
+	t.Setenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", "[1,2,3]")
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", "invalid")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	// All should remain at defaults (nil/empty)
+	if cfg.Security.Auth.Basic.Users != nil {
+		t.Error("Expected nil Users for invalid JSON")
+	}
+	if cfg.Security.Auth.LDAP.RoleMapping != nil {
+		t.Error("Expected nil LDAP RoleMapping for invalid JSON")
+	}
+	if cfg.Security.Auth.OIDC.RoleMapping != nil {
+		t.Error("Expected nil OIDC RoleMapping for invalid JSON")
+	}
+	if cfg.Security.Auth.JWT.ClaimsMapping != nil {
+		t.Error("Expected nil JWT ClaimsMapping for invalid JSON")
+	}
+	if cfg.Security.Audit.Outputs.Webhook.Headers != nil {
+		t.Error("Expected nil Webhook Headers for invalid JSON")
+	}
+}
+
+func TestConfig_EnvOverrides_InvalidInt64(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", "not-a-number")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	// Should remain at default (0)
+	if cfg.Server.MaxRequestBodySize != 0 {
+		t.Errorf("Expected default 0 for invalid int64, got %d", cfg.Server.MaxRequestBodySize)
+	}
+}
+
+func TestEnvInt64(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantVal int64
+		wantOK  bool
+	}{
+		{"valid positive", "12345", 12345, true},
+		{"valid negative", "-100", -100, true},
+		{"valid zero", "0", 0, true},
+		{"valid large", "9223372036854775807", 9223372036854775807, true},
+		{"invalid string", "abc", 0, false},
+		{"invalid float", "1.5", 0, false},
+		{"empty", "", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, ok := envInt64("TEST_VAR", tt.value)
+			if ok != tt.wantOK {
+				t.Errorf("envInt64(%q) ok = %v, want %v", tt.value, ok, tt.wantOK)
+			}
+			if val != tt.wantVal {
+				t.Errorf("envInt64(%q) = %d, want %d", tt.value, val, tt.wantVal)
+			}
+		})
+	}
+}
+
+func TestEnvJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantLen int
+		wantOK  bool
+	}{
+		{"valid object", `{"key":"value"}`, 1, true},
+		{"valid empty", `{}`, 0, true},
+		{"valid multi", `{"a":"1","b":"2","c":"3"}`, 3, true},
+		{"invalid not json", "not-json", 0, false},
+		{"invalid array", `[1,2,3]`, 0, false},
+		{"invalid broken", `{"broken`, 0, false},
+		{"invalid number", `123`, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, ok := envJSON("TEST_VAR", tt.value)
+			if ok != tt.wantOK {
+				t.Errorf("envJSON(%q) ok = %v, want %v", tt.value, ok, tt.wantOK)
+			}
+			if ok && len(m) != tt.wantLen {
+				t.Errorf("envJSON(%q) len = %d, want %d", tt.value, len(m), tt.wantLen)
+			}
+		})
+	}
+}
+
 // writeTempFile creates a temporary file with the given content and returns its path.
 func writeTempFile(t *testing.T, content string) string {
 	t.Helper()

@@ -788,6 +788,7 @@ mcp:
 | `tool_policy` | `SCHEMA_REGISTRY_MCP_TOOL_POLICY` |
 | `allowed_tools` | `SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS` (comma-separated) |
 | `denied_tools` | `SCHEMA_REGISTRY_MCP_DENIED_TOOLS` (comma-separated) |
+| `read_header_timeout` | `SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT` |
 
 ---
 
@@ -803,6 +804,11 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_PORT` | `server.port` | int |
 | `SCHEMA_REGISTRY_DOCS_ENABLED` | `server.docs_enabled` | bool (`true`/`1`) |
 | `SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT` | `server.shutdown_timeout` | int |
+| `SCHEMA_REGISTRY_READ_TIMEOUT` | `server.read_timeout` | int |
+| `SCHEMA_REGISTRY_WRITE_TIMEOUT` | `server.write_timeout` | int |
+| `SCHEMA_REGISTRY_CLUSTER_ID` | `server.cluster_id` | string |
+| `SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE` | `server.max_request_body_size` | int64 |
+| `SCHEMA_REGISTRY_METRICS_REFRESH_INTERVAL` | `server.metrics_refresh_interval` | int |
 
 ### Storage
 
@@ -821,6 +827,12 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_PG_USER` | `storage.postgresql.user` | string |
 | `SCHEMA_REGISTRY_PG_PASSWORD` | `storage.postgresql.password` | string |
 | `SCHEMA_REGISTRY_PG_SSLMODE` | `storage.postgresql.ssl_mode` | string |
+| `SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT` | `storage.postgresql.connect_timeout` | int |
+| `SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT` | `storage.postgresql.health_check_timeout` | int |
+| `SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES` | `storage.postgresql.schema_max_retries` | int |
+| `SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS` | `storage.postgresql.max_open_conns` | int |
+| `SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS` | `storage.postgresql.max_idle_conns` | int |
+| `SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME` | `storage.postgresql.conn_max_lifetime` | int (seconds) |
 
 ### MySQL
 
@@ -832,6 +844,12 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_MYSQL_USER` | `storage.mysql.user` | string |
 | `SCHEMA_REGISTRY_MYSQL_PASSWORD` | `storage.mysql.password` | string |
 | `SCHEMA_REGISTRY_MYSQL_TLS` | `storage.mysql.tls` | string |
+| `SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT` | `storage.mysql.connect_timeout` | int |
+| `SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT` | `storage.mysql.health_check_timeout` | int |
+| `SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES` | `storage.mysql.schema_max_retries` | int |
+| `SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS` | `storage.mysql.max_open_conns` | int |
+| `SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS` | `storage.mysql.max_idle_conns` | int |
+| `SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME` | `storage.mysql.conn_max_lifetime` | int (seconds) |
 
 ### Cassandra
 
@@ -858,6 +876,7 @@ The following environment variables override the corresponding configuration fil
 |----------|-----------|------|
 | `SCHEMA_REGISTRY_COMPATIBILITY_LEVEL` | `compatibility.default_level` | string |
 | `SCHEMA_REGISTRY_LOG_LEVEL` | `logging.level` | string |
+| `SCHEMA_REGISTRY_LOG_FORMAT` | `logging.format` | string (`json`/`text`) |
 
 ### Bootstrap
 
@@ -896,8 +915,7 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_JWT_DEFAULT_ROLE` | `security.auth.jwt.default_role` | string |
 | `SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL` | `security.auth.jwt.jwks_cache_ttl` | int |
 | `SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT` | `security.auth.jwt.http_timeout` | int |
-
-> **Note:** `claims_mapping` (map type) cannot be set via environment variables. It MUST be configured in the YAML config file.
+| `SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING` | `security.auth.jwt.claims_mapping` | JSON object (`{"key":"value"}`) |
 
 ### Authentication
 
@@ -931,6 +949,7 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_LDAP_ALLOW_FALLBACK` | `security.auth.ldap.allow_fallback` | bool (`true`/`1`) |
 | `SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT` | `security.auth.ldap.connection_timeout` | int |
 | `SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT` | `security.auth.ldap.request_timeout` | int |
+| `SCHEMA_REGISTRY_LDAP_ROLE_MAPPING` | `security.auth.ldap.role_mapping` | JSON object (`{"group":"role"}`) |
 
 ### OIDC (OpenID Connect)
 
@@ -946,8 +965,85 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_OIDC_REQUIRED_AUDIENCE` | `security.auth.oidc.required_audience` | string |
 | `SCHEMA_REGISTRY_OIDC_SKIP_ISSUER_CHECK` | `security.auth.oidc.skip_issuer_check` | bool (`true`/`1`) |
 | `SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK` | `security.auth.oidc.skip_expiry_check` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_OIDC_ROLE_MAPPING` | `security.auth.oidc.role_mapping` | JSON object (`{"oidc-role":"role"}`) |
+| `SCHEMA_REGISTRY_OIDC_ALLOWED_ALGORITHMS` | `security.auth.oidc.allowed_algorithms` | comma-separated string |
 
-> **Note:** `role_mapping` (map type) and `allowed_algorithms` (slice type) cannot be set via environment variables. These MUST be configured in the YAML config file.
+### API Key
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_API_KEY_HEADER` | `security.auth.api_key.header` | string |
+| `SCHEMA_REGISTRY_API_KEY_QUERY_PARAM` | `security.auth.api_key.query_param` | string |
+| `SCHEMA_REGISTRY_API_KEY_STORAGE_TYPE` | `security.auth.api_key.storage_type` | string |
+| `SCHEMA_REGISTRY_API_KEY_SECRET` | `security.auth.api_key.secret` | string |
+| `SCHEMA_REGISTRY_API_KEY_PREFIX` | `security.auth.api_key.key_prefix` | string |
+| `SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH` | `security.auth.api_key.cache_refresh_seconds` | int |
+
+> **Note:** `api_key.keys` (complex nested struct array) cannot be set via environment variables. It MUST be configured in the YAML config file.
+
+### Basic Auth
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_BASIC_REALM` | `security.auth.basic.realm` | string |
+| `SCHEMA_REGISTRY_BASIC_USERS` | `security.auth.basic.users` | JSON object (`{"user":"bcrypt-hash"}`) |
+| `SCHEMA_REGISTRY_BASIC_HTPASSWD_FILE` | `security.auth.basic.htpasswd_file` | string |
+
+### RBAC
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_RBAC_ENABLED` | `security.auth.rbac.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_RBAC_DEFAULT_ROLE` | `security.auth.rbac.default_role` | string |
+| `SCHEMA_REGISTRY_RBAC_SUPER_ADMINS` | `security.auth.rbac.super_admins` | comma-separated string |
+
+### TLS
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_TLS_ENABLED` | `security.tls.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_TLS_CERT_FILE` | `security.tls.cert_file` | string |
+| `SCHEMA_REGISTRY_TLS_KEY_FILE` | `security.tls.key_file` | string |
+| `SCHEMA_REGISTRY_TLS_CA_FILE` | `security.tls.ca_file` | string |
+| `SCHEMA_REGISTRY_TLS_MIN_VERSION` | `security.tls.min_version` | string |
+| `SCHEMA_REGISTRY_TLS_CLIENT_AUTH` | `security.tls.client_auth` | string |
+| `SCHEMA_REGISTRY_TLS_CIPHER_SUITES` | `security.tls.cipher_suites` | comma-separated string |
+| `SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS` | `security.tls.allow_insecure_ciphers` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_TLS_AUTO_RELOAD` | `security.tls.auto_reload` | bool (`true`/`1`) |
+
+### Rate Limiting
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_RATE_LIMIT_ENABLED` | `security.rate_limiting.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_RATE_LIMIT_RPS` | `security.rate_limiting.requests_per_second` | int |
+| `SCHEMA_REGISTRY_RATE_LIMIT_BURST` | `security.rate_limiting.burst_size` | int |
+| `SCHEMA_REGISTRY_RATE_LIMIT_PER_CLIENT` | `security.rate_limiting.per_client` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_RATE_LIMIT_PER_ENDPOINT` | `security.rate_limiting.per_endpoint` | bool (`true`/`1`) |
+
+### Audit
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_AUDIT_ENABLED` | `security.audit.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY` | `security.audit.include_body` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE` | `security.audit.buffer_size` | int |
+| `SCHEMA_REGISTRY_AUDIT_LOG_FILE` | `security.audit.log_file` | string |
+| `SCHEMA_REGISTRY_AUDIT_EVENTS` | `security.audit.events` | comma-separated string |
+
+> For audit output overrides (stdout, file, syslog, webhook), see [Auditing](auditing.md#environment-variable-overrides).
+
+### Audit Webhook Headers
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS` | `security.audit.outputs.webhook.headers` | JSON object (`{"Header":"value"}`) |
+
+### Security Metrics
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL` | `security.metrics.per_principal_metrics` | bool (`true`/`1`) |
 
 ---
 
