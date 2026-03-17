@@ -20,11 +20,11 @@ Feature: Configuration
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          | sha256:*               |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -161,7 +161,7 @@ Feature: Configuration
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -174,7 +174,7 @@ Feature: Configuration
       | method               | PUT                    |
       | path                 | /config                |
       | status_code          | 422                    |
-      | reason               |                        |
+      | reason               | invalid_schema         |
       | error                |                        |
       | request_body         |                        |
       | metadata             |                        |
@@ -205,7 +205,7 @@ Feature: Configuration
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -248,7 +248,7 @@ Feature: Configuration
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |

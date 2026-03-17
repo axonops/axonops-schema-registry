@@ -190,7 +190,7 @@ Feature: Confluent Conformance
       | target_id            | conf-type-mix                                |
       | schema_id            | *                                            |
       | version              | *                                            |
-      | schema_type          |                                              |
+      | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
       | context              | .                                            |

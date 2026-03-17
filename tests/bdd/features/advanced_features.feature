@@ -29,7 +29,7 @@ Feature: Advanced Features
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -450,7 +450,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |

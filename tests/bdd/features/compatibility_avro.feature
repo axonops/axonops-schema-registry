@@ -1462,8 +1462,8 @@ Feature: Avro Schema Compatibility
       | schema_id            |                                  |
       | version              |                                  |
       | schema_type          |                                  |
-      | before_hash          |                                  |
-      | after_hash           |                                  |
+      | before_hash          | *                                |
+      | after_hash           | sha256:*                         |
       | context              | .                                |
       | transport_security   | tls                              |
       | source_ip            | *                                |

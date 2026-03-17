@@ -25,7 +25,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_id            | err-ex-bad-avro                          |
       | schema_id            |                                          |
       | version              |                                          |
-      | schema_type          |                                          |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |
@@ -61,7 +61,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_id            | err-ex-bad-json                          |
       | schema_id            |                                          |
       | version              |                                          |
-      | schema_type          |                                          |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |
@@ -140,7 +140,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_id            | err-ex-ref-nosub                         |
       | schema_id            |                                          |
       | version              |                                          |
-      | schema_type          |                                          |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |
@@ -184,7 +184,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_id            | err-ex-ref-badver                         |
       | schema_id            |                                           |
       | version              |                                           |
-      | schema_type          |                                           |
+      | schema_type          | AVRO                                      |
       | before_hash          |                                           |
       | after_hash           |                                           |
       | context              | .                                         |

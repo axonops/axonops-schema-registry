@@ -213,7 +213,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_id            | resp-proto-lookup                 |
       | schema_id            | *                                 |
       | version              | *                                 |
-      | schema_type          | AVRO                              |
+      | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           |                                   |
       | context              | .                                 |
@@ -256,7 +256,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          | sha256:*               |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -341,7 +341,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -382,8 +382,8 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_id            | resp-del-sub-1               |
       | schema_id            |                              |
       | version              |                              |
-      | schema_type          |                              |
-      | before_hash          |                              |
+      | schema_type          | AVRO                         |
+      | before_hash          | sha256:*                     |
       | after_hash           |                              |
       | context              | .                            |
       | transport_security   | tls                          |
@@ -431,8 +431,8 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_id            | resp-del-sub-3               |
       | schema_id            |                              |
       | version              |                              |
-      | schema_type          |                              |
-      | before_hash          |                              |
+      | schema_type          | AVRO                         |
+      | before_hash          | sha256:*                     |
       | after_hash           |                              |
       | context              | .                            |
       | transport_security   | tls                          |

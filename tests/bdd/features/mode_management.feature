@@ -24,7 +24,7 @@ Feature: Mode Management
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -58,7 +58,7 @@ Feature: Mode Management
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |

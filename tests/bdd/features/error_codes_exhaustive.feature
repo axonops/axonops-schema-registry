@@ -232,7 +232,7 @@ Feature: Error Codes Exhaustive
       | target_id            | err-incompat                          |
       | schema_id            |                                       |
       | version              |                                       |
-      | schema_type          |                                       |
+      | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           |                                       |
       | context              | .                                     |
@@ -272,7 +272,7 @@ Feature: Error Codes Exhaustive
       | target_id            | err-invalid-avro                          |
       | schema_id            |                                           |
       | version              |                                           |
-      | schema_type          |                                           |
+      | schema_type          | AVRO                                      |
       | before_hash          |                                           |
       | after_hash           |                                           |
       | context              | .                                         |
@@ -371,7 +371,7 @@ Feature: Error Codes Exhaustive
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -415,7 +415,7 @@ Feature: Error Codes Exhaustive
       | target_id            | err-readonly                          |
       | schema_id            |                                       |
       | version              |                                       |
-      | schema_type          |                                       |
+      | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           |                                       |
       | context              | .                                     |

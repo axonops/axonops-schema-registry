@@ -138,7 +138,7 @@ Feature: Subject Aliases
       | source_ip            | *                                        |
       | user_agent           | *                                        |
       | method               | POST                                     |
-      | path                 | /subjects/alias-shortcut/versions        |
+      | path                 | /subjects/alias-actual/versions          |
       | status_code          | 200                                      |
       | reason               |                                          |
       | error                |                                          |

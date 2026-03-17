@@ -71,7 +71,7 @@ Feature: Avro E-Commerce Domain Modeling
       | schema_id            | *                                            |
       | version              | *                                            |
       | schema_type          | AVRO                                         |
-      | before_hash          |                                              |
+      | before_hash          | sha256:*                                     |
       | after_hash           | sha256:*                                     |
       | context              | .                                            |
       | transport_security   | tls                                          |

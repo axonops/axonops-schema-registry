@@ -40,7 +40,7 @@ Feature: Security Hardening
       | target_id            | security-test-value                      |
       | schema_id            |                                          |
       | version              |                                          |
-      | schema_type          |                                          |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |
@@ -50,7 +50,7 @@ Feature: Security Hardening
       | method               | POST                                     |
       | path                 | /subjects/security-test-value/versions   |
       | status_code          | 422                                      |
-      | reason               |                                          |
+      | reason               | invalid_schema                           |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -75,7 +75,7 @@ Feature: Security Hardening
       | auth_method          |                                          |
       | role                 |                                          |
       | target_type          | config                                   |
-      | target_id            |                                          |
+      | target_id            | _global                                  |
       | schema_id            |                                          |
       | version              |                                          |
       | schema_type          |                                          |
@@ -88,7 +88,7 @@ Feature: Security Hardening
       | method               | PUT                                      |
       | path                 | /config                                  |
       | status_code          | 422                                      |
-      | reason               |                                          |
+      | reason               | invalid_schema                           |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |

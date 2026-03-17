@@ -776,7 +776,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
