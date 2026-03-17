@@ -415,7 +415,7 @@ Feature: Error Codes Exhaustive
       | target_id            | err-readonly                          |
       | schema_id            |                                       |
       | version              |                                       |
-      | schema_type          | AVRO                                  |
+      | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
       | context              | .                                     |
