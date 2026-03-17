@@ -559,16 +559,8 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 
-	// Check mode enforcement
-	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
-		writeInternalError(w, modeErr)
-		return
-	} else if mode != "" {
-		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
-			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
-		return
-	}
-
+	// Parse request body and set audit hints BEFORE mode enforcement so that
+	// all exit paths (including READONLY/IMPORT blocks) have full audit context.
 	var req types.RegisterSchemaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")
@@ -589,14 +581,24 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
-	// Set audit hints early so failure paths (e.g. ErrImportIDConflict) capture them.
-	// SchemaType is set here because it's a property of the request (what was
-	// attempted), and audit events should record it even when registration fails.
+	// Set audit hints early so ALL failure paths capture them — including
+	// mode enforcement, compatibility, and parse errors. SchemaType is a
+	// property of the request (what was attempted), not the outcome.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
 		hints.SchemaType = string(schemaType)
 		hints.Context = registryCtx
+	}
+
+	// Check mode enforcement
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
+		writeInternalError(w, modeErr)
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
 	}
 
 	// Capture previous fingerprint for audit change integrity.
