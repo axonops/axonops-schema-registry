@@ -196,7 +196,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_id            | reg-mixed-types                          |
       | schema_id            | *                                        |
       | version              | *                                        |
-      | schema_type          | AVRO                                     |
+      | schema_type          | PROTOBUF                                 |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
       | context              | .                                        |

@@ -861,9 +861,6 @@ func (r *Registry) DeleteConfig(ctx context.Context, registryCtx string, subject
 	return config.CompatibilityLevel, nil
 }
 
-// GetMode gets the mode for a subject within a context using the 4-tier fallback chain.
-// Also implements the Confluent READONLY_OVERRIDE kill switch: if the default context's
-// resolved global mode is READONLY_OVERRIDE, it overrides all per-subject/per-context modes.
 // GetSubjectMode gets the mode for a specific subject without falling back to
 // the global default. Returns ("", ErrNotFound) if no subject-specific mode has
 // been set. Used by the audit system for before_hash on mode change events.
@@ -889,6 +886,9 @@ func (r *Registry) GetGlobalMode(ctx context.Context, registryCtx string) (strin
 	return mode.Mode, nil
 }
 
+// GetMode gets the mode for a subject within a context using the 4-tier fallback chain.
+// Also implements the Confluent READONLY_OVERRIDE kill switch: if the default context's
+// resolved global mode is READONLY_OVERRIDE, it overrides all per-subject/per-context modes.
 func (r *Registry) GetMode(ctx context.Context, registryCtx string, subject string) (string, error) {
 	// Confluent behavior: READONLY_OVERRIDE on default context global is a kill switch
 	// that overrides everything. Check it first.
