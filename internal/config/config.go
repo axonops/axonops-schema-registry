@@ -2,6 +2,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -453,6 +454,34 @@ func envInt(envVar, value string) (int, bool) {
 	return n, true
 }
 
+// envInt64 parses an int64 from an env var value, logging a warning on failure.
+func envInt64(envVar, value string) (int64, bool) {
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		slog.Warn("ignoring invalid env var value",
+			slog.String("var", envVar),
+			slog.String("value", value),
+			slog.String("error", err.Error()),
+		)
+		return 0, false
+	}
+	return n, true
+}
+
+// envJSON parses a JSON-encoded map[string]string from an env var, logging a warning on failure.
+func envJSON(envVar, value string) (map[string]string, bool) {
+	var m map[string]string
+	if err := json.Unmarshal([]byte(value), &m); err != nil {
+		slog.Warn("ignoring invalid env var value (expected JSON object)",
+			slog.String("var", envVar),
+			slog.String("value", value),
+			slog.String("error", err.Error()),
+		)
+		return nil, false
+	}
+	return m, true
+}
+
 // applyEnvOverrides applies environment variable overrides.
 func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_HOST"); v != "" {
@@ -473,6 +502,24 @@ func (c *Config) applyEnvOverrides() {
 			c.Server.MetricsRefreshInterval = n
 		}
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_READ_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_READ_TIMEOUT", v); ok {
+			c.Server.ReadTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_WRITE_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_WRITE_TIMEOUT", v); ok {
+			c.Server.WriteTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CLUSTER_ID"); v != "" {
+		c.Server.ClusterID = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE"); v != "" {
+		if n, ok := envInt64("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", v); ok {
+			c.Server.MaxRequestBodySize = n
+		}
+	}
 	if v := os.Getenv("SCHEMA_REGISTRY_STORAGE_TYPE"); v != "" {
 		c.Storage.Type = v
 	}
@@ -481,6 +528,9 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_LOG_LEVEL"); v != "" {
 		c.Logging.Level = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LOG_FORMAT"); v != "" {
+		c.Logging.Format = v
 	}
 
 	// PostgreSQL overrides
@@ -519,6 +569,21 @@ func (c *Config) applyEnvOverrides() {
 			c.Storage.PostgreSQL.SchemaMaxRetries = n
 		}
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS", v); ok {
+			c.Storage.PostgreSQL.MaxOpenConns = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS", v); ok {
+			c.Storage.PostgreSQL.MaxIdleConns = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME", v); ok {
+			c.Storage.PostgreSQL.ConnMaxLifetime = n
+		}
+	}
 
 	// MySQL overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HOST"); v != "" {
@@ -554,6 +619,21 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES"); v != "" {
 		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES", v); ok {
 			c.Storage.MySQL.SchemaMaxRetries = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS", v); ok {
+			c.Storage.MySQL.MaxOpenConns = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS", v); ok {
+			c.Storage.MySQL.MaxIdleConns = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME", v); ok {
+			c.Storage.MySQL.ConnMaxLifetime = n
 		}
 	}
 
@@ -852,6 +932,11 @@ func (c *Config) applyEnvOverrides() {
 		b := strings.ToLower(v) == "true" || v == "1"
 		c.Security.Auth.LDAP.AllowFallback = &b
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING"); v != "" {
+		if m, ok := envJSON("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", v); ok {
+			c.Security.Auth.LDAP.RoleMapping = m
+		}
+	}
 
 	// OIDC overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ENABLED"); v != "" {
@@ -884,6 +969,75 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK"); v != "" {
 		c.Security.Auth.OIDC.SkipExpiryCheck = strings.ToLower(v) == "true" || v == "1"
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING"); v != "" {
+		if m, ok := envJSON("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING", v); ok {
+			c.Security.Auth.OIDC.RoleMapping = m
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ALLOWED_ALGORITHMS"); v != "" {
+		algs := strings.Split(v, ",")
+		for i := range algs {
+			algs[i] = strings.TrimSpace(algs[i])
+		}
+		c.Security.Auth.OIDC.AllowedAlgorithms = algs
+	}
+
+	// API key overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_HEADER"); v != "" {
+		c.Security.Auth.APIKey.Header = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_QUERY_PARAM"); v != "" {
+		c.Security.Auth.APIKey.QueryParam = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_STORAGE_TYPE"); v != "" {
+		c.Security.Auth.APIKey.StorageType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_SECRET"); v != "" {
+		c.Security.Auth.APIKey.Secret = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_PREFIX"); v != "" {
+		c.Security.Auth.APIKey.KeyPrefix = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH", v); ok {
+			c.Security.Auth.APIKey.CacheRefreshSeconds = n
+		}
+	}
+
+	// Basic auth overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_BASIC_REALM"); v != "" {
+		c.Security.Auth.Basic.Realm = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_BASIC_USERS"); v != "" {
+		if m, ok := envJSON("SCHEMA_REGISTRY_BASIC_USERS", v); ok {
+			c.Security.Auth.Basic.Users = m
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_BASIC_HTPASSWD_FILE"); v != "" {
+		c.Security.Auth.Basic.HTPasswd = v
+	}
+
+	// JWT claims mapping override
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING"); v != "" {
+		if m, ok := envJSON("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", v); ok {
+			c.Security.Auth.JWT.ClaimsMapping = m
+		}
+	}
+
+	// RBAC overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_RBAC_ENABLED"); v != "" {
+		c.Security.Auth.RBAC.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RBAC_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.RBAC.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RBAC_SUPER_ADMINS"); v != "" {
+		admins := strings.Split(v, ",")
+		for i := range admins {
+			admins[i] = strings.TrimSpace(admins[i])
+		}
+		c.Security.Auth.RBAC.SuperAdmins = admins
+	}
 
 	// TLS overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ENABLED"); v != "" {
@@ -914,6 +1068,9 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS"); v != "" {
 		c.Security.TLS.AllowInsecureCiphers = strings.ToLower(v) == "true" || v == "1"
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_AUTO_RELOAD"); v != "" {
+		c.Security.TLS.AutoReload = strings.ToLower(v) == "true" || v == "1"
+	}
 
 	// Rate limiting overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_ENABLED"); v != "" {
@@ -929,6 +1086,12 @@ func (c *Config) applyEnvOverrides() {
 			c.Security.RateLimiting.BurstSize = n
 		}
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_CLIENT"); v != "" {
+		c.Security.RateLimiting.PerClient = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_ENDPOINT"); v != "" {
+		c.Security.RateLimiting.PerEndpoint = strings.ToLower(v) == "true" || v == "1"
+	}
 
 	// Audit overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_ENABLED"); v != "" {
@@ -941,6 +1104,16 @@ func (c *Config) applyEnvOverrides() {
 		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE", v); ok {
 			c.Security.Audit.BufferSize = n
 		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_LOG_FILE"); v != "" {
+		c.Security.Audit.LogFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_EVENTS"); v != "" {
+		events := strings.Split(v, ",")
+		for i := range events {
+			events[i] = strings.TrimSpace(events[i])
+		}
+		c.Security.Audit.Events = events
 	}
 
 	// Audit stdout output overrides
@@ -1043,6 +1216,17 @@ func (c *Config) applyEnvOverrides() {
 		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE", v); ok {
 			c.Security.Audit.Outputs.Webhook.BufferSize = n
 		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS"); v != "" {
+		if m, ok := envJSON("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", v); ok {
+			c.Security.Audit.Outputs.Webhook.Headers = m
+		}
+	}
+
+	// Security metrics overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL"); v != "" {
+		b := strings.ToLower(v) == "true" || v == "1"
+		c.Security.Metrics.PerPrincipalMetrics = &b
 	}
 }
 
