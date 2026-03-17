@@ -47,3 +47,6 @@ tests/bdd/audit-logs/
 PROGRESS.md
 RESUME_SESSION.md
 NEWWORK.md
+CLAUDE.md
+issue-*-progress.md
+resume-*.md
