@@ -1433,21 +1433,26 @@ func TestAuditOutputsFeatures(t *testing.T) {
 			tc.StoredValues["_syslog_tls_fetcher"] = syslogTLSFetcher
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				// Clean registry state first — this generates audit events
+				// (mode_update, config_delete, subject_delete, etc.)
+				if err := cleanViaAPINoAuth(restURL); err != nil {
+					return gctx, fmt.Errorf("clean registry: %w", err)
+				}
+				// Brief delay to let cleanup audit events drain through the
+				// webhook output's async flush pipeline before clearing outputs.
+				time.Sleep(200 * time.Millisecond)
 				if clearAuditLog != nil {
 					if err := clearAuditLog(); err != nil {
 						return gctx, fmt.Errorf("clear audit log: %w", err)
 					}
 				}
-				// Clear webhook receiver events
+				// Clear webhook receiver events (after cleanup events have arrived)
 				if err := clearWebhookReceiver(webhookReceiverURL); err != nil {
 					return gctx, fmt.Errorf("clear webhook receiver: %w", err)
 				}
 				// Clear syslog file
 				if err := clearSyslog(composeFiles, projectName); err != nil {
 					return gctx, fmt.Errorf("clear syslog: %w", err)
-				}
-				if err := cleanViaAPINoAuth(restURL); err != nil {
-					return gctx, fmt.Errorf("clean registry: %w", err)
 				}
 				return gctx, nil
 			})

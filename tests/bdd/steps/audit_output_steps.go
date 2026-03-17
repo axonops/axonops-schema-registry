@@ -71,6 +71,7 @@ func webhookReceiverHasEvent(tc *TestContext, eventType string) error {
 }
 
 // webhookReceiverHasEventMatching checks that the webhook receiver has an event matching all fields.
+// It polls up to 10 times with 200ms delays to handle async webhook delivery.
 func webhookReceiverHasEventMatching(tc *TestContext, table *godog.Table) error {
 	webhookURL := getWebhookReceiverURL(tc)
 	if webhookURL == "" {
@@ -84,39 +85,48 @@ func webhookReceiverHasEventMatching(tc *TestContext, table *godog.Table) error 
 		}
 	}
 
-	events, err := fetchWebhookEvents(webhookURL)
-	if err != nil {
-		return err
-	}
-
+	var lastEvents []string
 	bestMatch := 0
-	for _, raw := range events {
-		var event map[string]interface{}
-		if err := json.Unmarshal([]byte(raw), &event); err != nil {
-			continue
-		}
 
-		matched := 0
-		for k, v := range expected {
-			actual := fmt.Sprintf("%v", event[k])
-			if k == "path" {
-				if strings.Contains(actual, v) {
+	for attempt := range 10 {
+		events, err := fetchWebhookEventsRaw(webhookURL)
+		if err != nil {
+			return err
+		}
+		lastEvents = events
+
+		for _, raw := range events {
+			var event map[string]interface{}
+			if err := json.Unmarshal([]byte(raw), &event); err != nil {
+				continue
+			}
+
+			matched := 0
+			for k, v := range expected {
+				actual := fmt.Sprintf("%v", event[k])
+				if k == "path" {
+					if strings.Contains(actual, v) {
+						matched++
+					}
+				} else if actual == v {
 					matched++
 				}
-			} else if actual == v {
-				matched++
+			}
+			if matched == len(expected) {
+				return nil
+			}
+			if matched > bestMatch {
+				bestMatch = matched
 			}
 		}
-		if matched == len(expected) {
-			return nil
-		}
-		if matched > bestMatch {
-			bestMatch = matched
+
+		if attempt < 9 {
+			time.Sleep(200 * time.Millisecond)
 		}
 	}
 
 	return fmt.Errorf("webhook receiver has %d events but none matching all %d fields (best partial match: %d/%d); events: %v",
-		len(events), len(expected), bestMatch, len(expected), summarizeEvents(events))
+		len(lastEvents), len(expected), bestMatch, len(expected), summarizeEvents(lastEvents))
 }
 
 // webhookReceiverHasAtLeastEvents checks that the webhook receiver has at least N events.
@@ -203,39 +213,44 @@ func auditCEFLogContains(tc *TestContext, text string) error {
 	return fmt.Errorf("CEF log does not contain %q; log content (last 500 chars): %s", text, truncateTail(lastLog, 500))
 }
 
-// fetchWebhookEvents fetches events from the webhook receiver, retrying on transient failures.
-func fetchWebhookEvents(baseURL string) ([]string, error) {
-	var events []string
+// fetchWebhookEventsRaw fetches events from the webhook receiver without retrying.
+// Returns whatever events are currently available (may be empty).
+func fetchWebhookEventsRaw(baseURL string) ([]string, error) {
+	resp, err := http.Get(baseURL + "/events")
+	if err != nil {
+		return nil, fmt.Errorf("GET %s/events: %w", baseURL, err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("GET %s/events returned %d: %s", baseURL, resp.StatusCode, string(body))
+	}
+
+	var events []string
+	if err := json.Unmarshal(body, &events); err != nil {
+		return nil, fmt.Errorf("parse webhook events: %w (body: %s)", err, truncateTail(string(body), 200))
+	}
+	return events, nil
+}
+
+// fetchWebhookEvents fetches events from the webhook receiver, retrying until at least one event exists.
+func fetchWebhookEvents(baseURL string) ([]string, error) {
 	for attempt := range 10 {
-		resp, err := http.Get(baseURL + "/events")
+		events, err := fetchWebhookEventsRaw(baseURL)
 		if err != nil {
 			if attempt < 9 {
 				time.Sleep(200 * time.Millisecond)
 				continue
 			}
-			return nil, fmt.Errorf("GET %s/events: %w", baseURL, err)
+			return nil, err
 		}
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-
-		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("GET %s/events returned %d: %s", baseURL, resp.StatusCode, string(body))
-		}
-
-		if err := json.Unmarshal(body, &events); err != nil {
-			return nil, fmt.Errorf("parse webhook events: %w (body: %s)", err, truncateTail(string(body), 200))
-		}
-
 		if len(events) > 0 {
 			return events, nil
 		}
-
-		// No events yet — retry after a short delay
 		time.Sleep(200 * time.Millisecond)
 	}
-
-	return events, nil
+	return nil, nil
 }
 
 // getWebhookReceiverURL returns the webhook receiver URL from StoredValues.
