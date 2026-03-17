@@ -82,7 +82,7 @@ Feature: MCP Workflow — Team Onboarding
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              | .                      |
+      | context              | .team-beta             |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
@@ -231,7 +231,7 @@ Feature: MCP Workflow — Team Onboarding
       | schema_type          |                        |
       | before_hash          |                        |
       | after_hash           |                        |
-      | context              | .                      |
+      | context              | .team-delta            |
       | transport_security   |                        |
       | source_ip            |                        |
       | user_agent           |                        |
