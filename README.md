@@ -107,7 +107,7 @@ We built AxonOps Schema Registry because we believe schema management should be 
 | [**KMS Providers**](docs/encryption.md) | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
 | [**Exporter API**](docs/exporters.md) &sup2; | ✅ | ❌ | ✅ | ❌ |
 | [**Extra REST APIs**](docs/api-reference.md#axonops-extensions) ⁵ | ✅ | ❌ | ❌ | ❌ |
-| [**MCP Server (AI)**](docs/mcp.md) | ✅ | ❌ | ❌ | ❌ |
+| [**MCP Server (AI)**](docs/mcp.md) | ✅ (Beta) | ❌ | ❌ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
@@ -202,7 +202,9 @@ Auth storage can optionally be separated into HashiCorp Vault.
 - **Graceful Shutdown** -- Clean connection draining on SIGTERM/SIGINT
 - **Database Migrations** -- Automatic schema creation and upgrades
 
-### MCP Server (AI-Assisted Schema Management)
+### MCP Server (AI-Assisted Schema Management) — Beta
+
+> **Beta:** The MCP server is fully functional and under active development. APIs, tool names, and configuration options MAY change in future releases before the stable 1.0 release.
 
 AxonOps is the **first schema registry with a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server**, enabling AI assistants to work directly with your schema registry through natural language. Instead of manually writing REST calls or navigating documentation, developers can ask their AI assistant to design schemas, check compatibility, score quality, plan migrations, and explore the registry — all through conversation.
 
