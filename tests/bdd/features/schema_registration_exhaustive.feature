@@ -197,7 +197,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       | schema_id            | *                                        |
       | version              | *                                        |
       | schema_type          | PROTOBUF                                 |
-      | before_hash          |                                          |
+      | before_hash          | sha256:*                                 |
       | after_hash           | sha256:*                                 |
       | context              | .                                        |
       | transport_security   | tls                                      |
