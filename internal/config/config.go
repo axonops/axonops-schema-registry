@@ -1224,7 +1224,7 @@ func (c *Config) applyEnvOverrides() {
 	}
 
 	// Security metrics overrides
-	if v := os.Getenv("SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL"); v != "" {
+	if v := os.Getenv("SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL"); v != "" {
 		b := strings.ToLower(v) == "true" || v == "1"
 		c.Security.Metrics.PerPrincipalMetrics = &b
 	}

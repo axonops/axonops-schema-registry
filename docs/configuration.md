@@ -1043,7 +1043,7 @@ The following environment variables override the corresponding configuration fil
 
 | Variable | Overrides | Type |
 |----------|-----------|------|
-| `SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL` | `security.metrics.per_principal_metrics` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL` | `security.metrics.per_principal_metrics` | bool (`true`/`1`) |
 
 ---
 

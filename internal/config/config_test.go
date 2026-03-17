@@ -771,20 +771,10 @@ func TestConfig_EnvOverrides_MCP(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_Server_Extended(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_READ_TIMEOUT":          "120",
-		"SCHEMA_REGISTRY_WRITE_TIMEOUT":         "90",
-		"SCHEMA_REGISTRY_CLUSTER_ID":            "my-cluster",
-		"SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE": "10485760",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_READ_TIMEOUT", "120")
+	t.Setenv("SCHEMA_REGISTRY_WRITE_TIMEOUT", "90")
+	t.Setenv("SCHEMA_REGISTRY_CLUSTER_ID", "my-cluster")
+	t.Setenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", "10485760")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -806,19 +796,9 @@ func TestConfig_EnvOverrides_Server_Extended(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_PostgreSQL_ConnectionPool(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS":    "50",
-		"SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS":    "25",
-		"SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME": "3600",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_PG_MAX_OPEN_CONNS", "50")
+	t.Setenv("SCHEMA_REGISTRY_PG_MAX_IDLE_CONNS", "25")
+	t.Setenv("SCHEMA_REGISTRY_PG_CONN_MAX_LIFETIME", "3600")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -837,19 +817,9 @@ func TestConfig_EnvOverrides_PostgreSQL_ConnectionPool(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_MySQL_ConnectionPool(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS":    "100",
-		"SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS":    "50",
-		"SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME": "1800",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_MAX_OPEN_CONNS", "100")
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_MAX_IDLE_CONNS", "50")
+	t.Setenv("SCHEMA_REGISTRY_MYSQL_CONN_MAX_LIFETIME", "1800")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -868,8 +838,7 @@ func TestConfig_EnvOverrides_MySQL_ConnectionPool(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_LogFormat(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_LOG_FORMAT", "text")
-	defer os.Unsetenv("SCHEMA_REGISTRY_LOG_FORMAT")
+	t.Setenv("SCHEMA_REGISTRY_LOG_FORMAT", "text")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -882,8 +851,7 @@ func TestConfig_EnvOverrides_LogFormat(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_SecurityMetrics(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL", "false")
-	defer os.Unsetenv("SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL")
+	t.Setenv("SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL", "false")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -896,21 +864,23 @@ func TestConfig_EnvOverrides_SecurityMetrics(t *testing.T) {
 	if *cfg.Security.Metrics.PerPrincipalMetrics {
 		t.Error("Expected PerPrincipalMetrics false")
 	}
+}
 
-	// Test with "true"
-	os.Setenv("SCHEMA_REGISTRY_METRICS_PER_PRINCIPAL", "true")
-	cfg, err = Load("")
+func TestConfig_EnvOverrides_SecurityMetrics_True(t *testing.T) {
+	t.Setenv("SCHEMA_REGISTRY_SECURITY_METRICS_PER_PRINCIPAL", "true")
+
+	cfg, err := Load("")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
+
 	if cfg.Security.Metrics.PerPrincipalMetrics == nil || !*cfg.Security.Metrics.PerPrincipalMetrics {
 		t.Error("Expected PerPrincipalMetrics true")
 	}
 }
 
 func TestConfig_EnvOverrides_TLS_AutoReload(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_TLS_AUTO_RELOAD", "true")
-	defer os.Unsetenv("SCHEMA_REGISTRY_TLS_AUTO_RELOAD")
+	t.Setenv("SCHEMA_REGISTRY_TLS_AUTO_RELOAD", "true")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -923,19 +893,9 @@ func TestConfig_EnvOverrides_TLS_AutoReload(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_BasicAuth(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_BASIC_REALM":         "My Realm",
-		"SCHEMA_REGISTRY_BASIC_USERS":         `{"admin":"$2a$10$hash1","viewer":"$2a$10$hash2"}`,
-		"SCHEMA_REGISTRY_BASIC_HTPASSWD_FILE": "/etc/htpasswd",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_BASIC_REALM", "My Realm")
+	t.Setenv("SCHEMA_REGISTRY_BASIC_USERS", `{"admin":"$2a$10$hash1","viewer":"$2a$10$hash2"}`)
+	t.Setenv("SCHEMA_REGISTRY_BASIC_HTPASSWD_FILE", "/etc/htpasswd")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -957,8 +917,7 @@ func TestConfig_EnvOverrides_BasicAuth(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_LDAP_RoleMapping(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", `{"cn=admins,ou=groups,dc=example,dc=com":"admin","cn=readers,ou=groups,dc=example,dc=com":"readonly"}`)
-	defer os.Unsetenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING")
+	t.Setenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", `{"cn=admins,ou=groups,dc=example,dc=com":"admin","cn=readers,ou=groups,dc=example,dc=com":"readonly"}`)
 
 	cfg, err := Load("")
 	if err != nil {
@@ -974,18 +933,8 @@ func TestConfig_EnvOverrides_LDAP_RoleMapping(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_OIDC_Extended(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_OIDC_ROLE_MAPPING":       `{"oidc-admin":"admin","oidc-reader":"readonly"}`,
-		"SCHEMA_REGISTRY_OIDC_ALLOWED_ALGORITHMS": "RS256, ES256",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING", `{"oidc-admin":"admin","oidc-reader":"readonly"}`)
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ALLOWED_ALGORITHMS", "RS256, ES256")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1010,22 +959,12 @@ func TestConfig_EnvOverrides_OIDC_Extended(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_APIKey(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_API_KEY_HEADER":        "X-Custom-Key",
-		"SCHEMA_REGISTRY_API_KEY_QUERY_PARAM":   "key",
-		"SCHEMA_REGISTRY_API_KEY_STORAGE_TYPE":  "memory",
-		"SCHEMA_REGISTRY_API_KEY_SECRET":        "super-secret-pepper-32bytes!!!!",
-		"SCHEMA_REGISTRY_API_KEY_PREFIX":        "sr_live_",
-		"SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH": "120",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_HEADER", "X-Custom-Key")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_QUERY_PARAM", "key")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_STORAGE_TYPE", "memory")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_SECRET", "super-secret-pepper-32bytes!!!!")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_PREFIX", "sr_live_")
+	t.Setenv("SCHEMA_REGISTRY_API_KEY_CACHE_REFRESH", "120")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1053,8 +992,7 @@ func TestConfig_EnvOverrides_APIKey(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_JWT_ClaimsMapping(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", `{"role_claim":"roles","username_claim":"preferred_username"}`)
-	defer os.Unsetenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING")
+	t.Setenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", `{"role_claim":"roles","username_claim":"preferred_username"}`)
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1070,19 +1008,9 @@ func TestConfig_EnvOverrides_JWT_ClaimsMapping(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_RBAC(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_RBAC_ENABLED":      "true",
-		"SCHEMA_REGISTRY_RBAC_DEFAULT_ROLE": "readonly",
-		"SCHEMA_REGISTRY_RBAC_SUPER_ADMINS": "alice, bob, charlie",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_RBAC_ENABLED", "true")
+	t.Setenv("SCHEMA_REGISTRY_RBAC_DEFAULT_ROLE", "readonly")
+	t.Setenv("SCHEMA_REGISTRY_RBAC_SUPER_ADMINS", "alice, bob, charlie")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1110,18 +1038,8 @@ func TestConfig_EnvOverrides_RBAC(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_RateLimit_Extended(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_RATE_LIMIT_PER_CLIENT":   "true",
-		"SCHEMA_REGISTRY_RATE_LIMIT_PER_ENDPOINT": "1",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_CLIENT", "true")
+	t.Setenv("SCHEMA_REGISTRY_RATE_LIMIT_PER_ENDPOINT", "1")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1137,18 +1055,8 @@ func TestConfig_EnvOverrides_RateLimit_Extended(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_Audit_Extended(t *testing.T) {
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_AUDIT_LOG_FILE": "/var/log/audit.log",
-		"SCHEMA_REGISTRY_AUDIT_EVENTS":   "schema_register, schema_delete, config_update",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_LOG_FILE", "/var/log/audit.log")
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_EVENTS", "schema_register, schema_delete, config_update")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1173,8 +1081,7 @@ func TestConfig_EnvOverrides_Audit_Extended(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_Webhook_Headers(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", `{"Authorization":"Bearer token123","X-Custom":"value"}`)
-	defer os.Unsetenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS")
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", `{"Authorization":"Bearer token123","X-Custom":"value"}`)
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1193,22 +1100,11 @@ func TestConfig_EnvOverrides_Webhook_Headers(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_InvalidJSON(t *testing.T) {
-	// Invalid JSON for map types should be silently ignored
-	envVars := map[string]string{
-		"SCHEMA_REGISTRY_BASIC_USERS":           "not-json",
-		"SCHEMA_REGISTRY_LDAP_ROLE_MAPPING":     "{broken",
-		"SCHEMA_REGISTRY_OIDC_ROLE_MAPPING":     "123",
-		"SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING":    "[1,2,3]",
-		"SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS": "invalid",
-	}
-	for k, v := range envVars {
-		os.Setenv(k, v)
-	}
-	defer func() {
-		for k := range envVars {
-			os.Unsetenv(k)
-		}
-	}()
+	t.Setenv("SCHEMA_REGISTRY_BASIC_USERS", "not-json")
+	t.Setenv("SCHEMA_REGISTRY_LDAP_ROLE_MAPPING", "{broken")
+	t.Setenv("SCHEMA_REGISTRY_OIDC_ROLE_MAPPING", "123")
+	t.Setenv("SCHEMA_REGISTRY_JWT_CLAIMS_MAPPING", "[1,2,3]")
+	t.Setenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_HEADERS", "invalid")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -1234,8 +1130,7 @@ func TestConfig_EnvOverrides_InvalidJSON(t *testing.T) {
 }
 
 func TestConfig_EnvOverrides_InvalidInt64(t *testing.T) {
-	os.Setenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", "not-a-number")
-	defer os.Unsetenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE")
+	t.Setenv("SCHEMA_REGISTRY_MAX_REQUEST_BODY_SIZE", "not-a-number")
 
 	cfg, err := Load("")
 	if err != nil {
