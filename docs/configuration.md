@@ -788,6 +788,7 @@ mcp:
 | `tool_policy` | `SCHEMA_REGISTRY_MCP_TOOL_POLICY` |
 | `allowed_tools` | `SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS` (comma-separated) |
 | `denied_tools` | `SCHEMA_REGISTRY_MCP_DENIED_TOOLS` (comma-separated) |
+| `read_header_timeout` | `SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT` |
 
 ---
 
