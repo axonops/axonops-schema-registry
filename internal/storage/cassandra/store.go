@@ -630,6 +630,18 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 			if int64(existingSchemaID) != schemaID {
 				continue // Different schema claimed this version, retry with next
 			}
+			// Same schema already registered at this version by another writer — check for idempotent match
+			existing, err := s.GetSchemaBySubjectVersion(ctx, registryCtx, record.Subject, newVersion)
+			if err == nil && existing != nil &&
+				reflect.DeepEqual(normalizeMetadata(existing.Metadata), normalizeMetadata(record.Metadata)) &&
+				reflect.DeepEqual(normalizeRuleSet(existing.RuleSet), normalizeRuleSet(record.RuleSet)) {
+				record.ID = schemaID
+				record.Version = newVersion
+				record.Fingerprint = fp
+				record.CreatedAt = existing.CreatedAt
+				return storage.ErrSchemaExists
+			}
+			continue // Same schema but different metadata/ruleSet — retry for next version
 		}
 
 		// Step 2: CAS update subject_latest to "publish" this version
