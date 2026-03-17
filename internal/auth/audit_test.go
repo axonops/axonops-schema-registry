@@ -810,7 +810,7 @@ func TestLogMCPConfirmationEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", nil)
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", ".", nil)
 
 	al.Close()
 
@@ -1606,7 +1606,7 @@ func TestLogMCPConfirmationEvent_ActorFields(t *testing.T) {
 	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
 	defer al.Close()
 
-	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", nil)
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", ".", nil)
 	content := buf.String()
 	if !strings.Contains(content, "mcp-authenticated") {
 		t.Error("expected actor_id=mcp-authenticated")

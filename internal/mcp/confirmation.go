@@ -12,6 +12,7 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
+	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
 // ConfirmationStore manages two-phase confirmation tokens for destructive
@@ -205,7 +206,7 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 		}
 		if s.auditLogger != nil {
 			actorID, actorType, authMethod := s.mcpActor()
-			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, actorID, actorType, authMethod, toolName, nil)
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, actorID, actorType, authMethod, toolName, registrycontext.DefaultContext, nil)
 		}
 		data, err := json.Marshal(map[string]any{
 			"confirmation_required": true,
@@ -234,7 +235,7 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 			}
 			if s.auditLogger != nil {
 				actorID, actorType, authMethod := s.mcpActor()
-				s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmRejected, actorID, actorType, authMethod, toolName, nil)
+				s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmRejected, actorID, actorType, authMethod, toolName, registrycontext.DefaultContext, nil)
 			}
 			return &gomcp.CallToolResult{
 				Content: []gomcp.Content{
@@ -248,7 +249,7 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 		}
 		if s.auditLogger != nil {
 			actorID, actorType, authMethod := s.mcpActor()
-			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmed, actorID, actorType, authMethod, toolName, nil)
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmed, actorID, actorType, authMethod, toolName, registrycontext.DefaultContext, nil)
 		}
 		return nil // proceed with the operation
 	}

@@ -1301,7 +1301,7 @@ func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, actorID, actorType,
 
 // LogMCPConfirmationEvent logs an MCP confirmation flow audit event.
 // The actorID and actorType identify the authenticated principal.
-func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName string, metadata map[string]string) {
+func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName, registryCtx string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
@@ -1315,6 +1315,7 @@ func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, actorID
 		AuthMethod: authMethod,
 		Method:     "MCP",
 		Path:       toolName,
+		Context:    registryCtx,
 		Metadata:   metadata,
 	}
 
