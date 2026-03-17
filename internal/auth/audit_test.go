@@ -579,7 +579,7 @@ func TestLogMCPEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 15*time.Millisecond, nil, "test", ".", map[string]string{"subject": "test"})
 
 	al.Close()
 
@@ -609,7 +609,7 @@ func TestLogMCPEvent_Error(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "mcp_client", "bearer_token", "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "mcp_client", "bearer_token", "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", ".", nil)
 
 	al.Close()
 
@@ -628,7 +628,7 @@ func TestLogMCPEvent_Disabled(t *testing.T) {
 	defer al.Close()
 
 	// Should not panic.
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", ".", nil)
 }
 
 func TestMCPEventTypeFiltering(t *testing.T) {
@@ -647,9 +647,9 @@ func TestMCPEventTypeFiltering(t *testing.T) {
 	defer al.Close()
 
 	// This should be filtered out
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", ".", nil)
 	// This should be logged
-	al.LogMCPEvent(AuditEventMCPToolError, "mcp-anonymous", "anonymous", "", "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-anonymous", "anonymous", "", "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", ".", nil)
 
 	al.Close()
 
@@ -837,7 +837,7 @@ func TestLogMCPEvent_WithSubject(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 10*time.Millisecond, nil, "payments-value", ".", nil)
 
 	al.Close()
 
@@ -1444,7 +1444,7 @@ func TestLogMCPEvent_PopulatesOutcomeAndReason(t *testing.T) {
 	defer al.Close()
 
 	// Success case
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "health_check", "success", time.Millisecond, nil, "", ".", nil)
 	content := buf.String()
 	if !strings.Contains(content, `"outcome":"success"`) && !strings.Contains(content, "success") {
 		t.Error("expected outcome=success for successful MCP call")
@@ -1453,7 +1453,7 @@ func TestLogMCPEvent_PopulatesOutcomeAndReason(t *testing.T) {
 	// Error case with classified reason
 	buf.Reset()
 	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "mcp_client", "bearer_token", "get_schema_by_id", "error", time.Millisecond,
-		http.ErrNotSupported, "", nil)
+		http.ErrNotSupported, "", ".", nil)
 	content = buf.String()
 	if !strings.Contains(content, "failure") {
 		t.Error("expected outcome=failure for MCP error")
@@ -1465,7 +1465,7 @@ func TestLogMCPEvent_ActorFields(t *testing.T) {
 	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", time.Millisecond, nil, "my-topic", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", time.Millisecond, nil, "my-topic", ".", nil)
 	content := buf.String()
 	if !strings.Contains(content, "mcp-authenticated") {
 		t.Error("expected actor_id=mcp-authenticated")

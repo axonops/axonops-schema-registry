@@ -1256,7 +1256,7 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 // LogMCPEvent logs an MCP tool call audit event.
 // The actorID and actorType identify the authenticated principal.
 // The authMethod indicates how the MCP client authenticated ("bearer_token" or "").
-func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
+func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName, status string, duration time.Duration, err error, subject, registryCtx string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
@@ -1290,6 +1290,7 @@ func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, actorID, actorType,
 		TargetID:   targetID,
 		Method:     "MCP",
 		Path:       toolName,
+		Context:    registryCtx,
 		Reason:     reason,
 		Error:      errStr,
 		Metadata:   metadata,

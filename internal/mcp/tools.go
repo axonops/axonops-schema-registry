@@ -12,6 +12,7 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
+	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
 func (s *Server) registerTools() {
@@ -143,6 +144,26 @@ func extractSubjectFromArgs(raw json.RawMessage) string {
 		return ""
 	}
 	return subject
+}
+
+// extractContextFromArgs attempts to extract a "context" field from raw JSON arguments.
+func extractContextFromArgs(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var args map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return ""
+	}
+	ctxRaw, ok := args["context"]
+	if !ok {
+		return ""
+	}
+	var ctx string
+	if err := json.Unmarshal(ctxRaw, &ctx); err != nil {
+		return ""
+	}
+	return ctx
 }
 
 // extractSchemaFromArgs extracts the "schema" field from tool arguments.
@@ -281,6 +302,10 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 				eventType = auth.AuditEventMCPToolError
 			}
 			subject := extractSubjectFromArgs(req.Params.Arguments)
+			auditCtx := extractContextFromArgs(req.Params.Arguments)
+			if auditCtx == "" {
+				auditCtx = registrycontext.DefaultContext
+			}
 			var auditMeta map[string]string
 			if schemaBody != "" {
 				truncated := schemaBody
@@ -290,7 +315,7 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 				auditMeta = map[string]string{"schema": truncated}
 			}
 			actorID, actorType, authMethod := s.mcpActor()
-			s.auditLogger.LogMCPEvent(eventType, actorID, actorType, authMethod, name, status, duration, auditErr, subject, auditMeta)
+			s.auditLogger.LogMCPEvent(eventType, actorID, actorType, authMethod, name, status, duration, auditErr, subject, auditCtx, auditMeta)
 		}
 
 		return result, output, err
