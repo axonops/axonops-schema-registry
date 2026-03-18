@@ -1062,8 +1062,12 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 		return nil
 	}
 
-	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
-	if err != nil {
+	var result sql.Result
+	if err := s.withDeadlockRetry(func() error {
+		var err error
+		result, err = s.stmts.softDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
+		return err
+	}); err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
 
@@ -1189,11 +1193,13 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		return nil, storage.ErrSubjectNotFound
 	}
 
-	_, err = s.db.ExecContext(ctx,
-		"UPDATE `schemas` SET deleted = TRUE WHERE registry_ctx = ? AND subject = ?",
-		registryCtx, subject,
-	)
-	if err != nil {
+	if err := s.withDeadlockRetry(func() error {
+		_, err := s.db.ExecContext(ctx,
+			"UPDATE `schemas` SET deleted = TRUE WHERE registry_ctx = ? AND subject = ?",
+			registryCtx, subject,
+		)
+		return err
+	}); err != nil {
 		return nil, fmt.Errorf("failed to soft-delete schemas: %w", err)
 	}
 
@@ -2325,6 +2331,29 @@ func isMySQLDeadlock(err error) bool {
 	// MySQL error code 1213 is for deadlock
 	errStr := err.Error()
 	return len(errStr) > 0 && (contains(errStr, "Deadlock found") || contains(errStr, "1213"))
+}
+
+// withDeadlockRetry retries an operation on MySQL deadlock (error 1213) with
+// exponential backoff + jitter. Uses the same retry parameters as CreateSchema.
+func (s *Store) withDeadlockRetry(fn func() error) error {
+	var lastErr error
+	for attempt := 0; attempt < s.config.SchemaMaxRetries; attempt++ {
+		err := fn()
+		if err == nil {
+			return nil
+		}
+		if !isMySQLDeadlock(err) {
+			return err
+		}
+		lastErr = err
+		backoff := time.Duration(5<<attempt) * time.Millisecond
+		if backoff > 500*time.Millisecond {
+			backoff = 500 * time.Millisecond
+		}
+		jitter := time.Duration(float64(backoff) * (0.5 * float64(time.Now().UnixNano()%100) / 100))
+		time.Sleep(backoff + jitter)
+	}
+	return fmt.Errorf("operation failed after %d retries due to deadlock: %w", s.config.SchemaMaxRetries, lastErr)
 }
 
 // contains checks if s contains substr.
