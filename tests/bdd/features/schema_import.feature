@@ -23,8 +23,8 @@ Feature: Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imported-value   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 100              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -36,7 +36,7 @@ Feature: Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -64,8 +64,8 @@ Feature: Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-subj      |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 200              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -77,7 +77,7 @@ Feature: Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -111,9 +111,9 @@ Feature: Schema Import
       | auth_method         |                 |
       | role                |                 |
       | target_type         | subject         |
-      | target_id           |                 |
-      | schema_id           | *               |
-      | version             |                 |
+      | target_id           | bulk-a          |
+      | schema_id           | 300             |
+      | version             | 1               |
       | schema_type         | AVRO            |
       | method              | POST            |
       | path                | /import/schemas |
@@ -125,7 +125,63 @@ Feature: Schema Import
       | reason              |                 |
       | error               |                 |
       | request_body        |                 |
-      | metadata            |                 |
+      | metadata            | *               |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
+    And the audit log should contain an event:
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | bulk-b          |
+      | schema_id           | 301             |
+      | version             | 1               |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             | .               |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            | *               |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
+    And the audit log should contain an event:
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | bulk-c          |
+      | schema_id           | 302             |
+      | version             | 1               |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             | .               |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            | *               |
       | timestamp           | *               |
       | duration_ms         | *               |
       | request_id          | *               |
@@ -155,8 +211,8 @@ Feature: Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-seq       |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 500              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -168,7 +224,7 @@ Feature: Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -198,8 +254,8 @@ Feature: Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-proto     |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 600              |
+      | version             | 1                |
       | schema_type         | PROTOBUF         |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -211,7 +267,7 @@ Feature: Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -238,8 +294,8 @@ Feature: Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-json      |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 700              |
+      | version             | 1                |
       | schema_type         | JSON             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -251,7 +307,7 @@ Feature: Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |

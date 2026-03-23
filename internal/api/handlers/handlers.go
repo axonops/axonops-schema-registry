@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
 	"github.com/axonops/axonops-schema-registry/internal/auth"
@@ -32,12 +34,13 @@ func schemaTypeForResponse(st storage.SchemaType) string {
 
 // Handler provides HTTP handlers for the schema registry.
 type Handler struct {
-	registry  *registry.Registry
-	metrics   *metrics.Metrics
-	clusterID string
-	version   string
-	commit    string
-	buildTime string
+	registry    *registry.Registry
+	metrics     *metrics.Metrics
+	auditLogger *auth.AuditLogger
+	clusterID   string
+	version     string
+	commit      string
+	buildTime   string
 }
 
 // Config holds handler configuration.
@@ -71,6 +74,11 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 // SetMetrics sets the metrics instance for recording schema operation metrics.
 func (h *Handler) SetMetrics(m *metrics.Metrics) {
 	h.metrics = m
+}
+
+// SetAuditLogger sets the audit logger for direct event emission (e.g., per-schema import events).
+func (h *Handler) SetAuditLogger(al *auth.AuditLogger) {
+	h.auditLogger = al
 }
 
 // getPreviousSubjectConfig returns the previous config for audit before_hash.
@@ -1718,6 +1726,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	start := time.Now()
 	result, err := h.registry.ImportSchemas(r.Context(), registryCtx, importReqs)
 	if err != nil {
 		// Even on error, we might have partial results
@@ -1725,7 +1734,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 			resp := importResultToResponse(result)
 			w.Header().Set("X-Warning", err.Error())
 			statusCode := importStatusCode(result)
-			setImportOutcomeHint(r, result)
+			h.emitPerSchemaAuditEvents(r, registryCtx, importReqs, result, start)
 			writeJSON(w, statusCode, resp)
 			return
 		}
@@ -1733,16 +1742,10 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set after_hash for fully successful imports.
-	if result.Imported > 0 && result.Errors == 0 {
-		if hints := auth.GetAuditHints(r.Context()); hints != nil {
-			hints.AfterHash = hashImportResult(result)
-		}
-	}
+	h.emitPerSchemaAuditEvents(r, registryCtx, importReqs, result, start)
 
 	resp := importResultToResponse(result)
 	statusCode := importStatusCode(result)
-	setImportOutcomeHint(r, result)
 	writeJSON(w, statusCode, resp)
 }
 
@@ -1786,6 +1789,105 @@ func setImportOutcomeHint(r *http.Request, result *registry.ImportResult) {
 	} else if result.Errors > 0 {
 		hints.Outcome = "partial_failure"
 	}
+}
+
+// emitPerSchemaAuditEvents emits one audit event per schema in a bulk import,
+// then suppresses the middleware's single-event-per-request emission.
+func (h *Handler) emitPerSchemaAuditEvents(r *http.Request, registryCtx string, importReqs []registry.ImportSchemaRequest, result *registry.ImportResult, start time.Time) {
+	hints := auth.GetAuditHints(r.Context())
+	if hints == nil || h.auditLogger == nil {
+		return
+	}
+
+	// Suppress the middleware's per-request event — we emit per-schema events.
+	hints.SuppressEvent = true
+
+	transportSecurity := auth.TransportSecurityFromRequest(r)
+	sourceIP := auth.GetClientIP(r)
+	userAgent := r.UserAgent()
+	requestID := middleware.GetReqID(r.Context())
+	duration := time.Since(start)
+	batchSize := len(importReqs)
+
+	// Default actor to "anonymous" when auth middleware has not populated hints
+	// (mirrors the audit middleware's fallback at audit.go:686).
+	actorType := hints.ActorType
+	if actorType == "" {
+		actorType = "anonymous"
+	}
+
+	for i, res := range result.Results {
+		outcome := "success"
+		reason := ""
+		statusCode := 200
+		var afterHash string
+		var errMsg string
+
+		if !res.Success {
+			outcome = "failure"
+			reason = classifyImportError(res.Error)
+			statusCode = 422
+			errMsg = res.Error
+		} else if i < len(importReqs) {
+			afterHash = hashSchemaContent(importReqs[i].Schema)
+		}
+
+		schemaType := ""
+		if i < len(importReqs) {
+			schemaType = string(importReqs[i].SchemaType)
+		}
+
+		h.auditLogger.Log(&auth.AuditEvent{
+			Timestamp:         start,
+			Duration:          duration,
+			EventType:         auth.AuditEventSchemaImport,
+			Outcome:           outcome,
+			ActorID:           hints.ActorID,
+			ActorType:         actorType,
+			Role:              hints.Role,
+			AuthMethod:        hints.AuthMethod,
+			TargetType:        "subject",
+			TargetID:          importReqs[i].Subject,
+			SchemaID:          importReqs[i].ID,
+			Version:           importReqs[i].Version,
+			SchemaType:        schemaType,
+			AfterHash:         afterHash,
+			Context:           registryCtx,
+			TransportSecurity: transportSecurity,
+			SourceIP:          sourceIP,
+			UserAgent:         userAgent,
+			Method:            r.Method,
+			Path:              r.URL.Path,
+			StatusCode:        statusCode,
+			Reason:            reason,
+			Error:             errMsg,
+			RequestID:         requestID,
+			Metadata:          map[string]string{"batch_size": fmt.Sprintf("%d", batchSize), "batch_index": fmt.Sprintf("%d", i)},
+		})
+	}
+}
+
+// classifyImportError maps import error messages to structured reason codes.
+func classifyImportError(errMsg string) string {
+	lower := strings.ToLower(errMsg)
+	switch {
+	case strings.Contains(lower, "schema id") || strings.Contains(lower, "id already"):
+		return "schema_id_conflict"
+	case strings.Contains(lower, "version") && strings.Contains(lower, "exists"):
+		return "subject_version_conflict"
+	case strings.Contains(lower, "parse") || strings.Contains(lower, "invalid schema"):
+		return "invalid_schema"
+	case strings.Contains(lower, "mode"):
+		return "mode_not_permitted"
+	default:
+		return "invalid_request"
+	}
+}
+
+// hashSchemaContent returns a sha256:hex hash of schema content for audit after_hash.
+func hashSchemaContent(schema string) string {
+	h := sha256.Sum256([]byte(schema))
+	return fmt.Sprintf("sha256:%x", h)
 }
 
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema

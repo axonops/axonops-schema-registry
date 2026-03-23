@@ -41,8 +41,8 @@ Feature: Import with Conflicting IDs
       | role                |                   |
       | target_type         | subject           |
       | target_id           | import-existing   |
-      | schema_id           | *                 |
-      | version             |                   |
+      | schema_id           | 1000              |
+      | version             | 1                 |
       | schema_type         | AVRO              |
       | method              | POST              |
       | path                | /import/schemas   |
@@ -54,7 +54,7 @@ Feature: Import with Conflicting IDs
       | reason              |                   |
       | error               |                   |
       | request_body        |                   |
-      | metadata            |                   |
+      | metadata            | *                 |
       | timestamp           | *                 |
       | duration_ms         | *                 |
       | request_id          | *                 |
@@ -70,8 +70,8 @@ Feature: Import with Conflicting IDs
       | role                |                   |
       | target_type         | subject           |
       | target_id           | import-conflict   |
-      | schema_id           | *                 |
-      | version             |                   |
+      | schema_id           | 1000              |
+      | version             | 1                 |
       | schema_type         | AVRO              |
       | method              | POST              |
       | path                | /import/schemas   |
@@ -80,10 +80,10 @@ Feature: Import with Conflicting IDs
       | after_hash          |                   |
       | context             | .                 |
       | transport_security  | tls               |
-      | reason              | invalid_schema     |
-      | error               |                   |
+      | reason              | schema_id_conflict |
+      | error               | *                 |
       | request_body        |                   |
-      | metadata            |                   |
+      | metadata            | *                 |
       | timestamp           | *                 |
       | duration_ms         | *                 |
       | request_id          | *                 |
@@ -122,8 +122,8 @@ Feature: Import with Conflicting IDs
       | role                |                 |
       | target_type         | subject         |
       | target_id           | import-idem     |
-      | schema_id           | *               |
-      | version             |                 |
+      | schema_id           | 1100            |
+      | version             | 1               |
       | schema_type         | AVRO            |
       | method              | POST            |
       | path                | /import/schemas |
@@ -135,13 +135,13 @@ Feature: Import with Conflicting IDs
       | reason              |                 |
       | error               |                 |
       | request_body        |                 |
-      | metadata            |                 |
+      | metadata            | *               |
       | timestamp           | *               |
       | duration_ms         | *               |
       | request_id          | *               |
       | source_ip           | *               |
       | user_agent          | *               |
-    # Re-import returns 422
+    # Re-import returns 422 (same subject/version already exists)
     And the audit log should contain an event:
       | event_type          | schema_import   |
       | outcome             | failure         |
@@ -151,8 +151,8 @@ Feature: Import with Conflicting IDs
       | role                |                 |
       | target_type         | subject         |
       | target_id           | import-idem     |
-      | schema_id           | *               |
-      | version             |                 |
+      | schema_id           | 1100            |
+      | version             | 1               |
       | schema_type         | AVRO            |
       | method              | POST            |
       | path                | /import/schemas |
@@ -161,10 +161,10 @@ Feature: Import with Conflicting IDs
       | after_hash          |                 |
       | context             | .               |
       | transport_security  | tls             |
-      | reason              | invalid_schema     |
-      | error               |                 |
+      | reason              | subject_version_conflict |
+      | error               | *               |
       | request_body        |                 |
-      | metadata            |                 |
+      | metadata            | *               |
       | timestamp           | *               |
       | duration_ms         | *               |
       | request_id          | *               |
@@ -204,7 +204,7 @@ Feature: Import with Conflicting IDs
       | context             | .                 |
       | transport_security  | tls               |
       | reason              | invalid_schema    |
-      | error               |                   |
+      | error               | *                 |
       | request_body        |                   |
       | metadata            |                   |
       | timestamp           | *                 |
@@ -243,8 +243,8 @@ Feature: Import with Conflicting IDs
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-ver-dup   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 3000             |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -256,7 +256,7 @@ Feature: Import with Conflicting IDs
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -272,8 +272,8 @@ Feature: Import with Conflicting IDs
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-ver-dup   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 3001             |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -282,10 +282,10 @@ Feature: Import with Conflicting IDs
       | after_hash          |                  |
       | context             | .                |
       | transport_security  | tls              |
-      | reason              | invalid_schema     |
-      | error               |                  |
+      | reason              | subject_version_conflict |
+      | error               | *                |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -327,8 +327,8 @@ Feature: Import with Conflicting IDs
       | role                |                        |
       | target_type         | subject                |
       | target_id           | import-proto-1         |
-      | schema_id           | *                      |
-      | version             |                        |
+      | schema_id           | 4000                   |
+      | version             | 1                      |
       | schema_type         | PROTOBUF               |
       | method              | POST                   |
       | path                | /import/schemas        |
@@ -340,7 +340,7 @@ Feature: Import with Conflicting IDs
       | reason              |                        |
       | error               |                        |
       | request_body        |                        |
-      | metadata            |                        |
+      | metadata            | *                      |
       | timestamp           | *                      |
       | duration_ms         | *                      |
       | request_id          | *                      |
@@ -356,8 +356,8 @@ Feature: Import with Conflicting IDs
       | role                |                        |
       | target_type         | subject                |
       | target_id           | import-proto-conflict  |
-      | schema_id           | *                      |
-      | version             |                        |
+      | schema_id           | 4000                   |
+      | version             | 1                      |
       | schema_type         | PROTOBUF               |
       | method              | POST                   |
       | path                | /import/schemas        |
@@ -366,10 +366,10 @@ Feature: Import with Conflicting IDs
       | after_hash          |                        |
       | context             | .                      |
       | transport_security  | tls                    |
-      | reason              | invalid_schema         |
-      | error               |                        |
+      | reason              | schema_id_conflict     |
+      | error               | *                      |
       | request_body        |                        |
-      | metadata            |                        |
+      | metadata            | *                      |
       | timestamp           | *                      |
       | duration_ms         | *                      |
       | request_id          | *                      |
@@ -406,8 +406,8 @@ Feature: Import with Conflicting IDs
       | role                |                  |
       | target_type         | subject          |
       | target_id           | import-high-id   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 50000            |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -419,7 +419,7 @@ Feature: Import with Conflicting IDs
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |

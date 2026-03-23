@@ -173,7 +173,7 @@ func TestGetClientIP_XForwardedFor(t *testing.T) {
 	req.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")
 	req.RemoteAddr = "192.168.1.1:12345"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "203.0.113.195" {
 		t.Errorf("expected IP 203.0.113.195, got %s", ip)
 	}
@@ -184,7 +184,7 @@ func TestGetClientIP_XRealIP(t *testing.T) {
 	req.Header.Set("X-Real-IP", "203.0.113.195")
 	req.RemoteAddr = "192.168.1.1:12345"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "203.0.113.195" {
 		t.Errorf("expected IP 203.0.113.195, got %s", ip)
 	}
@@ -194,7 +194,7 @@ func TestGetClientIP_RemoteAddr_IPv4(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.100:54321"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "192.168.1.100" {
 		t.Errorf("expected IP 192.168.1.100, got %s", ip)
 	}
@@ -204,7 +204,7 @@ func TestGetClientIP_RemoteAddr_IPv6(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "[::1]:54321"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "::1" {
 		t.Errorf("expected IP ::1, got %s", ip)
 	}
@@ -214,7 +214,7 @@ func TestGetClientIP_RemoteAddr_IPv6Full(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "[2001:db8:85a3::8a2e:370:7334]:54321"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "2001:db8:85a3::8a2e:370:7334" {
 		t.Errorf("expected IP 2001:db8:85a3::8a2e:370:7334, got %s", ip)
 	}
@@ -224,7 +224,7 @@ func TestGetClientIP_RemoteAddr_NoPort(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.100"
 
-	ip := getClientIP(req)
+	ip := GetClientIP(req)
 	if ip != "192.168.1.100" {
 		t.Errorf("expected IP 192.168.1.100, got %s", ip)
 	}
