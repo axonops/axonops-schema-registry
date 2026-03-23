@@ -456,8 +456,8 @@ Feature: REST API Audit Logging
       | auth_method        |                 |
       | target_type        | subject         |
       | target_id          | audit-rest-import |
-      | schema_id          | *               |
-      | version            |                 |
+      | schema_id          | 99901           |
+      | version            | 1               |
       | schema_type        | AVRO            |
       | before_hash        |                 |
       | after_hash         | sha256:*        |
@@ -472,7 +472,7 @@ Feature: REST API Audit Logging
       | reason             |                 |
       | error              |                 |
       | request_body       |                 |
-      | metadata           |                 |
+      | metadata           | *               |
 
   # --- Exporter Events ---
 

@@ -934,9 +934,9 @@ func TestTransportSecurityFromRequest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/", nil)
 			tt.setupTLS(req)
-			got := transportSecurityFromRequest(req)
+			got := TransportSecurityFromRequest(req)
 			if got != tt.expected {
-				t.Errorf("transportSecurityFromRequest() = %q, want %q", got, tt.expected)
+				t.Errorf("TransportSecurityFromRequest() = %q, want %q", got, tt.expected)
 			}
 		})
 	}

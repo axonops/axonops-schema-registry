@@ -615,6 +615,11 @@ type AuditHints struct {
 	ActorType  string // user, api_key, mcp_client, anonymous
 	Role       string // admin, developer, readonly
 	AuthMethod string // basic, api_key, jwt, oidc, ldap, bearer_token
+
+	// SuppressEvent — when set by a handler, the audit middleware skips
+	// emitting its per-request event. This allows handlers (e.g., bulk import)
+	// to emit multiple granular audit events directly.
+	SuppressEvent bool
 }
 
 type auditHintsKey struct{}
@@ -707,7 +712,7 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 		}
 
 		// Detect transport security from TLS connection state.
-		transportSecurity := transportSecurityFromRequest(r)
+		transportSecurity := TransportSecurityFromRequest(r)
 
 		// Default to the root registry context (".") when no handler has
 		// set an explicit context.  This covers auth_failure (401) and
@@ -736,7 +741,7 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			Version:           hints.Version,
 			Context:           auditContext,
 			TransportSecurity: transportSecurity,
-			SourceIP:          getClientIP(r),
+			SourceIP:          GetClientIP(r),
 			UserAgent:         r.UserAgent(),
 			Method:            r.Method,
 			Path:              r.URL.Path,
@@ -746,7 +751,10 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			RequestID:         middleware.GetReqID(r.Context()),
 		}
 
-		al.Log(event)
+		// Skip middleware event if the handler emitted per-item events directly.
+		if !hints.SuppressEvent {
+			al.Log(event)
+		}
 	})
 }
 
@@ -994,7 +1002,8 @@ func extractSubject(path string) string {
 
 // transportSecurityFromRequest derives the transport security level from the TLS state.
 // Returns "none" (no TLS), "tls" (TLS without client cert), or "mtls" (TLS with client cert).
-func transportSecurityFromRequest(r *http.Request) string {
+// TransportSecurityFromRequest detects transport security from TLS connection state.
+func TransportSecurityFromRequest(r *http.Request) string {
 	if r.TLS == nil {
 		return "none"
 	}
@@ -1240,8 +1249,8 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 		AuthMethod:        authMethod,
 		TargetType:        targetType,
 		TargetID:          targetID,
-		TransportSecurity: transportSecurityFromRequest(r),
-		SourceIP:          getClientIP(r),
+		TransportSecurity: TransportSecurityFromRequest(r),
+		SourceIP:          GetClientIP(r),
 		UserAgent:         r.UserAgent(),
 		Method:            r.Method,
 		Path:              r.URL.Path,

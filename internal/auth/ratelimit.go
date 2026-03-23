@@ -135,7 +135,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 
 		// Determine which bucket to use
 		if rl.config.PerClient {
-			key = getClientIP(r)
+			key = GetClientIP(r)
 			bucket = rl.getClientBucket(key)
 		} else if rl.config.PerEndpoint {
 			key = r.Method + ":" + r.URL.Path
@@ -190,7 +190,7 @@ func (rl *RateLimiter) getEndpointBucket(endpoint string) *tokenBucket {
 }
 
 // getClientIP extracts the client IP from a request.
-func getClientIP(r *http.Request) string {
+func GetClientIP(r *http.Request) string {
 	// Check X-Forwarded-For header
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {

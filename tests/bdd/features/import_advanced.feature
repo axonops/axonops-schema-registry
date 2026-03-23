@@ -32,8 +32,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-conflict-a   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 100              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -45,7 +45,7 @@ Feature: Advanced Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -61,8 +61,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-conflict-b   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 100              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -71,10 +71,10 @@ Feature: Advanced Schema Import
       | after_hash          |                  |
       | context             | .                |
       | transport_security  | tls              |
-      | reason              | invalid_schema     |
-      | error               |                  |
+      | reason              | schema_id_conflict |
+      | error               | *                |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -106,8 +106,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-sv-conflict  |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 200              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -119,7 +119,7 @@ Feature: Advanced Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -135,8 +135,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-sv-conflict  |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 201              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -145,10 +145,10 @@ Feature: Advanced Schema Import
       | after_hash          |                  |
       | context             | .                |
       | transport_security  | tls              |
-      | reason              | invalid_schema     |
-      | error               |                  |
+      | reason              | subject_version_conflict |
+      | error               | *                |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -178,30 +178,89 @@ Feature: Advanced Schema Import
     When I get schema by ID 302
     Then the response status should be 200
     And the response should contain "Good2"
-    # Partial success (2 imported / 1 error) — HTTP 200 with partial_failure outcome
+    # Per-schema audit events: 2 successes + 1 failure
+    # Schema 1 (ID 300, imp-partial-a) — success
     And the audit log should contain an event:
       | event_type          | schema_import    |
-      | outcome             | partial_failure  |
+      | outcome             | success          |
       | actor_id            |                  |
       | actor_type          | anonymous        |
       | auth_method         |                  |
       | role                |                  |
       | target_type         | subject          |
-      | target_id           |                  |
-      | schema_id           | *                |
-      | version             |                  |
+      | target_id           | imp-partial-a    |
+      | schema_id           | 300              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
       | status_code         | 200              |
       | before_hash         |                  |
-      | after_hash          |                  |
+      | after_hash          | sha256:*         |
       | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
+    # Schema 2 (ID 301, imp-partial-b) — failure (invalid JSON, not a valid schema)
+    And the audit log should contain an event:
+      | event_type          | schema_import    |
+      | outcome             | failure          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-partial-b    |
+      | schema_id           | 301              |
+      | version             | 1                |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 422              |
+      | before_hash         |                  |
+      | after_hash          |                  |
+      | context             | .                |
+      | transport_security  | tls              |
+      | reason              | invalid_schema   |
+      | error               | *                |
+      | request_body        |                  |
+      | metadata            | *                |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
+    # Schema 3 (ID 302, imp-partial-c) — success
+    And the audit log should contain an event:
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-partial-c    |
+      | schema_id           | 302              |
+      | version             | 1                |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             | .                |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -237,8 +296,8 @@ Feature: Advanced Schema Import
       | role                |                    |
       | target_type         | subject            |
       | target_id           | imp-seq-imported   |
-      | schema_id           | *                  |
-      | version             |                    |
+      | schema_id           | 500                |
+      | version             | 1                  |
       | schema_type         | AVRO               |
       | method              | POST               |
       | path                | /import/schemas    |
@@ -250,7 +309,7 @@ Feature: Advanced Schema Import
       | reason              |                    |
       | error               |                    |
       | request_body        |                    |
-      | metadata            |                    |
+      | metadata            | *                  |
       | timestamp           | *                  |
       | duration_ms         | *                  |
       | request_id          | *                  |
@@ -290,8 +349,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-ref-base     |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 600              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -303,7 +362,7 @@ Feature: Advanced Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -344,8 +403,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-type-proto   |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 700              |
+      | version             | 1                |
       | schema_type         | PROTOBUF         |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -357,7 +416,7 @@ Feature: Advanced Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -394,8 +453,8 @@ Feature: Advanced Schema Import
       | role                |                  |
       | target_type         | subject          |
       | target_id           | imp-retrieve     |
-      | schema_id           | *                |
-      | version             |                  |
+      | schema_id           | 800              |
+      | version             | 1                |
       | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
@@ -407,7 +466,7 @@ Feature: Advanced Schema Import
       | reason              |                  |
       | error               |                  |
       | request_body        |                  |
-      | metadata            |                  |
+      | metadata            | *                |
       | timestamp           | *                |
       | duration_ms         | *                |
       | request_id          | *                |
@@ -442,6 +501,8 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response field "version" should be 3
     And the response should contain "email"
+    # Per-schema audit events for the 3-version bulk import
+    # Schema 1 (ID 900, version 1)
     And the audit log should contain an event:
       | event_type          | schema_import   |
       | outcome             | success         |
@@ -451,8 +512,8 @@ Feature: Advanced Schema Import
       | role                |                 |
       | target_type         | subject         |
       | target_id           | imp-multi-ver   |
-      | schema_id           | *               |
-      | version             |                 |
+      | schema_id           | 900             |
+      | version             | 1               |
       | schema_type         | AVRO            |
       | method              | POST            |
       | path                | /import/schemas |
@@ -464,7 +525,65 @@ Feature: Advanced Schema Import
       | reason              |                 |
       | error               |                 |
       | request_body        |                 |
-      | metadata            |                 |
+      | metadata            | *               |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
+    # Schema 2 (ID 901, version 2)
+    And the audit log should contain an event:
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | imp-multi-ver   |
+      | schema_id           | 901             |
+      | version             | 2               |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             | .               |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            | *               |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
+    # Schema 3 (ID 902, version 3)
+    And the audit log should contain an event:
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | imp-multi-ver   |
+      | schema_id           | 902             |
+      | version             | 3               |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             | .               |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            | *               |
       | timestamp           | *               |
       | duration_ms         | *               |
       | request_id          | *               |
@@ -505,7 +624,7 @@ Feature: Advanced Schema Import
       | context             | .               |
       | transport_security  | tls             |
       | reason              | invalid_schema  |
-      | error               |                 |
+      | error               | *               |
       | request_body        |                 |
       | metadata            |                 |
       | timestamp           | *               |
@@ -535,8 +654,8 @@ Feature: Advanced Schema Import
       | role                |                   |
       | target_type         | subject           |
       | target_id           | imp-bulk-import   |
-      | schema_id           | *                 |
-      | version             |                   |
+      | schema_id           | 20000             |
+      | version             | 1                 |
       | schema_type         | AVRO              |
       | method              | POST              |
       | path                | /import/schemas   |
@@ -548,7 +667,7 @@ Feature: Advanced Schema Import
       | reason              |                   |
       | error               |                   |
       | request_body        |                   |
-      | metadata            |                   |
+      | metadata            | *                 |
       | timestamp           | *                 |
       | duration_ms         | *                 |
       | request_id          | *                 |
